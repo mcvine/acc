@@ -1,9 +1,7 @@
 import os, time
+import numpy as np, math, numba
 from numba import cuda
-import numpy as np
-import math
-import numba
-import cupy as cp
+# import cupy as cp
 
 epsilon = 1e-15
 
@@ -12,17 +10,16 @@ epsilon = 1e-15
                float32, float32)""",
     device=True, inline=True)
 def cu_device_intersect_rectangle(rx, ry, rz, vx, vy, vz, X, Y):
-    t_pos = (0 - rz) / vz
-    r1x = rx + vx * t_pos
-    r1y = ry + vy * t_pos
-    bad = math.fabs(r1x) > X / 2 or math.fabs(r1y) > Y / 2
-    if bad:
-        t_pos= np.nan
-    return t_pos
+    t = - rz / vz
+    r1x = rx + vx * t
+    r1y = ry + vy * t
+    if math.fabs(r1x) > X / 2 or math.fabs(r1y) > Y / 2:
+        t = np.nan
+    return t
 
 @cuda.jit(device=True, inline=True)
-def update_intercepts(t1, t2, t):
-    """update intercepts. t1, t2 are the intercepts to update and return
+def cu_device_update_intersections(t1, t2, t):
+    """update intersections. t1, t2 are the intersections to update and return
     """
     # t is nan
     if not math.isfinite(t): return t1, t2
@@ -37,39 +34,25 @@ def update_intercepts(t1, t2, t):
     elif t < t2: return t1, t2
     return t1, t
 
-def test_update_intercepts():
-    # only works when cuda jit is commented out
-    assert update_intercepts(np.nan, np.nan, 3.) == (3.0, np.nan)
-    assert update_intercepts(1., np.nan, 3.) == (1., 3.0)
-    return
-
 @cuda.jit(device=True, inline=True)
 def cu_device_intersect_box(x,y,z, vx,vy,vz, X, Y, Z):
     t1 = np.nan; t2 = np.nan
     if (vz!=0) :
         t = cu_device_intersect_rectangle(x,y,z-Z/2, vx,vy,vz, X, Y)
-        t1, t2 = update_intercepts(t1, t2, t)
+        t1, t2 = cu_device_update_intersections(t1, t2, t)
         t = cu_device_intersect_rectangle(x,y,z+Z/2, vx,vy,vz, X, Y)
-        t1, t2 = update_intercepts(t1, t2, t)
+        t1, t2 = cu_device_update_intersections(t1, t2, t)
     if (vx!=0) :
         t = cu_device_intersect_rectangle(y,z,x-X/2, vy,vz,vx, Y, Z)
-        t1, t2 = update_intercepts(t1, t2, t)
+        t1, t2 = cu_device_update_intersections(t1, t2, t)
         t = cu_device_intersect_rectangle(y,z,x+X/2, vy,vz,vx, Y, Z)
-        t1, t2 = update_intercepts(t1, t2, t)
+        t1, t2 = cu_device_update_intersections(t1, t2, t)
     if (vy!=0) :
         t = cu_device_intersect_rectangle(z,x,y-Y/2, vz,vx,vy, Z, X);
-        t1, t2 = update_intercepts(t1, t2, t)
+        t1, t2 = cu_device_update_intersections(t1, t2, t)
         t = cu_device_intersect_rectangle(z,x,y+Y/2, vz,vx,vy, Z, X);
-        t1, t2 = update_intercepts(t1, t2, t)
+        t1, t2 = cu_device_update_intersections(t1, t2, t)
     return t1, t2
-
-def test_cu_device_intersect_box():
-    # only works when cuda jit is commented out
-    assert cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
-    assert cu_device_intersect_box(0,0,0, 1.,1.,0., 0.02, 0.02, 0.02) == (-0.01, 0.01)
-    assert cu_device_intersect_box(0,0,0, 1.,1.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
-    assert cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.04) == (-0.02, 0.02)
-    return
 
 @numba.guvectorize(
     ["float32[:], float32[:], float32[:], float32[:], float32[:], float32[:], float32, float32, float32, float32[:]"],
@@ -83,7 +66,21 @@ def cu_intersect_box(x, y, z, vx, vy, vz, sx, sy, sz, t):
         t[i] = t1
     return t
 
-def main():
+def test_cu_device_update_intersections():
+    # only works when cuda jit is commented out
+    assert cu_device_update_intersections(np.nan, np.nan, 3.) == (3.0, np.nan)
+    assert cu_device_update_intersections(1., np.nan, 3.) == (1., 3.0)
+    return
+
+def test_cu_device_intersect_box():
+    # only works when cuda jit is commented out
+    assert cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
+    assert cu_device_intersect_box(0,0,0, 1.,1.,0., 0.02, 0.02, 0.02) == (-0.01, 0.01)
+    assert cu_device_intersect_box(0,0,0, 1.,1.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
+    assert cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.04) == (-0.02, 0.02)
+    return
+
+def test_cu_intersect_box():
     N = int(1e7)
     x_np = np.arange(-0.02, 0.02, 0.04/N, dtype='float32')
     y_np = np.arange(-0.02, 0.02, 0.04/N, dtype='float32')
@@ -111,9 +108,10 @@ def main():
     print(t[:10])
     return
 
-def test():
-    test_update_intercepts()
-    test_cu_device_intersect_box()
+def main():
+    # test_cu_device_update_intersections()
+    # test_cu_device_intersect_box()
+    test_cu_intersect_box()
     return
 
 if __name__ == '__main__': main()
