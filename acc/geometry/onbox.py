@@ -55,16 +55,20 @@ def cu_device_intersect_box(x,y,z, vx,vy,vz, X, Y, Z):
     return t1, t2
 
 @numba.guvectorize(
-    ["float32[:], float32[:], float32[:], float32[:], float32[:], float32[:], float32, float32, float32, float32[:]"],
-    '(N), (N), (N), (N), (N), (N), (), (), () -> (N)',
+    ["float32[:], float32[:], float32[:], float32[:], float32[:], float32[:], float32, float32, float32, float32[:], float32[:, :]"],
+    '(N), (N), (N), (N), (N), (N), (), (), (), (n) -> (N, n)',
     target='cuda'
 )
-def cu_intersect_box(x, y, z, vx, vy, vz, sx, sy, sz, t):
+def cu_intersect_box(x, y, z, vx, vy, vz, sx, sy, sz, _, ts):
+    "_ array is only used to inform the dimension of output array ts"
     N, = x.shape
+    n, = _.shape
+    assert n==2
     for i in range(N):
         t1, t2 = cu_device_intersect_box(x[i], y[i], z[i], vx[i], vy[i], vz[i], sx, sy, sz)
-        t[i] = t1
-    return t
+        ts[i, 0] = t1
+        ts[i, 1] = t2
+    return ts
 
 def test_cu_device_update_intersections():
     # only works when cuda jit is commented out
@@ -88,24 +92,27 @@ def test_cu_intersect_box():
     vx_np = np.zeros(x_np.size, dtype='float32')
     vy_np = np.zeros(x_np.size, dtype='float32')
     vz_np = np.ones(x_np.size, dtype='float32')
+    ts_dim_np = np.zeros(2, dtype='float32')
     x_cu = cuda.to_device(x_np)
     y_cu = cuda.to_device(y_np)
     z_cu = cuda.to_device(z_np)
     vx_cu = cuda.to_device(vx_np)
     vy_cu = cuda.to_device(vy_np)
     vz_cu = cuda.to_device(vz_np)
+    ts_dim_cu = cuda.to_device(ts_dim_np)
     print("starting")
     t1 = time.time()
     sx = sy = sz = 0.05
-    cu_t = cu_intersect_box(
+    ts_cu = cu_intersect_box(
         x_cu, y_cu, z_cu, vx_cu, vy_cu, vz_cu,
-        sx, sy, sz
+        sx, sy, sz,
+        ts_dim_cu
     )
     t2 = time.time()
     print("done calculating")
     print(t2-t1)
-    t = cu_t.copy_to_host()
-    print(t[:10])
+    ts = ts_cu.copy_to_host()
+    print(ts[:10])
     return
 
 def main():
