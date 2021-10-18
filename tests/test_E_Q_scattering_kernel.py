@@ -1,4 +1,6 @@
-import E_Q_scattering_kernel as eqs
+#!/usr/bin/env python
+
+import mcvine.acc.E_Q_scattering_kernel as eqs
 import numpy as np
 
 def test_E_Q_kernel():
@@ -11,15 +13,20 @@ def test_E_Q_kernel():
     scattering_coefficient = 1.0
     absorption_cross_section = 1.0
 
-    scattered_neutron_probability , scattered_neutron_velocity = eqs.E_Q_scattering_kernel_call(Qmin, Qmax,
-                                                                                                neutron_velocity,
-                                                                                                neutron_probability,
-                                                                                                E_Q, S_Q,
-                                                                                                scattering_coefficient,
-                                                                                                absorption_cross_section)
+    scattered_neutron_probability , scattered_neutron_velocity = eqs.E_Q_scattering_kernel_call(
+        Qmin, Qmax,
+        neutron_velocity,
+        neutron_probability,
+        E_Q, S_Q,
+        scattering_coefficient,
+        absorption_cross_section)
     assert(len(scattered_neutron_probability) == 10000)
     assert (scattered_neutron_velocity.shape[0] == 10000)
     assert (scattered_neutron_velocity.shape[1] == 3)
+    return
 
+def main():
+    test_E_Q_kernel()
+    return
 
-
+if __name__ == '__main__': main()

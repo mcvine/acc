@@ -1,3 +1,8 @@
+# Coded by Fahima
+# Need rewrite
+# * unit conversion code should use mcni
+# * should use generic numba functions if possible
+
 import math
 import importlib
 import numba
@@ -92,8 +97,9 @@ def random_gpu ( rng_states, min,max, thread_id):
 
 
 @cuda.jit()
-def E_Q_kernel (rng_states, Qmin, Qmax, neutron_velocity, neutron_probability, scattered_neutron_probability,
-                scattered_neutron_velocity):
+def E_Q_kernel(
+        rng_states, Qmin, Qmax, neutron_velocity, neutron_probability, scattered_neutron_probability,
+        scattered_neutron_velocity):
     # Thread id in a 1D block
     tx = cuda.threadIdx.x
     # Block id in a 1D grid
@@ -222,8 +228,4 @@ def E_Q_scattering_kernel_call(Qmin, Qmax, neutron_velocity, neutron_probability
     scattered_neutron_probability_cpu = scattered_neutron_probability.copy_to_host()
 
     return scattered_neutron_probability_cpu, scattered_neutron_velocity_cpu
-
-
-
-
 
