@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from numba import cuda
 import numpy as np
 import math
