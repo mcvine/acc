@@ -1,4 +1,6 @@
-from arrowINtersection import ArrowIntersector
+#!/usr/bin/env python
+
+from mcvine.acc.arrowINtersection import ArrowIntersector
 # from numpy_arrow_box import ArrowIntersector
 import numpy as np
 from collections import namedtuple
@@ -25,3 +27,9 @@ def test_arrowIntersector():
     assert(len(time[20])==2)
     assert (time[0][0] == 3.5)
     assert (time[0][1] == 6.5)
+
+def main():
+    test_arrowIntersector()
+    return
+
+if __name__ == '__main__': main()
