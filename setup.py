@@ -12,7 +12,6 @@ version_ns = {}
 setup(
     name = "mcvine.acc",
     # version = version_ns['__version__'],
-    #packages = find_packages(".", exclude=['tests', 'notebooks', 'jenkins']),
     packages = ['mcvine.acc'],
     package_dir = {'mcvine.acc': "acc"},
     data_files = [],
