@@ -19,5 +19,6 @@ $ conda install numba=0.53.1 cupy cudatoolkit=11.2.2
 
 Build mcvine.acc
 ```
+$ python setup.py sdist
 $ pip install --no-deps .
 ```
