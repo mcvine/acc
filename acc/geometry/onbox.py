@@ -115,10 +115,3 @@ def test_cu_intersect_box():
     print(ts[:10])
     return
 
-def main():
-    # test_cu_device_update_intersections()
-    # test_cu_device_intersect_box()
-    test_cu_intersect_box()
-    return
-
-if __name__ == '__main__': main()
