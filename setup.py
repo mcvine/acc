@@ -12,8 +12,8 @@ version_ns = {}
 setup(
     name = "mcvine.acc",
     # version = version_ns['__version__'],
-    packages = ['mcvine.acc'],
-    package_dir = {'mcvine.acc': "acc"},
+    packages = ['mcvine.acc', 'mcvine.acc.geometry'],
+    package_dir = {'mcvine.acc': "acc", 'mcvine.acc.geometry': "acc/geometry"},
     data_files = [],
     install_requires = [
     ],
