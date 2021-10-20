@@ -55,5 +55,3 @@ jobs:
         shell: pwsh
         run: |
           python tests/geometry/test_onbox.py
-        env:
-          NUMBA_ENABLE_CUDASIM: 1
