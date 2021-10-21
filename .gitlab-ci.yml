@@ -1,6 +1,6 @@
-build-job:
+build-job-using-shell:
   tags:
-    - shell
+    - _shell
   stage: build
   script:
     - echo "GITLAB_USER_LOGIN=$GITLAB_USER_LOGIN HOME=$HOME PATH=$PATH"
@@ -16,3 +16,12 @@ build-job:
     - conda run -n testenv python setup.py sdist
     - conda run -n testenv pip install --no-deps .
     - conda run -n testenv python tests/geometry/test_onbox.py
+
+build-job-using-docker:
+  tags:
+    - docker
+  image: nvidia/cuda:11.3.0-devel-ubuntu20.04
+  stage: build
+  script:
+    - echo "GITLAB_USER_LOGIN=$GITLAB_USER_LOGIN HOME=$HOME PATH=$PATH"
+    - nvidia-smi
