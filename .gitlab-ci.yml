@@ -41,4 +41,5 @@ build-job-using-docker:
     - conda run -n testenv mcvine
     - conda run -n testenv python setup.py sdist
     - conda run -n testenv pip install --no-deps .
+    - cd tests
     - conda run -n testenv py.test
