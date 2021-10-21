@@ -3,8 +3,15 @@ build-job:
     - shell
   stage: build
   script:
-    - echo "Hello, $GITLAB_USER_LOGIN!"
-    - echo $HOME
-    - echo $PATH
+    - echo "GITLAB_USER_LOGIN=$GITLAB_USER_LOGIN HOME=$HOME PATH=$PATH"
     - nvidia-smi
     - export PATH=/opt/conda/bin:$PATH
+    - conda config --add channels conda-forge
+    - conda config --add channels diffpy
+    - conda config --add channels mcvine
+    - conda config --show channels
+    - conda create -n testenv python=3.8 mcvine=1.4.4 numba=0.53.1
+    - conda install -n testenv cupy cudatoolkit
+    - conda run -n testenv python setup.py sdist
+    - conda run -n testenv pip install --no-deps .
+    - conda run -n testenv python tests/geometry/test_onbox.py
