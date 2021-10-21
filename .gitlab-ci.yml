@@ -10,6 +10,7 @@ build-job:
     - conda config --add channels diffpy
     - conda config --add channels mcvine
     - conda config --show channels
+    - conda remove --name testenv --all
     - conda create -n testenv python=3.8 mcvine=1.4.4 numba=0.53.1
     - conda install -n testenv cupy cudatoolkit=11.3
     - conda run -n testenv python setup.py sdist
