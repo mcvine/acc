@@ -1,6 +1,6 @@
-build-job-using-shell:
+.build-job-using-shell:
   tags:
-    - _shell
+    - shell
   stage: build
   script:
     - echo "GITLAB_USER_LOGIN=$GITLAB_USER_LOGIN HOME=$HOME PATH=$PATH"
