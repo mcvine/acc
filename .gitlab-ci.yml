@@ -5,7 +5,7 @@ build-job:
   script:
     - echo "GITLAB_USER_LOGIN=$GITLAB_USER_LOGIN HOME=$HOME PATH=$PATH"
     - nvidia-smi
-    - export PATH=/opt/conda/bin:$PATH
+    - export PATH=/opt/miniconda3/bin:$PATH
     - conda config --add channels conda-forge
     - conda config --add channels diffpy
     - conda config --add channels mcvine
