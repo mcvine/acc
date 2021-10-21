@@ -85,7 +85,7 @@ def test_cu_device_intersect_box():
     return
 
 def test_cu_intersect_box():
-    N = int(1e7)
+    N = int(1e6)
     x_np = np.arange(-0.02, 0.02, 0.04/N, dtype='float32')
     y_np = np.arange(-0.02, 0.02, 0.04/N, dtype='float32')
     z_np = np.ones(x_np.size, dtype='float32')*(-.05)
