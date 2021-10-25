@@ -21,6 +21,10 @@ build-job-using-docker:
   tags:
     - docker
   image: $CI_REGISTRY/mcvine/acc:latest
+  cache:
+    paths:
+      - .conda_pkgs/
+      - .conda_envs/
   stage: build
   script:
     - echo "GITLAB_USER_LOGIN=$GITLAB_USER_LOGIN HOME=$HOME PATH=$PATH"
@@ -32,6 +36,8 @@ build-job-using-docker:
     - conda config --add channels diffpy 
     - conda config --add channels mcvine 
     - conda config --show channels
+    - conda config --add pkgs_dirs .conda_pkgs/
+    - conda config --add envs_dirs .conda_envs/
     - conda create -n testenv python=3.8 mcvine=1.4.4 numba=0.53.1 pytest
     - conda install -n testenv cupy cudatoolkit
     - git clone https://github.com/yxqd/dotmantid ~/.mantid
