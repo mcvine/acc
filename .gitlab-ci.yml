@@ -32,17 +32,12 @@ build-job-using-docker:
     - export LANG=C.UTF-8  LC_ALL=C.UTF-8  PATH=/opt/conda/bin:$PATH
     - export PATH=/opt/conda/bin:$PATH
     - conda env list
-    - conda config --add channels conda-forge 
-    - conda config --add channels diffpy 
-    - conda config --add channels mcvine 
-    - conda config --show channels
     - conda config --add pkgs_dirs $CI_PROJECT_DIR/.conda_pkgs/
     - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
-    - conda create -n testenv python=3.8 mcvine=1.4.4 numba=0.53.1 pytest
-    - conda install -n testenv cupy cudatoolkit
+    - conda env create -f environment.yml
     - git clone https://github.com/yxqd/dotmantid ~/.mantid
-    - conda run -n testenv mcvine
-    - conda run -n testenv python setup.py sdist
-    - conda run -n testenv pip install --no-deps .
+    - conda run -n acc mcvine
+    - conda run -n acc python setup.py sdist
+    - conda run -n acc pip install --no-deps .
     - cd tests
-    - conda run -n testenv py.test
+    - conda run -n acc py.test
