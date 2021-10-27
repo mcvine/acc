@@ -1,0 +1,13 @@
+name: acc
+channels:
+  - mcvine
+  - diffpy
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - numba=0.53.1
+  - mcvine=1.4.4
+  - pytest
+  - cupy
+  - cudatoolkit
