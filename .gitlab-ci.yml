@@ -23,7 +23,6 @@ build-job-using-docker:
   image: $CI_REGISTRY/mcvine/acc:latest
   cache:
     paths:
-      - .conda_pkgs/
       - .conda_envs/
   stage: build
   script:
@@ -32,7 +31,6 @@ build-job-using-docker:
     - export LANG=C.UTF-8  LC_ALL=C.UTF-8  PATH=/opt/conda/bin:$PATH
     - export PATH=/opt/conda/bin:$PATH
     - conda env list
-    - conda config --add pkgs_dirs $CI_PROJECT_DIR/.conda_pkgs/
     - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
     - conda env create -f environment.yml
     - git clone https://github.com/yxqd/dotmantid ~/.mantid
