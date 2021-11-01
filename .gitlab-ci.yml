@@ -17,6 +17,28 @@
     - conda run -n testenv pip install --no-deps .
     - conda run -n testenv python tests/geometry/test_onbox.py
 
+build-conda-env:
+  tags:
+    - docker
+  image: $CI_REGISTRY/mcvine/acc:latest
+  cache:
+    when: on_success
+    paths:
+      - .conda_envs/
+  stage: build
+  script:
+    - |
+      if [[ -d $CI_PROJECT_DIR/.conda_envs/acc/ ]]; then
+        exit 10
+      fi
+    - export LANG=C.UTF-8  LC_ALL=C.UTF-8  PATH=/opt/conda/bin:$PATH
+    - export PATH=/opt/conda/bin:$PATH
+    - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
+    - conda env list
+    - conda env create -f environment.yml
+  allow_failure:
+    exit_codes: 10
+
 build-job-using-docker:
   tags:
     - docker
@@ -24,15 +46,15 @@ build-job-using-docker:
   cache:
     paths:
       - .conda_envs/
-  stage: build
+    policy: pull
+  stage: test
   script:
     - echo "GITLAB_USER_LOGIN=$GITLAB_USER_LOGIN HOME=$HOME PATH=$PATH"
     - nvidia-smi
     - export LANG=C.UTF-8  LC_ALL=C.UTF-8  PATH=/opt/conda/bin:$PATH
     - export PATH=/opt/conda/bin:$PATH
-    - conda env list
     - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
-    - conda env create -f environment.yml
+    - conda env list
     - git clone https://github.com/yxqd/dotmantid ~/.mantid
     - conda run -n acc mcvine
     - conda run -n acc python setup.py sdist
