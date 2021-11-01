@@ -35,7 +35,7 @@ build-conda-env:
     - export PATH=/opt/conda/bin:$PATH
     - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
     - conda env list
-    - conda env create -f environment.yml
+    - conda env create -f .gitlab/deps.yml
   allow_failure:
     exit_codes: 10
 
