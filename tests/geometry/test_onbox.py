@@ -7,6 +7,7 @@ import os, numpy as np, time
 from numba import cuda
 from mcvine.acc.geometry import onbox
 
+# device functions can be tested with CUDASIM only
 @pytest.mark.skipif(test.USE_CUDA, reason='CUDA')
 def test_cu_device_update_intersections():
     # only works when cuda jit is commented out
@@ -23,6 +24,7 @@ def test_cu_device_intersect_box():
     assert onbox.cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.04) == (-0.02, 0.02)
     return
 
+# guvectorize right now not supported by CUDASIM
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_cu_intersect_box():
     N = int(1e7)
