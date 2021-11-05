@@ -54,4 +54,5 @@ jobs:
       - name: test
         shell: pwsh
         run: |
-          echo "Hello"
+          cd tests
+          py.test
