@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+import pytest, os
+if os.environ.get('USE_CUDA').lower() == 'false':
+    pytest.skip("No CUDA", allow_module_level=True)
+
 from mcvine.acc.arrowINtersection import ArrowIntersector
 # from numpy_arrow_box import ArrowIntersector
 import numpy as np

@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+import pytest, os
+if os.environ.get('USE_CUDA').lower() == 'false':
+    pytest.skip("No CUDA", allow_module_level=True)
+
 import mcvine.acc.E_Q_scattering_kernel as eqs
 import numpy as np
 
