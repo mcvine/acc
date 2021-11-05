@@ -24,6 +24,8 @@ if USE_CUDA:
 else:
     cu_square = numba.guvectorize(["float32[:], float32[:]"], '(N) -> (N)')(cu_square)
 
+import pytest
+@pytest.mark.skipif(not USE_CUDA, reason='No CUDA')
 def test_cuda():
     N = int(1e6)
     x_np = np.arange(-0.02, 0.02, 0.04/N, dtype='float32')
