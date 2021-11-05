@@ -69,17 +69,3 @@ def cu_intersect_box(x, y, z, vx, vy, vz, sx, sy, sz, _, ts):
         ts[i, 0] = t1
         ts[i, 1] = t2
     return ts
-
-def test_cu_device_update_intersections():
-    # only works when cuda jit is commented out
-    assert cu_device_update_intersections(np.nan, np.nan, 3.) == (3.0, np.nan)
-    assert cu_device_update_intersections(1., np.nan, 3.) == (1., 3.0)
-    return
-
-def test_cu_device_intersect_box():
-    # only works when cuda jit is commented out
-    assert cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
-    assert cu_device_intersect_box(0,0,0, 1.,1.,0., 0.02, 0.02, 0.02) == (-0.01, 0.01)
-    assert cu_device_intersect_box(0,0,0, 1.,1.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
-    assert cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.04) == (-0.02, 0.02)
-    return

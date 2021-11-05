@@ -2,13 +2,28 @@
 
 import pytest, os
 from mcvine.acc import test
-if not test.USE_CUDA:
-    pytest.skip("No CUDA", allow_module_level=True)
 
 import os, numpy as np, time
 from numba import cuda
 from mcvine.acc.geometry import onbox
 
+@pytest.mark.skipif(test.USE_CUDA, reason='CUDA')
+def test_cu_device_update_intersections():
+    # only works when cuda jit is commented out
+    assert onbox.cu_device_update_intersections(np.nan, np.nan, 3.) == (3.0, np.nan)
+    assert onbox.cu_device_update_intersections(1., np.nan, 3.) == (1., 3.0)
+    return
+
+@pytest.mark.skipif(test.USE_CUDA, reason='CUDA')
+def test_cu_device_intersect_box():
+    # only works when cuda jit is commented out
+    assert onbox.cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
+    assert onbox.cu_device_intersect_box(0,0,0, 1.,1.,0., 0.02, 0.02, 0.02) == (-0.01, 0.01)
+    assert onbox.cu_device_intersect_box(0,0,0, 1.,1.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
+    assert onbox.cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.04) == (-0.02, 0.02)
+    return
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_cu_intersect_box():
     N = int(1e7)
     N = int(100)
@@ -44,13 +59,10 @@ def test_cu_intersect_box():
     print(ts[:10])
     return
 
-def test():
-    # onbox.test_cu_device_update_intersections()
-    # onbox.test_cu_device_intersect_box()
+def main():
+    test_cu_device_update_intersections()
+    test_cu_device_intersect_box()
     test_cu_intersect_box()
     return
-
-def main():
-    test()
 
 if __name__ == '__main__': main()
