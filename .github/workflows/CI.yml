@@ -56,3 +56,5 @@ jobs:
         run: |
           cd tests
           py.test
+        env:
+          NUMBA_ENABLE_CUDASIM: 1
