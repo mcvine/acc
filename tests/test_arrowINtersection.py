@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+import pytest, os
+from mcvine.acc import test
+if not test.USE_CUDA:
+    pytest.skip("No CUDA", allow_module_level=True)
+
 from mcvine.acc.arrowINtersection import ArrowIntersector
 # from numpy_arrow_box import ArrowIntersector
 import numpy as np

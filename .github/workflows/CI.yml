@@ -54,4 +54,7 @@ jobs:
       - name: test
         shell: pwsh
         run: |
-          echo "Hello"
+          cd tests
+          py.test
+        env:
+          NUMBA_ENABLE_CUDASIM: 1
