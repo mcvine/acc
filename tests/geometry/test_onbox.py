@@ -8,14 +8,14 @@ from numba import cuda
 from mcvine.acc.geometry import onbox
 
 # device functions can be tested with CUDASIM only
-@pytest.mark.skipif(test.USE_CUDA, reason='CUDA')
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_cu_device_update_intersections():
     # only works when cuda jit is commented out
     assert onbox.cu_device_update_intersections(np.nan, np.nan, 3.) == (3.0, np.nan)
     assert onbox.cu_device_update_intersections(1., np.nan, 3.) == (1., 3.0)
     return
 
-@pytest.mark.skipif(test.USE_CUDA, reason='CUDA')
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_cu_device_intersect_box():
     # only works when cuda jit is commented out
     assert onbox.cu_device_intersect_box(0,0,0, 0.,0.,1., 0.02, 0.02, 0.02) == (-0.01, 0.01)
