@@ -50,52 +50,51 @@ class Plane:
             numpy.cross(point_q - point_p, point_r - point_p))
 
     # To do: add unit tests.
-    def intersection_distance(self, position, direction):
+    def intersection_duration(self, position, velocity):
 
         """Find a particle's next intersection of this plane.
 
         Parameters:
         position (vector): x,y,z of the particle's position
-        direction (vector): x,y,z of the particle's velocity
+        velocity (vector): x,y,z of the particle's velocity
 
         Returns a tuple (or None if particle does not intersect):
         vector: x,y,z of where the particle intersects this plane
-        float: the distance traveled to reach this plane
+        float: the time taken to reach this plane
         """
-        if len(position) != 3 or len(direction) != 3:
+        if len(position) != 3 or len(velocity) != 3:
             raise ValueError('expecting three dimensions')
-        elif not direction.any():
-            raise ValueError('direction has no magnitude')
+        elif not velocity.any():
+            raise ValueError('particle is stationary')
 
         dot_p_l = numpy.dot(self.normal, self.point - position)
-        dot_n_d = numpy.dot(self.normal, direction)
-        if dot_n_d == 0:
-            # direction is along plane
+        dot_n_v = numpy.dot(self.normal, velocity)
+        if dot_n_v == 0:
+            # velocity is along plane
             return None
 
-        progress = dot_p_l / dot_n_d
-        if progress <= 0:
+        duration = dot_p_l / dot_n_v
+        if duration <= 0:
             # intersection is not ahead of particle
             return None
 
-        intersection = position + direction * progress
-        distance = numpy.linalg.norm(intersection - position)
-        return (intersection, distance)
+        intersection = position + velocity * duration
+        return (intersection, duration)
 
     # To do: add unit tests.
     # Are both sides mirrored or does the direction of the normal matter?
-    def reflect(self, direction):
+    def reflect(self, velocity):
 
-        """Calculate the direction of a particle reflected off this plane.
+        """Calculate the velocity of a particle reflected off this plane.
 
         Parameters:
-        direction (vector): x,y,z of the incident particle
+        velocity (vector): x,y,z of the particle's velocity
 
         Returns:
         vector: x,y,z of the outgoing reflection
         """
-        dot_d_n = numpy.dot(direction, self.normal)
-        reflection = direction - 2 * dot_d_n * self.normal
+        dot_d_n = numpy.dot(velocity, self.normal)
+        reflection = velocity - 2 * dot_d_n * self.normal
         return reflection
 
 
@@ -152,44 +151,44 @@ class Guide(AbstractComponent):
                               [+w2/2, -h2/2, l])
             ]
 
-    def propagate(self, position, direction):
+    def propagate(self, position, velocity):
 
         """Propagate a particle through this guide.
 
         Parameters:
         position (vector): x,y,z of the particle's initial position
-        direction (vector): x,y,z of the particle's initial velocity
+        velocity (vector): x,y,z of the particle's initial velocity
 
         Returns a tuple (or None if particle does not exit):
         vector: x,y,z of the particle's exit position
         vector: x,y,z of the particle's exit velocity
-        float: the total distance traveled by the particle within the guide
+        float: the total time that the particle takes to pass through the guide
         """
-        (pos_curr, dir_curr) = (position, direction)
-        distance = 0
+        (pos_curr, vel_curr) = (position, velocity)
+        duration = 0
         ind_prev = None
         while True:
-            # Find which side is hit next, i.e., in shortest distance.
-            dis_min = math.inf
+            # Find which side is hit next.
+            dur_min = math.inf
             # To do: no need to find intersection of most recently hit side.
-            pos_dis_nexts = [side.intersection_distance(pos_curr, dir_curr)
+            pos_dur_nexts = [side.intersection_duration(pos_curr, vel_curr)
                              for side in self.sides]
-            for index in range(0, len(pos_dis_nexts)):
-                if pos_dis_nexts[index]:
-                    (pos_next, dis_next) = pos_dis_nexts[index]
-                    if index != ind_prev and dis_next < dis_min:
+            for index in range(0, len(pos_dur_nexts)):
+                if pos_dur_nexts[index]:
+                    (pos_next, dur_next) = pos_dur_nexts[index]
+                    if index != ind_prev and dur_next < dur_min:
                         ind_min = index
-                        (pos_min, dis_min) = (pos_next, dis_next)
-            if dis_min == math.inf:
+                        (pos_min, dur_min) = (pos_next, dur_next)
+            if dur_min == math.inf:
                 # No new side was hit.
                 return None
-            distance += dis_min
+            duration += dur_min
             if ind_min == 0:
                 # The first side is the exit from the guide.
-                return (pos_min, dir_curr, distance)
+                return (pos_min, vel_curr, duration)
             # Update particle to be reflecting from the new side.
             pos_curr = pos_min
-            dir_curr = self.sides[ind_min].reflect(dir_curr)
+            vel_curr = self.sides[ind_min].reflect(vel_curr)
             ind_prev = ind_min
 
     # To do: use propagate method to implement process method
@@ -205,23 +204,23 @@ def test():
     guide_angle = math.atan(((3 - 2) / 2) / length)
 
     # set up particle
-    position = numpy.array([1, -1, 0], dtype=float)
-    direction = numpy.array([0, 1, 3], dtype=float)
+    position = numpy.array([0.8, -1, 0], dtype=float)
+    velocity = numpy.array([0, 1, 3], dtype=float)
 
     # determine expected angle of exit assuming two reflections
-    angle_from_z = math.atan(direction[1] / direction[2])
+    angle_from_z = math.atan(velocity[1] / velocity[2])
     for i in range(0, 2):
         offset_from_normal = math.pi/2 - angle_from_z - guide_angle
         angle_from_z = math.pi - angle_from_z - 2 * offset_from_normal
 
     # propagate particle through guide
-    (position, direction, distance) = guide.propagate(position, direction)
+    (position, velocity, duration) = guide.propagate(position, velocity)
 
     # report outcome
-    print('should be at x=1, got to x={}'.format(position[0]))
+    print('should be at x=0.8, got to x={}'.format(position[0]))
     print('should have reached z={}, got to z={}'.format(length, position[2]))
     print('guide length is {}, distance traveled by particle is {}'.format(
-        length, distance))
+        length, duration * numpy.linalg.norm(velocity)))
     print('final angle is {} radians, expected {} radians'.format(
-        math.atan(direction[1] / direction[2]),
+        math.atan(velocity[1] / velocity[2]),
         angle_from_z))
