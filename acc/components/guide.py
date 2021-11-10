@@ -58,9 +58,9 @@ class Plane:
         position (vector): x,y,z of the particle's position
         velocity (vector): x,y,z of the particle's velocity
 
-        Returns a tuple (or None if particle does not intersect):
+        Returns a tuple:
         vector: x,y,z of where the particle intersects this plane
-        float: the time taken to reach this plane
+        float: the time taken to reach this plane, may be negative
         """
         if len(position) != 3 or len(velocity) != 3:
             raise ValueError('expecting three dimensions')
@@ -74,10 +74,6 @@ class Plane:
             return None
 
         duration = dot_p_l / dot_n_v
-        if duration <= 0:
-            # intersection is not ahead of particle
-            return None
-
         intersection = position + velocity * duration
         return (intersection, duration)
 
@@ -170,13 +166,14 @@ class Guide(AbstractComponent):
         while True:
             # Find which side is hit next.
             dur_min = math.inf
-            # To do: no need to find intersection of most recently hit side.
-            pos_dur_nexts = [side.intersection_duration(pos_curr, vel_curr)
-                             for side in self.sides]
-            for index in range(0, len(pos_dur_nexts)):
-                if pos_dur_nexts[index]:
-                    (pos_next, dur_next) = pos_dur_nexts[index]
-                    if index != ind_prev and dur_next < dur_min:
+            for index in range(0, len(self.sides)):
+                if index == ind_prev:
+                    continue
+                side = self.sides[index]
+                pos_dur_next = side.intersection_duration(pos_curr, vel_curr)
+                if pos_dur_next:
+                    (pos_next, dur_next) = pos_dur_next
+                    if dur_next > 0 and dur_next < dur_min:
                         ind_min = index
                         (pos_min, dur_min) = (pos_next, dur_next)
             if dur_min == math.inf:
