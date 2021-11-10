@@ -135,21 +135,21 @@ class Guide(AbstractComponent):
 
         self.name = name
         self.sides = [
-            Guide.__new_plane([w2/2, -h2/2, l],
-                              [-w2/2, h2/2, l],
+            Guide.__new_plane([+w2/2, -h2/2, l],
+                              [-w2/2, +h2/2, l],
                               [-w2/2, -h2/2, l]),
-            Guide.__new_plane([w1/2, h1/2, 0],
-                              [w1/2, -h1/2, 0],
-                              [w2/2, h2/2, l]),
-            Guide.__new_plane([-w1/2, h1/2, 0],
+            Guide.__new_plane([+w1/2, +h1/2, 0],
+                              [+w1/2, -h1/2, 0],
+                              [+w2/2, +h2/2, l]),
+            Guide.__new_plane([-w1/2, +h1/2, 0],
                               [-w1/2, -h1/2, 0],
-                              [-w2/2, h2/2, l]),
-            Guide.__new_plane([w1/2, h1/2, 0],
-                              [-w1/2, h1/2, 0],
-                              [w2/2, h2/2, l]),
-            Guide.__new_plane([w1/2, -h1/2, 0],
+                              [-w2/2, +h2/2, l]),
+            Guide.__new_plane([+w1/2, +h1/2, 0],
+                              [-w1/2, +h1/2, 0],
+                              [+w2/2, +h2/2, l]),
+            Guide.__new_plane([+w1/2, -h1/2, 0],
                               [-w1/2, -h1/2, 0],
-                              [w2/2, -h2/2, l])
+                              [+w2/2, -h2/2, l])
             ]
 
     def propagate(self, position, direction):
