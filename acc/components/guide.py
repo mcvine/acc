@@ -4,6 +4,7 @@
 
 import math
 from mcni.AbstractComponent import AbstractComponent
+from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 # import mcvine
 # import mcvine.components as mc
 import numpy
@@ -30,7 +31,7 @@ class Plane:
             raise ValueError('normal has no magnitude')
 
         self.point = point
-        self.normal = normal / numpy.linalg.norm(normal)
+        self.normal = numpy.array(normal / numpy.linalg.norm(normal)).reshape(1, 3)
 
     @classmethod
     def construct(cls, point_p, point_q, point_r):
@@ -62,18 +63,19 @@ class Plane:
         vector: x,y,z of where the particle intersects this plane
         float: the time taken to reach this plane, may be negative
         """
-        if len(position) != 3 or len(velocity) != 3:
+        if len(position.shape) != 2 or len(velocity.shape) != 2:
+            raise ValueError('expecting 2D array')
+        if position.shape[1] != 3 or velocity.shape[1] != 3:
             raise ValueError('expecting three dimensions')
         elif not velocity.any():
             raise ValueError('particle is stationary')
 
-        dot_p_l = numpy.dot(self.normal, self.point - position)
-        dot_n_v = numpy.dot(self.normal, velocity)
-        if dot_n_v == 0:
-            # velocity is along plane
-            return None
+        dot_p_l = numpy.dot(self.normal, (self.point - position).T)
+        dot_n_v = numpy.dot(self.normal, velocity.T)
 
-        duration = dot_p_l / dot_n_v
+        duration = numpy.full((1, position.shape[0]), numpy.inf)
+        numpy.divide(dot_p_l, dot_n_v, where=dot_n_v != 0, out=duration)
+        duration = duration.T
         intersection = position + velocity * duration
         return (intersection, duration)
 
@@ -89,8 +91,8 @@ class Plane:
         Returns:
         vector: x,y,z of the outgoing reflection
         """
-        dot_d_n = numpy.dot(velocity, self.normal)
-        reflection = velocity - 2 * dot_d_n * self.normal
+        dot_d_n = numpy.dot(velocity, self.normal.flatten())
+        reflection = velocity - 2 * dot_d_n * self.normal.flatten()
         return reflection
 
 
@@ -189,6 +191,61 @@ class Guide(AbstractComponent):
             ind_prev = ind_min
 
     # To do: use propagate method to implement process method
+    def process(self, neutrons):
+        if not len(neutrons):
+            return
+        arr = neutrons_as_npyarr(neutrons)
+        arr.shape = -1, ndblsperneutron
+
+        position = arr[:, 0:3]  # x, y, z
+        velocity = arr[:, 3:6]  # vx, vy, vz
+        time = arr[:, 8]
+        prob = arr[:, 9]
+
+        # initialize arrays containing neutron duration and side index
+        duration = numpy.full((arr.shape[0], 1), numpy.inf)
+        side = numpy.full((arr.shape[0], 1), -2, dtype=int)
+        new_duration = numpy.full((arr.shape[0], 1), numpy.inf)
+
+        # Iterate until all neutrons hit end of guide or are absorbed
+        iter = 0
+        while numpy.count_nonzero(side == 0) + numpy.count_nonzero(
+                side == -1) != len(neutrons):
+            old_side = side.copy()  # might not be necessary?
+
+            # Calculate minimum intersection time with all sides of the guide
+            for s in range(0, len(self.sides)):
+                intersection = self.sides[s].intersection_duration(position, velocity)
+                new_duration = numpy.minimum(intersection[1], duration,
+                                             where=((intersection[1] > 1e-5) & (s != side)),
+                                             out=new_duration)
+
+                # Update the index of which side was hit based on new minimum
+                side = numpy.where(new_duration != duration, s, side)
+                duration = new_duration.copy()
+
+                # If duration is inf, mark the side as invalid
+                side = numpy.where(duration == numpy.inf, -1, side)
+
+            # Propagate the neutrons based on the minimum times
+            position += numpy.multiply(velocity, duration, where=(
+                        (duration != numpy.inf) & (old_side != 0)))
+
+            # Update the velocity due to reflection
+            # TODO: vectorize this
+            for ind in range(len(neutrons)):
+                # Only update the velocity if reflecting on one of the guide sides
+                if side[ind] != 0 and side[ind] != -1:
+                    velocity[ind] = self.sides[side.item(ind)].reflect(velocity[ind])
+
+            # TODO: Calculate reflectivity
+
+            iter += 1
+            if iter > 10:
+                break
+
+        # TODO: Filter out neutrons that are absorbed/missed the guide (side != 0)
+        return
 
 
 # To do: turn this into a proper test
@@ -221,3 +278,28 @@ def test():
     print('final angle is {} radians, expected {} radians'.format(
         math.atan(velocity[1] / velocity[2]),
         angle_from_z))
+
+
+def test_process():
+    from mcni import neutron_buffer, neutron
+    neutrons = neutron_buffer(10)
+
+    # TODO: generate a more random / better set of neutrons for input?
+    for i in range(10):
+        neutrons[i] = neutron(r=(i * 0.1, 1.0 - i * 0.1, 0.5),
+                              v=(0.05 * i, 0.2 * i, 0.5 * i))
+
+    print("Neutrons:")
+    # convert to numpy arr for better debug print
+    neutrons_arr = neutrons_as_npyarr(neutrons)
+    neutrons_arr.shape = -1, ndblsperneutron
+    print(neutrons_arr)
+
+    # TODO: use a more complex guide and also test each neutron's outcome
+    guide = Guide('guide', 1.0, 1.0, 0.8, 0.8, 10.0)
+    guide.process(neutrons)
+
+
+if __name__ == '__main__':
+    # test()
+    test_process()
