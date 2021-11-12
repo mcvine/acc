@@ -244,7 +244,14 @@ class Guide(AbstractComponent):
             if iter > 10:
                 break
 
-        # TODO: Filter out neutrons that are absorbed/missed the guide (side != 0)
+        # Update neutron positions, velocities and times and select those that hit the guide exit
+        arr[:, 0:3] = position
+        arr[:, 3:6] = velocity
+        arr[:, 8] = duration.reshape((arr.shape[0],))
+        good = arr[(side == 0).flatten(), :]
+
+        neutrons.resize(good.shape[0], neutrons[0])
+        neutrons.from_npyarr(good)
         return
 
 
@@ -289,7 +296,7 @@ def test_process():
         neutrons[i] = neutron(r=(i * 0.1, 1.0 - i * 0.1, 0.5),
                               v=(0.05 * i, 0.2 * i, 0.5 * i))
 
-    print("Neutrons:")
+    print("Neutrons: (N = {})".format(len(neutrons)))
     # convert to numpy arr for better debug print
     neutrons_arr = neutrons_as_npyarr(neutrons)
     neutrons_arr.shape = -1, ndblsperneutron
@@ -298,6 +305,11 @@ def test_process():
     # TODO: use a more complex guide and also test each neutron's outcome
     guide = Guide('guide', 1.0, 1.0, 0.8, 0.8, 10.0)
     guide.process(neutrons)
+
+    print("Neutrons AFTER: (N = {})".format(len(neutrons)))
+    neutrons_arr = neutrons_as_npyarr(neutrons)
+    neutrons_arr.shape = -1, ndblsperneutron
+    print(neutrons_arr)
 
 
 if __name__ == '__main__':
