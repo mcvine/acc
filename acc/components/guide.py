@@ -205,19 +205,18 @@ class Guide(AbstractComponent):
         # initialize arrays containing neutron duration and side index
         duration = numpy.full((arr.shape[0], 1), numpy.inf)
         side = numpy.full((arr.shape[0], 1), -2, dtype=int)
+        old_side = side.copy()  # might not be necessary?
         new_duration = numpy.full((arr.shape[0], 1), numpy.inf)
 
         # Iterate until all neutrons hit end of guide or are absorbed
         iter = 0
         while numpy.count_nonzero(side == 0) + numpy.count_nonzero(
                 side == -1) != len(neutrons):
-            old_side = side.copy()  # might not be necessary?
-
             # Calculate minimum intersection time with all sides of the guide
             for s in range(0, len(self.sides)):
                 intersection = self.sides[s].intersection_duration(position, velocity)
                 new_duration = numpy.minimum(intersection[1], duration,
-                                             where=((intersection[1] > 1e-5) & (s != side)),
+                                             where=((intersection[1] > 1e-5) & (s != old_side) & (old_side != 0)),
                                              out=new_duration)
 
                 # Update the index of which side was hit based on new minimum
@@ -228,8 +227,8 @@ class Guide(AbstractComponent):
                 side = numpy.where(duration == numpy.inf, -1, side)
 
             # Propagate the neutrons based on the minimum times
-            position += numpy.multiply(velocity, duration, where=(
-                        (duration != numpy.inf) & (old_side != 0)))
+            position += numpy.multiply(velocity, duration, where=((duration != numpy.inf) | (old_side != 0)))
+            old_side = side.copy()
 
             # Update the velocity due to reflection
             # TODO: vectorize this
