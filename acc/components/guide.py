@@ -155,7 +155,7 @@ class Guide(AbstractComponent):
         self.W = W
         self.m_neutron = 1.67492e-27  # mass of neutron in kg (from mcstas manual)
         self.hbar = 1.05459e-34       # planck constant in Js (from mcstas manual)
-        self.m_over_h = self.m_neutron / self.hbar
+        self.m_over_h = 1e-10 * self.m_neutron / self.hbar  # includes A^-1 to m conversion
 
     def propagate(self, position, velocity):
 
@@ -211,7 +211,7 @@ class Guide(AbstractComponent):
         """
         # see eq 5.2 in mcstas manual, sec 5.1.1
         Q = self.m_over_h * numpy.linalg.norm(
-            velocity_i - velocity_f, axis=1)  # length of scattering vector (in A^-1)
+            velocity_i - velocity_f, axis=1)  # length of scattering vector
         R = numpy.where(Q > self.Qc, 0.5 * self.R0 * (
                 1.0 - numpy.tanh((Q - self.m * self.Qc) / self.W) * (
                     1.0 - self.alpha * (Q - self.Qc))),
