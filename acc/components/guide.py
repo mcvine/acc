@@ -227,7 +227,7 @@ class Guide(AbstractComponent):
 
         position = arr[:, 0:3]  # x, y, z
         velocity = arr[:, 3:6]  # vx, vy, vz
-        time = arr[:, 8]
+        time = arr[:, 8].reshape((arr.shape[0], 1))
         prob = arr[:, 9].reshape((arr.shape[0], 1))
 
         # initialize arrays containing neutron duration and side index
@@ -256,6 +256,7 @@ class Guide(AbstractComponent):
 
             # Propagate the neutrons based on the minimum times
             position += numpy.multiply(velocity, duration, where=((duration != numpy.inf) | (old_side != 0)))
+            time = numpy.add(time, duration, where=((duration != numpy.inf) | (old_side != 0)))
             old_side = side.copy()
 
             velocity_before = velocity.copy()
@@ -276,7 +277,7 @@ class Guide(AbstractComponent):
         # Update neutron positions, velocities and times and select those that hit the guide exit
         arr[:, 0:3] = position
         arr[:, 3:6] = velocity
-        arr[:, 8] = duration.reshape((arr.shape[0],))
+        arr[:, 8] = time.reshape((arr.shape[0],))
         arr[:, 9] = prob.reshape((arr.shape[0],))
         good = arr[(side == 0).flatten(), :]
 
@@ -337,9 +338,9 @@ def test_process():
     guide.process(neutrons)
 
     print("Neutrons AFTER: (N = {})".format(len(neutrons)))
-    neutrons_arr = neutrons_as_npyarr(neutrons)
-    neutrons_arr.shape = -1, ndblsperneutron
-    print(neutrons_arr)
+    result = neutrons_as_npyarr(neutrons)
+    result.shape = -1, ndblsperneutron
+    print(result)
 
 
 if __name__ == '__main__':
