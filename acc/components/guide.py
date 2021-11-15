@@ -231,7 +231,6 @@ class Guide(AbstractComponent):
         prob = arr[:, 9].reshape((arr.shape[0], 1))
 
         # initialize arrays containing neutron duration and side index
-        duration = numpy.full((arr.shape[0], 1), numpy.inf)
         side = numpy.full((arr.shape[0], 1), -2, dtype=int)
         old_side = side.copy()  # might not be necessary?
         new_duration = numpy.full((arr.shape[0], 1), numpy.inf)
@@ -240,6 +239,7 @@ class Guide(AbstractComponent):
         iter = 0
         while numpy.count_nonzero(side == 0) + numpy.count_nonzero(
                 side == -1) != len(neutrons):
+            duration = numpy.full((arr.shape[0], 1), numpy.inf)
             # Calculate minimum intersection time with all sides of the guide
             for s in range(0, len(self.sides)):
                 intersection = self.sides[s].intersection_duration(position, velocity)
@@ -271,11 +271,9 @@ class Guide(AbstractComponent):
             # TODO: Fix - this is giving large numbers, check this and its units
             reflectivity = self.calc_reflectivity(velocity_before, velocity)
             prob *= numpy.where(side != 0, reflectivity.reshape(arr.shape[0], 1), prob)
-
             iter += 1
-            if iter > 10:
-                break
 
+        print("process took {} iterations".format(iter))
         # Update neutron positions, velocities and times and select those that hit the guide exit
         arr[:, 0:3] = position
         arr[:, 3:6] = velocity
