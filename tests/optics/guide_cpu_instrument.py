@@ -2,6 +2,9 @@
 
 import mcvine, mcvine.components as mc
 from mcvine.acc.components import guide
+from mcni import rng_seed
+def seed(): return 0
+rng_seed.seed = seed
 
 def instrument():
     instrument = mcvine.instrument()

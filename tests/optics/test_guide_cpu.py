@@ -30,11 +30,6 @@ def test():
     Ixy = hh.load(os.path.join(outdir, "Ixy.h5"))
     Ixdivx = hh.load(os.path.join(outdir, "Ixdivx.h5"))
 
-    assert mcvine_Ixy.shape() == Ixy.shape()
-    assert mcvine_Ixdivx.shape() == Ixdivx.shape()
-    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage())
-    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage())
-
     global interactive
     if interactive:
         from histogram import plot as plotHist
@@ -42,6 +37,10 @@ def test():
         plotHist(mcvine_Ixdivx)
         plotHist(Ixy)
         plotHist(Ixdivx)
+    assert mcvine_Ixy.shape() == Ixy.shape()
+    assert mcvine_Ixdivx.shape() == Ixdivx.shape()
+    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage())
+    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage())
     return
 
 def main():

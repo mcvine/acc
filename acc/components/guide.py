@@ -244,7 +244,7 @@ class Guide(AbstractComponent):
             for s in range(0, len(self.sides)):
                 intersection = self.sides[s].intersection_duration(position, velocity)
                 new_duration = numpy.minimum(intersection[1], duration,
-                                             where=((intersection[1] > 1e-5) & (s != old_side) & (old_side != 0)),
+                                             where=((intersection[1] > 1e-10) & (s != old_side) & (old_side != 0)),
                                              out=new_duration)
 
                 # Update the index of which side was hit based on new minimum
@@ -268,7 +268,6 @@ class Guide(AbstractComponent):
                     velocity[ind] = self.sides[side.item(ind)].reflect(velocity[ind])
 
             # Calculate reflectivity
-            # TODO: Fix - this is giving large numbers, check this and its units
             reflectivity = self.calc_reflectivity(velocity_before, velocity)
             prob *= numpy.where(side != 0, reflectivity.reshape(arr.shape[0], 1), prob)
             iter += 1
