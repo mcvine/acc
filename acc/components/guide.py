@@ -148,6 +148,14 @@ class Guide(AbstractComponent):
                               [-w1/2, -h1/2, 0],
                               [+w2/2, -h2/2, l])
             ]
+        self.R0 = R0
+        self.Qc = Qc
+        self.alpha = alpha
+        self.m = m
+        self.W = W
+        self.m_neutron = 1.67492e-27  # mass of neutron in kg (from mcstas manual)
+        self.hbar = 1.05459e-34       # planck constant in Js (from mcstas manual)
+        self.m_over_h = self.m_neutron / self.hbar
 
     def propagate(self, position, velocity):
 
@@ -190,6 +198,26 @@ class Guide(AbstractComponent):
             vel_curr = self.sides[ind_min].reflect(vel_curr)
             ind_prev = ind_min
 
+    def calc_reflectivity(self, velocity_i, velocity_f):
+        """
+        Calculates the mirror reflectivity
+
+        Parameters:
+        velocity_i: initial velocities before reflecting
+        velocity_f: final velocities after reflecting
+
+        Returns
+        Reflectivity for each neutron
+        """
+        # see eq 5.2 in mcstas manual, sec 5.1.1
+        Q = self.m_over_h * numpy.linalg.norm(
+            velocity_i - velocity_f, axis=1)  # length of scattering vector (in A^-1)
+        R = numpy.where(Q > self.Qc, 0.5 * self.R0 * (
+                1.0 - numpy.tanh((Q - self.m * self.Qc) / self.W) * (
+                    1.0 - self.alpha * (Q - self.Qc))),
+                        self.R0)
+        return R
+
     # To do: use propagate method to implement process method
     def process(self, neutrons):
         if not len(neutrons):
@@ -200,7 +228,7 @@ class Guide(AbstractComponent):
         position = arr[:, 0:3]  # x, y, z
         velocity = arr[:, 3:6]  # vx, vy, vz
         time = arr[:, 8]
-        prob = arr[:, 9]
+        prob = arr[:, 9].reshape((arr.shape[0], 1))
 
         # initialize arrays containing neutron duration and side index
         duration = numpy.full((arr.shape[0], 1), numpy.inf)
@@ -230,6 +258,8 @@ class Guide(AbstractComponent):
             position += numpy.multiply(velocity, duration, where=((duration != numpy.inf) | (old_side != 0)))
             old_side = side.copy()
 
+            velocity_before = velocity.copy()
+
             # Update the velocity due to reflection
             # TODO: vectorize this
             for ind in range(len(neutrons)):
@@ -237,7 +267,10 @@ class Guide(AbstractComponent):
                 if side[ind] != 0 and side[ind] != -1:
                     velocity[ind] = self.sides[side.item(ind)].reflect(velocity[ind])
 
-            # TODO: Calculate reflectivity
+            # Calculate reflectivity
+            # TODO: Fix - this is giving large numbers, check this and its units
+            reflectivity = self.calc_reflectivity(velocity_before, velocity)
+            prob *= numpy.where(side != 0, reflectivity.reshape(arr.shape[0], 1), prob)
 
             iter += 1
             if iter > 10:
@@ -247,6 +280,7 @@ class Guide(AbstractComponent):
         arr[:, 0:3] = position
         arr[:, 3:6] = velocity
         arr[:, 8] = duration.reshape((arr.shape[0],))
+        arr[:, 9] = prob.reshape((arr.shape[0],))
         good = arr[(side == 0).flatten(), :]
 
         neutrons.resize(good.shape[0], neutrons[0])
