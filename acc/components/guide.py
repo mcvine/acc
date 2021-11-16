@@ -5,6 +5,7 @@
 import math
 from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
+from mcni import neutron_buffer, neutron
 # import mcvine
 # import mcvine.components as mc
 import numpy
@@ -343,6 +344,63 @@ def test_process():
     print(result)
 
 
+def do_process(guide, neutrons):
+    """
+    Testing helper function to run a neutron through the guide and
+    return the result as a numpy array
+
+    Parameters
+    ----------
+    guide : instance of a Guide
+    neutrons : a NeutronEvent or a list of NeutronEvents
+
+    Returns
+    -------
+    Numpy array containing: [x, y, z, vx, vy, vz, s1, s2, t, p] for each
+    input in neutrons
+    """
+    from mcni.mcnibp import NeutronEvent
+
+    assert isinstance(guide, Guide)
+    buffer = neutron_buffer(1)
+    if isinstance(neutrons, list):
+        buffer.resize(len(neutrons), neutron())
+        for i in range(len(neutrons)):
+            buffer[i] = neutrons[i]
+    elif isinstance(neutrons, NeutronEvent):
+        buffer[0] = neutrons
+    else:
+        raise RuntimeError(
+            "Expected a NeutronEvent or a list of NeutronEvents")
+
+    guide.process(buffer)
+    result = neutrons_as_npyarr(buffer)
+    result.shape = -1, ndblsperneutron
+    if result.shape[0] == 1:
+        # return only a single dim array to make test comparisons easier
+        result = result[0]
+    #print(result)
+    return result
+
+
+def test_guide():
+    length = 1.0
+
+    # a square guide to test very simple reflection cases
+    sq_guide = Guide('guide', 1.0, 1.0, 1.0, 1.0, length)
+
+    # TODO: test cases for: hitting no mirror, hitting one mirror, hitting two mirrors, etc
+    result = do_process(sq_guide,
+                        neutron(r=(0.0, 0., 0.), v=(0.5, 0.0, 0.5)))
+    numpy.testing.assert_equal([0, 0, length], result[0:3])
+
+    result = do_process(sq_guide,
+                        [neutron(r=(0.1, 0, 0), v=(0.1, 0.0, 0.5)),
+                         neutron(r=(0.1, 0, 0), v=(0.1, 0.0, 0.5))]
+                        )
+
+
 if __name__ == '__main__':
     # test()
-    test_process()
+    # test_process()
+    test_guide()
