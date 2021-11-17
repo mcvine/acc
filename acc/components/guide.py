@@ -181,9 +181,12 @@ class Guide(AbstractComponent):
                 if index == ind_prev:
                     continue
                 side = self.sides[index]
-                pos_dur_next = side.intersection_duration(pos_curr, vel_curr)
-                if pos_dur_next:
-                    (pos_next, dur_next) = pos_dur_next
+                pos_curr_wrapped = numpy.array([pos_curr])
+                vel_curr_wrapped = numpy.array([vel_curr])
+                pos_dur_next_wrapped = side.intersection_duration(pos_curr_wrapped, vel_curr_wrapped)
+                if pos_dur_next_wrapped:
+                    (pos_next_wrapped, dur_next_wrapped) = pos_dur_next_wrapped
+                    (pos_next, dur_next) = (pos_next_wrapped[0], dur_next_wrapped[0])
                     if dur_next > 0 and dur_next < dur_min:
                         ind_min = index
                         (pos_min, dur_min) = (pos_next, dur_next)
