@@ -287,39 +287,6 @@ class Guide(AbstractComponent):
 
         neutrons.resize(good.shape[0], neutrons[0])
         neutrons.from_npyarr(good)
-        return
-
-
-# To do: turn this into a proper test
-def test():
-    import math
-
-    # set up simple guide
-    length = 12
-    guide = Guide('test guide', 3, 3, 2, 2, length)
-    guide_angle = math.atan(((3 - 2) / 2) / length)
-
-    # set up particle
-    position = numpy.array([0.8, -1, 0], dtype=float)
-    velocity = numpy.array([0, 1, 3], dtype=float)
-
-    # determine expected angle of exit assuming two reflections
-    angle_from_z = math.atan(velocity[1] / velocity[2])
-    for i in range(0, 2):
-        offset_from_normal = math.pi/2 - angle_from_z - guide_angle
-        angle_from_z = math.pi - angle_from_z - 2 * offset_from_normal
-
-    # propagate particle through guide
-    (position, velocity, duration) = guide.propagate(position, velocity)
-
-    # report outcome
-    print('should be at x=0.8, got to x={}'.format(position[0]))
-    print('should have reached z={}, got to z={}'.format(length, position[2]))
-    print('guide length is {}, distance traveled by particle is {}'.format(
-        length, duration * numpy.linalg.norm(velocity)))
-    print('final angle is {} radians, expected {} radians'.format(
-        math.atan(velocity[1] / velocity[2]),
-        angle_from_z))
 
 
 def test_process():
