@@ -45,7 +45,6 @@ class Plane:
             point_p,
             numpy.cross(point_q - point_p, point_r - point_p))
 
-    # To do: add unit tests.
     def intersection_duration(self, position, velocity):
 
         """Find a particle's next intersection of this plane.
@@ -74,8 +73,6 @@ class Plane:
         intersection = position + velocity * duration
         return (intersection, duration)
 
-    # To do: add unit tests.
-    # Are both sides mirrored or does the direction of the normal matter?
     def reflect(self, velocity):
 
         """Calculate the velocity of a particle reflected off this plane.
