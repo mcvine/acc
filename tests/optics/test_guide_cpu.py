@@ -56,16 +56,12 @@ def assert_approximately_equal(expected, actual):
     actual: a number or numbers
     """
 
-    def helper(xy):
-        (x, y) = xy
-        assert abs(x - y) < 1e-10
-
     from collections.abc import Iterable
 
     if isinstance(expected, Iterable):
-        map(helper, zip(expected, actual))
+        assert np.allclose(expected, actual)
     else:
-        helper((expected, actual))
+        assert_approximately_equal([expected], [actual])
 
 
 @pytest.mark.parametrize("position_x", np.arange(-0.5, 1, 0.5))
