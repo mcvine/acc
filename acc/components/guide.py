@@ -9,92 +9,9 @@ from mcni import neutron_buffer, neutron
 # import mcvine
 # import mcvine.components as mc
 import numpy
+from acc.geometry.plane import Plane
 
 category = 'optics'
-
-
-class Plane:
-
-    def __init__(self, point, normal):
-
-        """Construct a plane.
-
-        Parameters:
-        point (vector): x,y,z position of a point on the plane
-        normal (vector): x,y,z direction of a normal to the plane
-
-        Returns:
-        Plane: a plane specified by the given point and normal
-        """
-        if len(point) != 3 or len(normal) != 3:
-            raise ValueError('expecting three dimensions')
-        elif not normal.any():
-            raise ValueError('normal has no magnitude')
-
-        self.point = point
-        self.normal = numpy.array(normal / numpy.linalg.norm(normal)).reshape(1, 3)
-
-    @classmethod
-    def construct(cls, point_p, point_q, point_r):
-
-        """Construct a plane that includes the three given points.
-
-        Parameters:
-        point_p (vector): x,y,z position of a first point
-        point_q (vector): x,y,z position of a second point
-        point_r (vector): x,y,z position of a third point
-
-        Returns:
-        Plane: a plane that includes the three given points
-        """
-        return Plane(
-            point_p,
-            numpy.cross(point_q - point_p, point_r - point_p))
-
-    # To do: add unit tests.
-    def intersection_duration(self, position, velocity):
-
-        """Find a particle's next intersection of this plane.
-
-        Parameters:
-        position (vector): x,y,z of the particle's position
-        velocity (vector): x,y,z of the particle's velocity
-
-        Returns a tuple:
-        vector: x,y,z of where the particle intersects this plane
-        float: the time taken to reach this plane, may be negative
-        """
-        if len(position.shape) != 2 or len(velocity.shape) != 2:
-            raise ValueError('expecting 2D array')
-        if position.shape[1] != 3 or velocity.shape[1] != 3:
-            raise ValueError('expecting three dimensions')
-        elif not velocity.any():
-            raise ValueError('particle is stationary')
-
-        dot_p_l = numpy.dot(self.normal, (self.point - position).T)
-        dot_n_v = numpy.dot(self.normal, velocity.T)
-
-        duration = numpy.full((1, position.shape[0]), numpy.inf)
-        numpy.divide(dot_p_l, dot_n_v, where=dot_n_v != 0, out=duration)
-        duration = duration.T
-        intersection = position + velocity * duration
-        return (intersection, duration)
-
-    # To do: add unit tests.
-    # Are both sides mirrored or does the direction of the normal matter?
-    def reflect(self, velocity):
-
-        """Calculate the velocity of a particle reflected off this plane.
-
-        Parameters:
-        velocity (vector): x,y,z of the particle's velocity
-
-        Returns:
-        vector: x,y,z of the outgoing reflection
-        """
-        dot_d_n = numpy.dot(velocity, self.normal.flatten())
-        reflection = velocity - 2 * dot_d_n * self.normal.flatten()
-        return reflection
 
 
 class Guide(AbstractComponent):
@@ -181,9 +98,12 @@ class Guide(AbstractComponent):
                 if index == ind_prev:
                     continue
                 side = self.sides[index]
-                pos_dur_next = side.intersection_duration(pos_curr, vel_curr)
-                if pos_dur_next:
-                    (pos_next, dur_next) = pos_dur_next
+                pos_curr_wrapped = numpy.array([pos_curr])
+                vel_curr_wrapped = numpy.array([vel_curr])
+                pos_dur_next_wrapped = side.intersection_duration(pos_curr_wrapped, vel_curr_wrapped)
+                if pos_dur_next_wrapped:
+                    (pos_next_wrapped, dur_next_wrapped) = pos_dur_next_wrapped
+                    (pos_next, dur_next) = (pos_next_wrapped[0], dur_next_wrapped[0])
                     if dur_next > 0 and dur_next < dur_min:
                         ind_min = index
                         (pos_min, dur_min) = (pos_next, dur_next)
@@ -284,39 +204,6 @@ class Guide(AbstractComponent):
 
         neutrons.resize(good.shape[0], neutrons[0])
         neutrons.from_npyarr(good)
-        return
-
-
-# To do: turn this into a proper test
-def test():
-    import math
-
-    # set up simple guide
-    length = 12
-    guide = Guide('test guide', 3, 3, 2, 2, length)
-    guide_angle = math.atan(((3 - 2) / 2) / length)
-
-    # set up particle
-    position = numpy.array([0.8, -1, 0], dtype=float)
-    velocity = numpy.array([0, 1, 3], dtype=float)
-
-    # determine expected angle of exit assuming two reflections
-    angle_from_z = math.atan(velocity[1] / velocity[2])
-    for i in range(0, 2):
-        offset_from_normal = math.pi/2 - angle_from_z - guide_angle
-        angle_from_z = math.pi - angle_from_z - 2 * offset_from_normal
-
-    # propagate particle through guide
-    (position, velocity, duration) = guide.propagate(position, velocity)
-
-    # report outcome
-    print('should be at x=0.8, got to x={}'.format(position[0]))
-    print('should have reached z={}, got to z={}'.format(length, position[2]))
-    print('guide length is {}, distance traveled by particle is {}'.format(
-        length, duration * numpy.linalg.norm(velocity)))
-    print('final angle is {} radians, expected {} radians'.format(
-        math.atan(velocity[1] / velocity[2]),
-        angle_from_z))
 
 
 def test_process():
