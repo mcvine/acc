@@ -108,6 +108,20 @@ def test_expected_exits(position_x, velocity_z):
     assert path_length < guide_length * 1.1
 
 
+def test_miss_guide():
+    """
+    Checks several cases where neutrons should miss the guide
+    """
+    from mcni import neutron
+    from mcvine.acc.components.guide import do_process, Guide
+
+    guide = Guide('test guide', 3, 3, 2, 2, 16)
+
+    # neutron moving away from guide
+    r = do_process(guide, neutron(r=(1.0, 1.0, 0.0), v=(-1.0, -1.0, -5.0)))
+    assert len(r) == 0
+
+
 def main():
     global interactive
     interactive = True
