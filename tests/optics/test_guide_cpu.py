@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
-import os, shutil
+import os
 import histogram.hdf as hh
 import numpy as np
 import pytest
-thisdir = os.path.dirname(__file__)
+import shutil
 from mcvine import run_script
+
+thisdir = os.path.dirname(__file__)
 interactive = False
+
 
 def test():
     '''
@@ -123,5 +126,6 @@ def main():
     interactive = True
     test()
     return
+
 
 if __name__ == '__main__': main()
