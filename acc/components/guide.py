@@ -9,7 +9,7 @@ from mcni import neutron_buffer, neutron
 # import mcvine
 # import mcvine.components as mc
 import numpy
-from acc.geometry.plane import Plane
+from mcvine.acc.geometry.plane import Plane
 
 category = 'optics'
 

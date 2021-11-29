@@ -76,7 +76,7 @@ def test_expected_exits(position_x, velocity_z):
     """
     import math
     from mcni import neutron
-    from acc.components.guide import do_process, Guide
+    from mcvine.acc.components.guide import do_process, Guide
 
     # set up simple guide
     guide_length = 16
