@@ -117,9 +117,43 @@ def test_miss_guide():
 
     guide = Guide('test guide', 3, 3, 2, 2, 16)
 
-    # neutron moving away from guide
+    # neutron moving away from guide should miss entirely
     r = do_process(guide, neutron(r=(1.0, 1.0, 0.0), v=(-1.0, -1.0, -5.0)))
     assert len(r) == 0
+
+
+def test_pass_through_guide():
+    """
+    Test several cases where neutrons pass through the guide
+    """
+    from mcni import neutron
+    from mcvine.acc.components.guide import do_process, Guide
+
+    guide_length = 16
+    guide_exit_height = 2.0
+    guide = Guide('test guide', 3, 3, 2, guide_exit_height, guide_length)
+
+    # neutron straight through at origin
+    result = do_process(guide,
+                        neutron(r=(0., 0., 0.), v=(0.0, 0.0, 0.5)))
+    # the neutron should be at the same place propagated along the +Z axis
+    np.testing.assert_equal([0., 0., guide_length], result[0:3])
+    # make sure the velocity does not change
+    np.testing.assert_equal([0., 0., 0.5], result[3:6])
+    # the time should be the same as t = d/v
+    np.testing.assert_equal(guide_length / 0.5, result[8])
+    # probability shouldn't change since there are no reflections
+    np.testing.assert_equal(1.0, result[9])
+
+    # neutron angled at the upper back guide exit from the origin
+    vmag = 0.5
+    angle = np.arctan((0.5 * guide_exit_height) / guide_length)
+    result = do_process(guide,
+                        neutron(r=(0., 0., 0.), v=(
+                            0.0, vmag * np.sin(angle), vmag * np.cos(angle))))
+    np.testing.assert_equal([0.0, 0.5 * guide_exit_height, guide_length],
+                            result[0:3])
+    np.testing.assert_equal(1.0, result[9])
 
 
 def main():
