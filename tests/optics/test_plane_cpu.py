@@ -46,8 +46,8 @@ def test_construct_correct_normal(x1, y1, z1, x2, y2, z2):
     assert abs(normal_magnitude - 1) < 1e-10
 
     # The normal should be perpendicular to the vectors defined by the points.
-    assert numpy.dot(plane.normal[0], point_1 - point_2) < 1e-10
-    assert numpy.dot(plane.normal[0], point_1 - point_3) < 1e-10
+    assert abs(numpy.dot(plane.normal[0], point_1 - point_2)) < 1e-10
+    assert abs(numpy.dot(plane.normal[0], point_1 - point_3)) < 1e-10
 
 
 @pytest.mark.parametrize("x1", [2, 3])
@@ -68,7 +68,7 @@ def test_construct_points_on_plane(x1, y1, z1, x2, y2, z2):
     for point in [point_1, point_2, point_3]:
         # A vector from a point on the plane to a point used to construct
         # the plane should be perpendicular to the normal.
-        assert numpy.dot(point - plane.point, plane.normal[0]) < 1e-10
+        assert abs(numpy.dot(point - plane.point, plane.normal[0])) < 1e-10
 
 
 @pytest.mark.parametrize("xp", [2, 3])
@@ -130,7 +130,8 @@ def test_reflection_along_normal():
     reflection = plane.reflect(velocity)
 
     # Reflection should not change the speed of a particle.
-    assert numpy.linalg.norm(velocity) - numpy.linalg.norm(reflection) < 1e-10
+    assert abs(numpy.linalg.norm(velocity) -
+               numpy.linalg.norm(reflection)) < 1e-10
 
     # The reflection should be the opposite of the velocity.
     assert numpy.linalg.norm(velocity + reflection) < 1e-10
@@ -172,16 +173,22 @@ def test_intersection_duration_moving(xp, yp, zp, xv, yv, zv):
 
     # A vector from a point on the plane to the intersection should be
     # perpendicular to the normal.
-    assert numpy.dot(intersection[0] - plane.point, plane.normal[0]) < 1e-10
+    assert abs(numpy.dot(intersection[0] - plane.point,
+                         plane.normal[0])) < 1e-10
 
-    path = intersection - position
+    path = intersection[0] - position
 
     velocity_magnitude = numpy.linalg.norm(velocity)
     path_magnitude = numpy.linalg.norm(path)
 
     # The duration should match what would be expected from the distance to the
     # intersection and the particle's speed.
-    assert duration - path_magnitude / velocity_magnitude < 1e-10
+    assert abs(abs(duration[0][0]) -
+               path_magnitude / velocity_magnitude) < 1e-10
 
     # The intersection should be in the direction of the velocity.
     assert numpy.linalg.norm(numpy.cross(velocity, path)) < 1e-10
+
+    # The intersection should be reached after the duration.
+    assert numpy.linalg.norm(position + velocity * duration[0] -
+                             intersection[0]) < 1e-10
