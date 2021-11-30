@@ -5,7 +5,10 @@ import histogram.hdf as hh
 import numpy as np
 import pytest
 thisdir = os.path.dirname(__file__)
+from mcni import neutron_buffer, neutron
+from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
+from mcvine.acc.components.guide import Guide
 interactive = False
 
 def test():
@@ -68,6 +71,44 @@ def assert_approximately_equal(expected, actual):
         helper((expected, actual))
 
 
+def do_process(guide, neutrons):
+    """
+    Testing helper function to run a neutron through the guide and
+    return the result as a numpy array
+
+    Parameters
+    ----------
+    guide : instance of a Guide
+    neutrons : a NeutronEvent or a list of NeutronEvents
+
+    Returns
+    -------
+    Numpy array containing: [x, y, z, vx, vy, vz, s1, s2, t, p] for each
+    input in neutrons
+    """
+    from mcni.mcnibp import NeutronEvent
+
+    assert isinstance(guide, Guide)
+    buffer = neutron_buffer(1)
+    if isinstance(neutrons, list):
+        buffer.resize(len(neutrons), neutron())
+        for i in range(len(neutrons)):
+            buffer[i] = neutrons[i]
+    elif isinstance(neutrons, NeutronEvent):
+        buffer[0] = neutrons
+    else:
+        raise RuntimeError(
+            "Expected a NeutronEvent or a list of NeutronEvents")
+
+    guide.process(buffer)
+    result = neutrons_as_npyarr(buffer)
+    result.shape = -1, ndblsperneutron
+    if result.shape[0] == 1:
+        # return only a single dim array to make test comparisons easier
+        result = result[0]
+    return result
+
+
 @pytest.mark.parametrize("position_x", np.arange(-0.5, 1, 0.5))
 @pytest.mark.parametrize("velocity_z", np.arange(3, 4.5, 0.5))
 def test_expected_exits(position_x, velocity_z):
@@ -75,8 +116,6 @@ def test_expected_exits(position_x, velocity_z):
     Check that neutrons exit the guide at the expected angle, etc.
     """
     import math
-    from mcni import neutron
-    from mcvine.acc.components.guide import do_process, Guide
 
     # set up simple guide
     guide_length = 16
@@ -112,9 +151,6 @@ def test_miss_guide():
     """
     Checks several cases where neutrons should miss the guide
     """
-    from mcni import neutron
-    from mcvine.acc.components.guide import do_process, Guide
-
     guide = Guide('test guide', 3, 3, 2, 2, 16)
 
     # neutron moving away from guide should miss entirely
@@ -133,9 +169,6 @@ def test_pass_through_guide():
     """
     Test several cases where neutrons pass through the guide
     """
-    from mcni import neutron
-    from mcvine.acc.components.guide import do_process, Guide
-
     guide_length = 16
     guide_exit_height = 2.0
     guide = Guide('test guide', 3, 3, 2, guide_exit_height, guide_length)
