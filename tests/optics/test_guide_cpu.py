@@ -121,6 +121,13 @@ def test_miss_guide():
     r = do_process(guide, neutron(r=(1.0, 1.0, 0.0), v=(-1.0, -1.0, -5.0)))
     assert len(r) == 0
 
+    # neutron moving toward guide but just misses entrance
+    angle = np.arctan((0.5 * 3.0) / 5.0)
+    r = do_process(guide,
+                   neutron(r=(0.0, 0.0, -5.0), v=(
+                       0.0, 0.5 * np.sin(angle) + 0.05, 0.5 * np.cos(angle))))
+    assert len(r) == 0
+
 
 def test_pass_through_guide():
     """
