@@ -19,14 +19,16 @@ def test():
     # Run the mcvine instrument first
     mcvine_instr = os.path.join(thisdir, "mcvine_guide_cpu_instrument.py")
     mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
-    if os.path.exists(mcvine_outdir): shutil.rmtree(mcvine_outdir)
+    if os.path.exists(mcvine_outdir):
+        shutil.rmtree(mcvine_outdir)
     run_script.run1(mcvine_instr, mcvine_outdir, ncount=num_neutrons,
                     overwrite_datafiles=True)
 
     # Run our guide implementation
     instr = os.path.join(thisdir, "guide_cpu_instrument.py")
     outdir = 'out.debug-guide_cpu_instrument'
-    if os.path.exists(outdir): shutil.rmtree(outdir)
+    if os.path.exists(outdir):
+        shutil.rmtree(outdir)
     run_script.run1(instr, outdir, ncount=num_neutrons,
                     overwrite_datafiles=True)
 
@@ -111,4 +113,5 @@ def main():
     return
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    main()
