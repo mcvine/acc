@@ -5,7 +5,6 @@
 import math
 from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
-from mcni import neutron_buffer, neutron
 # import mcvine
 # import mcvine.components as mc
 import numpy
@@ -66,6 +65,11 @@ class Guide(AbstractComponent):
                               [-w1/2, -h1/2, 0],
                               [+w2/2, -h2/2, l])
             ]
+        self.entrance = Guide.__new_plane([+w1/2, +h1/2, 0],
+                                          [+w1/2, -h1/2, 0],
+                                          [-w1/2, -h1/2, 0])
+        self.w1 = w1
+        self.h1 = h1
         self.R0 = R0
         self.Qc = Qc
         self.alpha = alpha
@@ -146,6 +150,19 @@ class Guide(AbstractComponent):
         arr = neutrons_as_npyarr(neutrons)
         arr.shape = -1, ndblsperneutron
 
+        # Filter out neutrons that do not hit guide entrance
+        entrance_intersection, entrance_dur = \
+            self.entrance.intersection_duration(arr[:, 0:3], arr[:, 3:6])
+        arr = arr[(entrance_intersection[:, 0] < self.h1 / 2) &
+                  (entrance_intersection[:, 0] > -self.h1 / 2) &
+                  (entrance_intersection[:, 1] < self.w1 / 2) &
+                  (entrance_intersection[:, 1] > -self.w1 / 2) &
+                  ((entrance_dur.flatten() > 1e-10) |
+                   numpy.isclose(arr[:, 3], 0.0)), :]
+        if len(arr) == 0:
+            neutrons.from_npyarr(arr)
+            return
+
         position = arr[:, 0:3]  # x, y, z
         velocity = arr[:, 3:6]  # vx, vy, vz
         time = arr[:, 8].reshape((arr.shape[0], 1))
@@ -204,90 +221,3 @@ class Guide(AbstractComponent):
 
         neutrons.resize(good.shape[0], neutrons[0])
         neutrons.from_npyarr(good)
-
-
-def test_process():
-    from mcni import neutron_buffer, neutron
-    neutrons = neutron_buffer(10)
-
-    # TODO: generate a more random / better set of neutrons for input?
-    for i in range(10):
-        neutrons[i] = neutron(r=(i * 0.1, 1.0 - i * 0.1, 0.5),
-                              v=(0.05 * i, 0.2 * i, 0.5 * i))
-
-    print("Neutrons: (N = {})".format(len(neutrons)))
-    # convert to numpy arr for better debug print
-    neutrons_arr = neutrons_as_npyarr(neutrons)
-    neutrons_arr.shape = -1, ndblsperneutron
-    print(neutrons_arr)
-
-    # TODO: use a more complex guide and also test each neutron's outcome
-    guide = Guide('guide', 1.0, 1.0, 0.8, 0.8, 10.0)
-    guide.process(neutrons)
-
-    print("Neutrons AFTER: (N = {})".format(len(neutrons)))
-    result = neutrons_as_npyarr(neutrons)
-    result.shape = -1, ndblsperneutron
-    print(result)
-
-
-def do_process(guide, neutrons):
-    """
-    Testing helper function to run a neutron through the guide and
-    return the result as a numpy array
-
-    Parameters
-    ----------
-    guide : instance of a Guide
-    neutrons : a NeutronEvent or a list of NeutronEvents
-
-    Returns
-    -------
-    Numpy array containing: [x, y, z, vx, vy, vz, s1, s2, t, p] for each
-    input in neutrons
-    """
-    from mcni.mcnibp import NeutronEvent
-
-    assert isinstance(guide, Guide)
-    buffer = neutron_buffer(1)
-    if isinstance(neutrons, list):
-        buffer.resize(len(neutrons), neutron())
-        for i in range(len(neutrons)):
-            buffer[i] = neutrons[i]
-    elif isinstance(neutrons, NeutronEvent):
-        buffer[0] = neutrons
-    else:
-        raise RuntimeError(
-            "Expected a NeutronEvent or a list of NeutronEvents")
-
-    guide.process(buffer)
-    result = neutrons_as_npyarr(buffer)
-    result.shape = -1, ndblsperneutron
-    if result.shape[0] == 1:
-        # return only a single dim array to make test comparisons easier
-        result = result[0]
-    #print(result)
-    return result
-
-
-def test_guide():
-    length = 1.0
-
-    # a square guide to test very simple reflection cases
-    sq_guide = Guide('guide', 1.0, 1.0, 1.0, 1.0, length)
-
-    # TODO: test cases for: hitting no mirror, hitting one mirror, hitting two mirrors, etc
-    result = do_process(sq_guide,
-                        neutron(r=(0.0, 0., 0.), v=(0.5, 0.0, 0.5)))
-    numpy.testing.assert_equal([0, 0, length], result[0:3])
-
-    result = do_process(sq_guide,
-                        [neutron(r=(0.1, 0, 0), v=(0.1, 0.0, 0.5)),
-                         neutron(r=(0.1, 0, 0), v=(0.1, 0.0, 0.5))]
-                        )
-
-
-if __name__ == '__main__':
-    # test()
-    # test_process()
-    test_guide()

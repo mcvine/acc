@@ -5,7 +5,10 @@ import histogram.hdf as hh
 import numpy as np
 import pytest
 import shutil
+from mcni import neutron_buffer, neutron
+from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
+from mcvine.acc.components.guide import Guide
 
 thisdir = os.path.dirname(__file__)
 interactive = False
@@ -52,6 +55,44 @@ def test():
     return
 
 
+def do_process(guide, neutrons):
+    """
+    Testing helper function to run a neutron through the guide and
+    return the result as a numpy array
+
+    Parameters
+    ----------
+    guide : instance of a Guide
+    neutrons : a NeutronEvent or a list of NeutronEvents
+
+    Returns
+    -------
+    Numpy array containing: [x, y, z, vx, vy, vz, s1, s2, t, p] for each
+    input in neutrons
+    """
+    from mcni.mcnibp import NeutronEvent
+
+    assert isinstance(guide, Guide)
+    buffer = neutron_buffer(1)
+    if isinstance(neutrons, list):
+        buffer.resize(len(neutrons), neutron())
+        for i in range(len(neutrons)):
+            buffer[i] = neutrons[i]
+    elif isinstance(neutrons, NeutronEvent):
+        buffer[0] = neutrons
+    else:
+        raise RuntimeError(
+            "Expected a NeutronEvent or a list of NeutronEvents")
+
+    guide.process(buffer)
+    result = neutrons_as_npyarr(buffer)
+    result.shape = -1, ndblsperneutron
+    if result.shape[0] == 1:
+        # return only a single dim array to make test comparisons easier
+        result = result[0]
+    return result
+
+
 @pytest.mark.parametrize("position_x", np.arange(-0.5, 1, 0.5))
 @pytest.mark.parametrize("velocity_z", np.arange(3, 4.5, 0.5))
 def test_expected_exits(position_x, velocity_z):
@@ -59,8 +100,6 @@ def test_expected_exits(position_x, velocity_z):
     Check that neutrons exit the guide at the expected angle, etc.
     """
     import math
-    from mcni import neutron
-    from mcvine.acc.components.guide import do_process, Guide
 
     # set up simple guide
     guide_length = 16
@@ -96,14 +135,49 @@ def test_miss_guide():
     """
     Checks several cases where neutrons should miss the guide
     """
-    from mcni import neutron
-    from mcvine.acc.components.guide import do_process, Guide
-
     guide = Guide('test guide', 3, 3, 2, 2, 16)
 
-    # neutron moving away from guide
+    # neutron moving away from guide should miss entirely
     r = do_process(guide, neutron(r=(1.0, 1.0, 0.0), v=(-1.0, -1.0, -5.0)))
     assert len(r) == 0
+
+    # neutron moving toward guide but just misses entrance
+    angle = np.arctan((0.5 * 3.0) / 5.0)
+    r = do_process(guide,
+                   neutron(r=(0.0, 0.0, -5.0), v=(
+                       0.0, 0.5 * np.sin(angle) + 0.05, 0.5 * np.cos(angle))))
+    assert len(r) == 0
+
+
+def test_pass_through_guide():
+    """
+    Test several cases where neutrons pass through the guide
+    """
+    guide_length = 16
+    guide_exit_height = 2.0
+    guide = Guide('test guide', 3, 3, 2, guide_exit_height, guide_length)
+
+    # neutron straight through at origin
+    result = do_process(guide,
+                        neutron(r=(0., 0., 0.), v=(0.0, 0.0, 0.5)))
+    # the neutron should be at the same place propagated along the +Z axis
+    np.testing.assert_equal([0., 0., guide_length], result[0:3])
+    # make sure the velocity does not change
+    np.testing.assert_equal([0., 0., 0.5], result[3:6])
+    # the time should be the same as t = d/v
+    np.testing.assert_equal(guide_length / 0.5, result[8])
+    # probability shouldn't change since there are no reflections
+    np.testing.assert_equal(1.0, result[9])
+
+    # neutron angled at the upper back guide exit from the origin
+    vmag = 0.5
+    angle = np.arctan((0.5 * guide_exit_height) / guide_length)
+    result = do_process(guide,
+                        neutron(r=(0., 0., 0.), v=(
+                            0.0, vmag * np.sin(angle), vmag * np.cos(angle))))
+    np.testing.assert_equal([0.0, 0.5 * guide_exit_height, guide_length],
+                            result[0:3])
+    np.testing.assert_equal(1.0, result[9])
 
 
 def main():
