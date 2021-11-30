@@ -48,25 +48,6 @@ def test():
     return
 
 
-def assert_approximately_equal(expected, actual):
-    """
-    Assert that the given arguments are numerically very close.
-    Arguments may be scalar or iterable.
-    Throws AssertionError if the arguments are dissimilar.
-
-    Parameters:
-    expected: a number or numbers
-    actual: a number or numbers
-    """
-
-    from collections.abc import Iterable
-
-    if isinstance(expected, Iterable):
-        assert np.allclose(expected, actual)
-    else:
-        assert_approximately_equal([expected], [actual])
-
-
 @pytest.mark.parametrize("position_x", np.arange(-0.5, 1, 0.5))
 @pytest.mark.parametrize("velocity_z", np.arange(3, 4.5, 0.5))
 def test_expected_exits(position_x, velocity_z):
@@ -99,9 +80,9 @@ def test_expected_exits(position_x, velocity_z):
     path_length = duration * np.linalg.norm(velocity)
 
     # check outcome
-    assert_approximately_equal(position_x, position[0])
-    assert_approximately_equal(guide_length, position[2])
-    assert_approximately_equal(angle_expected, angle_actual)
+    assert np.isclose(position_x, position[0])
+    assert np.isclose(guide_length, position[2])
+    assert np.isclose(angle_expected, angle_actual)
 
     assert path_length > guide_length
     assert path_length < guide_length * 1.1
