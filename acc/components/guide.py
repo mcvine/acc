@@ -66,6 +66,11 @@ class Guide(AbstractComponent):
                               [-w1/2, -h1/2, 0],
                               [+w2/2, -h2/2, l])
             ]
+        self.entrance = Guide.__new_plane([+w1/2, +h1/2, 0],
+                                          [+w1/2, -h1/2, 0],
+                                          [-w1/2, -h1/2, 0])
+        self.w1 = w1
+        self.h1 = h1
         self.R0 = R0
         self.Qc = Qc
         self.alpha = alpha
@@ -145,6 +150,19 @@ class Guide(AbstractComponent):
             return
         arr = neutrons_as_npyarr(neutrons)
         arr.shape = -1, ndblsperneutron
+
+        # Filter out neutrons that do not hit guide entrance
+        entrance_intersection, entrance_dur = \
+            self.entrance.intersection_duration(arr[:, 0:3], arr[:, 3:6])
+        arr = arr[(entrance_intersection[:, 0] < self.h1 / 2) &
+                  (entrance_intersection[:, 0] > -self.h1 / 2) &
+                  (entrance_intersection[:, 1] < self.w1 / 2) &
+                  (entrance_intersection[:, 1] > -self.w1 / 2) &
+                  ((entrance_dur.flatten() > 1e-10) |
+                   numpy.isclose(arr[:, 3], 0.0)), :]
+        if len(arr) == 0:
+            neutrons.from_npyarr(arr)
+            return
 
         position = arr[:, 0:3]  # x, y, z
         velocity = arr[:, 3:6]  # vx, vy, vz
