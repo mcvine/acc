@@ -14,6 +14,50 @@ thisdir = os.path.dirname(__file__)
 interactive = False
 
 
+class TestReflectivity:
+
+    def test_velocity(self):
+        """
+        in progress
+        """
+        from mcni.utils.conversion import v2k
+
+        R0 = 0.99
+        Qc = 0.0219  # Å-1
+        alpha = 6.07  # Å
+        m = 2
+        W = 0.003  # Å-1
+
+        guide = Guide('test guide', 3, 3, 2, 2, 16)
+        side = guide.sides[1]
+
+        speed = 400  # m/s
+        arbitrary_vector = np.array([1, 1, 1], dtype=float)
+        v_i = np.cross(side.normal[0], arbitrary_vector)
+        v_i = np.array([v_i[0] + speed / 1e4, v_i[1] - speed / 1e4, v_i[2]])
+        v_i *= speed / np.linalg.norm(v_i)
+        v_f = side.reflect(v_i)
+        assert np.isclose(speed, np.linalg.norm(v_f))
+
+        # check that reflection is at a shallow angle
+        (v_i_hat, v_f_hat) = map(lambda v: v / np.linalg.norm(v), (v_i, v_f))
+        v_dot = np.dot(v_i_hat, v_f_hat)
+        assert 0.99 < v_dot < 1
+
+        (k_i, k_f) = map(v2k, (v_i, v_f))  # Å-1
+        Q = np.linalg.norm(k_i - k_f)  # Å-1
+
+        actual = guide.calc_reflectivity(v_i.reshape(1, 3),
+                                         v_f.reshape(1, 3))[0]
+
+        if Q > Qc:
+            p_l = 1 - np.tanh((Q - m * Qc) / W)
+            p_r = 1 - alpha * (Q - Qc)
+            assert np.isclose(actual, R0 * p_l * p_r / 2)
+        else:
+            assert np.isclose(actual, R0)
+
+
 def test():
     '''
     Tests the acc cpu implementation of a straight guide against mcvine
