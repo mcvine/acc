@@ -34,7 +34,7 @@ class TestReflectivity:
         speed = 400  # m/s
         arbitrary_vector = np.array([1, 1, 1], dtype=float)
         v_i = np.cross(side.normal[0], arbitrary_vector)
-        v_i = np.array([v_i[0] + speed / 1e4, v_i[1] - speed / 1e4, v_i[2]])
+        v_i += side.normal[0] * speed / 1e4
         v_i *= speed / np.linalg.norm(v_i)
         v_f = side.reflect(v_i)
         assert np.isclose(speed, np.linalg.norm(v_f))
