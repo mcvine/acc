@@ -1,15 +1,62 @@
 #!/usr/bin/env python
 
-import os, shutil
+import os
 import histogram.hdf as hh
 import numpy as np
 import pytest
-thisdir = os.path.dirname(__file__)
+import shutil
 from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
 from mcvine.acc.components.guide import Guide
+
+thisdir = os.path.dirname(__file__)
 interactive = False
+
+
+class TestReflectivity:
+
+    def test_velocity(self):
+        """
+        in progress
+        """
+        from mcni.utils.conversion import v2k
+
+        R0 = 0.99
+        Qc = 0.0219  # Å-1
+        alpha = 6.07  # Å
+        m = 2
+        W = 0.003  # Å-1
+
+        guide = Guide('test guide', 3, 3, 2, 2, 16)
+        side = guide.sides[1]
+
+        speed = 400  # m/s
+        arbitrary_vector = np.array([1, 1, 1], dtype=float)
+        v_i = np.cross(side.normal[0], arbitrary_vector)
+        v_i += side.normal[0] * speed / 1e4
+        v_i *= speed / np.linalg.norm(v_i)
+        v_f = side.reflect(v_i)
+        assert np.isclose(speed, np.linalg.norm(v_f))
+
+        # check that reflection is at a shallow angle
+        (v_i_hat, v_f_hat) = map(lambda v: v / np.linalg.norm(v), (v_i, v_f))
+        v_dot = np.dot(v_i_hat, v_f_hat)
+        assert 0.99 < v_dot < 1
+
+        (k_i, k_f) = map(v2k, (v_i, v_f))  # Å-1
+        Q = np.linalg.norm(k_i - k_f)  # Å-1
+
+        actual = guide.calc_reflectivity(v_i.reshape(1, 3),
+                                         v_f.reshape(1, 3))[0]
+
+        if Q > Qc:
+            p_l = 1 - np.tanh((Q - m * Qc) / W)
+            p_r = 1 - alpha * (Q - Qc)
+            assert np.isclose(actual, R0 * p_l * p_r / 2)
+        else:
+            assert np.isclose(actual, R0)
+
 
 def test():
     '''
@@ -19,14 +66,18 @@ def test():
     # Run the mcvine instrument first
     mcvine_instr = os.path.join(thisdir, "mcvine_guide_cpu_instrument.py")
     mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
-    if os.path.exists(mcvine_outdir): shutil.rmtree(mcvine_outdir)
-    run_script.run1(mcvine_instr, mcvine_outdir, ncount=num_neutrons, overwrite_datafiles=True)
+    if os.path.exists(mcvine_outdir):
+        shutil.rmtree(mcvine_outdir)
+    run_script.run1(mcvine_instr, mcvine_outdir, ncount=num_neutrons,
+                    overwrite_datafiles=True)
 
     # Run our guide implementation
     instr = os.path.join(thisdir, "guide_cpu_instrument.py")
     outdir = 'out.debug-guide_cpu_instrument'
-    if os.path.exists(outdir): shutil.rmtree(outdir)
-    run_script.run1(instr, outdir, ncount=num_neutrons, overwrite_datafiles=True)
+    if os.path.exists(outdir):
+        shutil.rmtree(outdir)
+    run_script.run1(instr, outdir, ncount=num_neutrons,
+                    overwrite_datafiles=True)
 
     # Compare output files
     mcvine_Ixy = hh.load(os.path.join(mcvine_outdir, "Ixy.h5"))
@@ -46,29 +97,6 @@ def test():
     assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage())
     assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage())
     return
-
-
-def assert_approximately_equal(expected, actual):
-    """
-    Assert that the given arguments are numerically very close.
-    Arguments may be scalar or iterable.
-    Throws AssertionError if the arguments are dissimilar.
-
-    Parameters:
-    expected: a number or numbers
-    actual: a number or numbers
-    """
-
-    def helper(xy):
-        (x, y) = xy
-        assert abs(x - y) < 1e-10
-
-    from collections.abc import Iterable
-
-    if isinstance(expected, Iterable):
-        map(helper, zip(expected, actual))
-    else:
-        helper((expected, actual))
 
 
 def do_process(guide, neutrons):
@@ -139,9 +167,9 @@ def test_expected_exits(position_x, velocity_z):
     path_length = duration * np.linalg.norm(velocity)
 
     # check outcome
-    assert_approximately_equal(position_x, position[0])
-    assert_approximately_equal(guide_length, position[2])
-    assert_approximately_equal(angle_expected, angle_actual)
+    assert np.isclose(position_x, position[0])
+    assert np.isclose(guide_length, position[2])
+    assert np.isclose(angle_expected, angle_actual)
 
     assert path_length > guide_length
     assert path_length < guide_length * 1.1
@@ -202,4 +230,6 @@ def main():
     test()
     return
 
-if __name__ == '__main__': main()
+
+if __name__ == '__main__':
+    main()
