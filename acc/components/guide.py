@@ -138,8 +138,8 @@ class Guide(AbstractComponent):
         Q = self.m_over_h * numpy.linalg.norm(
             velocity_i - velocity_f, axis=1)  # length of scattering vector
         R = numpy.where(Q > self.Qc, 0.5 * self.R0 * (
-                1.0 - numpy.tanh((Q - self.m * self.Qc) / self.W) * (
-                    1.0 - self.alpha * (Q - self.Qc))),
+                    1.0 - numpy.tanh((Q - self.m * self.Qc) / self.W)) * (
+                                    1.0 - self.alpha * (Q - self.Qc)),
                         self.R0)
         return R
 
