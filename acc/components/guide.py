@@ -108,7 +108,7 @@ class Guide(AbstractComponent):
                 if pos_dur_next_wrapped:
                     (pos_next_wrapped, dur_next_wrapped) = pos_dur_next_wrapped
                     (pos_next, dur_next) = (pos_next_wrapped[0], dur_next_wrapped[0])
-                    if dur_next > 0 and dur_next < dur_min:
+                    if 0 < dur_next < dur_min:
                         ind_min = index
                         (pos_min, dur_min) = (pos_next, dur_next)
             if dur_min == math.inf:
