@@ -70,6 +70,7 @@ class Guide(AbstractComponent):
                                           [-w1/2, -h1/2, 0])
         self.w1 = w1
         self.h1 = h1
+        self.l = l
         self.R0 = R0
         self.Qc = Qc
         self.alpha = alpha
@@ -158,7 +159,7 @@ class Guide(AbstractComponent):
                   (entrance_intersection[:, 1] < self.h1 / 2) &
                   (entrance_intersection[:, 1] > -self.h1 / 2) &
                   ((entrance_dur.flatten() > 1e-10) |
-                   numpy.isclose(arr[:, 3], 0.0)), :]
+                   numpy.isclose(arr[:, 2], 0.0)), :]
         if len(arr) == 0:
             neutrons.from_npyarr(arr)
             return
@@ -172,6 +173,10 @@ class Guide(AbstractComponent):
         side = numpy.full((arr.shape[0], 1), -2, dtype=int)
         old_side = side.copy()  # might not be necessary?
         new_duration = numpy.full((arr.shape[0], 1), numpy.inf)
+
+        # propagate to the guide entrance plane
+        position += numpy.multiply(velocity, entrance_dur)
+        time += entrance_dur
 
         # Iterate until all neutrons hit end of guide or are absorbed
         iter = 0
@@ -193,9 +198,9 @@ class Guide(AbstractComponent):
                 side = numpy.where(duration == numpy.inf, -1, side)
 
             # Propagate the neutrons based on the minimum times
-            position += numpy.multiply(velocity, duration, where=((duration != numpy.inf) | (old_side != 0)))
-            time = numpy.add(time, duration, where=((duration != numpy.inf) | (old_side != 0)))
-            old_side = side.copy()
+            mask = (old_side != side).flatten()
+            position[mask] += velocity[mask, :] * duration[mask]
+            time[mask] += duration[mask]
 
             velocity_before = velocity.copy()
 
@@ -203,12 +208,16 @@ class Guide(AbstractComponent):
             # TODO: vectorize this
             for ind in range(len(neutrons)):
                 # Only update the velocity if reflecting on one of the guide sides
-                if side[ind] != 0 and side[ind] != -1:
+                if side[ind] != old_side[ind] and side[ind] > 0:
                     velocity[ind] = self.sides[side.item(ind)].reflect(velocity[ind])
 
             # Calculate reflectivity
             reflectivity = self.calc_reflectivity(velocity_before, velocity)
-            prob *= numpy.where(side != 0, reflectivity.reshape(arr.shape[0], 1), prob)
+            reflectivity = reflectivity.reshape((arr.shape[0], 1))
+            mask = numpy.logical_and(old_side != side, side > 0)
+            prob[mask] *= reflectivity[mask]
+
+            old_side = side.copy()
             iter += 1
 
         print("process took {} iterations".format(iter))
