@@ -179,7 +179,7 @@ def test_miss_guide():
     """
     Checks several cases where neutrons should miss the guide
     """
-    guide = Guide('test guide', 3, 3, 2, 2, 16)
+    guide = Guide('test guide', 3, 2, 2, 2, 16)
 
     # neutron moving away from guide should miss entirely
     r = do_process(guide, neutron(r=(1.0, 1.0, 0.0), v=(-1.0, -1.0, -5.0)))
@@ -190,6 +190,12 @@ def test_miss_guide():
     r = do_process(guide,
                    neutron(r=(0.0, 0.0, -5.0), v=(
                        0.0, 0.5 * np.sin(angle) + 0.05, 0.5 * np.cos(angle))))
+    assert len(r) == 0
+
+    # check for guide height and width being switched
+    r = do_process(guide, neutron(r=(1.25, 0.75, -1), v=(0.0, 0.0, 1.0)))
+    assert len(r) > 0
+    r = do_process(guide, neutron(r=(0.75, 1.25, -1), v=(0.0, 0.0, 1.0)))
     assert len(r) == 0
 
 

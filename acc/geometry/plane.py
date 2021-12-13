@@ -71,7 +71,7 @@ class Plane:
         numpy.divide(dot_p_l, dot_n_v, where=dot_n_v != 0, out=duration)
         duration = duration.T
         intersection = position + velocity * duration
-        return (intersection, duration)
+        return intersection, duration
 
     def reflect(self, velocity):
 
