@@ -212,10 +212,10 @@ class Guide(AbstractComponent):
                     velocity[ind] = self.sides[side.item(ind)].reflect(velocity[ind])
 
             # Calculate reflectivity
-            reflectivity = self.calc_reflectivity(velocity_before, velocity)
-            reflectivity = reflectivity.reshape((arr.shape[0], 1))
-            mask = numpy.logical_and(old_side != side, side > 0)
-            prob[mask] *= reflectivity[mask]
+            mask = numpy.logical_and(old_side != side, side > 0).flatten()
+            reflectivity = self.calc_reflectivity(velocity_before[mask, :],
+                                                  velocity[mask, :])
+            prob[mask] = prob[mask] * reflectivity.reshape(reflectivity.shape[0], 1)
 
             old_side = side.copy()
             iter += 1
