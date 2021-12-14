@@ -12,8 +12,18 @@ version_ns = {}
 setup(
     name = "mcvine.acc",
     # version = version_ns['__version__'],
-    packages = ['mcvine.acc', 'mcvine.acc.components', 'mcvine.acc.geometry'],
-    package_dir = {'mcvine.acc': "acc", 'mcvine.acc.components': "acc/components", 'mcvine.acc.geometry': "acc/geometry"},
+    packages = [
+        'mcvine.acc',
+        'mcvine.acc.geometry',
+        'mcvine.acc.components',
+        'mcvine.acc.components.sources',
+    ],
+    package_dir = {
+        'mcvine.acc': "acc",
+        'mcvine.acc.geometry': "acc/geometry",
+        'mcvine.acc.components': "acc/components",
+        'mcvine.acc.components.sources': "acc/components/sources",
+    },
     data_files = [],
     install_requires = [
     ],
