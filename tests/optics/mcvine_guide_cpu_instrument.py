@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import mcvine, mcvine.components as mc
-from mcvine.acc.components import guide
 from mcni import rng_seed
 def seed(): return 0
 rng_seed.seed = seed
@@ -15,12 +14,12 @@ def instrument():
         Lambda0 = 10., dLambda = 9.5,
     )
     instrument.append(source, position=(0,0,0.))
-    acc_guide = guide.Guide(
+    guide = mc.optics.Guide(
         name = 'guide',
         w1=0.035, h1=0.035, w2=0.035, h2=0.035, l=10,
         R0=0.99, Qc=0.0219, alpha=6.07, m=3, W=0.003,
     )
-    instrument.append(acc_guide, position=(0, 0, 1.))
+    instrument.append(guide, position=(0, 0, 1.))
     Ixy = mc.monitors.PSD_monitor(
         name = 'Ixy', nx=250, ny=250, filename="Ixy.dat", xwidth=0.08, yheight=0.08,
         restore_neutron=True
