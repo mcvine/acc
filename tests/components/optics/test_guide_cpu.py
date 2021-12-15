@@ -8,7 +8,7 @@ import shutil
 from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
-from mcvine.acc.components.guide import Guide
+from mcvine.acc.components.optics.guide import Guide
 
 thisdir = os.path.dirname(__file__)
 interactive = False

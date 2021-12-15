@@ -17,12 +17,14 @@ setup(
         'mcvine.acc.geometry',
         'mcvine.acc.components',
         'mcvine.acc.components.sources',
+        'mcvine.acc.components.optics',
     ],
     package_dir = {
         'mcvine.acc': "acc",
         'mcvine.acc.geometry': "acc/geometry",
         'mcvine.acc.components': "acc/components",
         'mcvine.acc.components.sources': "acc/components/sources",
+        'mcvine.acc.components.optics' : "acc/components/optics",
     },
     data_files = [],
     install_requires = [
