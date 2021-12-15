@@ -70,7 +70,8 @@ class Plane:
         duration = numpy.full((1, position.shape[0]), numpy.inf)
         numpy.divide(dot_p_l, dot_n_v, where=dot_n_v != 0, out=duration)
         duration = duration.T
-        intersection = position + velocity * duration
+        mask = (duration != numpy.inf).flatten()
+        intersection = position[mask] + velocity[mask] * duration[mask]
         return intersection, duration
 
     def reflect(self, velocity):
