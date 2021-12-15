@@ -171,7 +171,7 @@ class Guide(AbstractComponent):
 
         # initialize arrays containing neutron duration and side index
         side = numpy.full((arr.shape[0], 1), -2, dtype=int)
-        old_side = side.copy()  # might not be necessary?
+        old_side = side.copy()
         new_duration = numpy.full((arr.shape[0], 1), numpy.inf)
 
         # propagate to the guide entrance plane
@@ -187,7 +187,10 @@ class Guide(AbstractComponent):
             for s in range(0, len(self.sides)):
                 intersection = self.sides[s].intersection_duration(position, velocity)
                 new_duration = numpy.minimum(intersection[1], duration,
-                                             where=((intersection[1] > 1e-10) & (s != old_side) & (old_side != 0)),
+                                             where=((intersection[1] > 1e-10) &
+                                                    (s != old_side) &
+                                                    (old_side != 0) &
+                                                    (old_side != -1)),
                                              out=new_duration)
 
                 # Update the index of which side was hit based on new minimum
@@ -217,6 +220,7 @@ class Guide(AbstractComponent):
                                                   velocity[mask, :])
             prob[mask] = prob[mask] * reflectivity.reshape(
                 reflectivity.shape[0], 1)
+            side[prob <= 0] = -1
 
             old_side = side.copy()
             iter += 1
