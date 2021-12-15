@@ -84,5 +84,6 @@ class Plane:
         vector: x,y,z of the outgoing reflection
         """
         dot_d_n = numpy.dot(velocity, self.normal.flatten())
-        reflection = velocity - 2 * dot_d_n * self.normal.flatten()
+        reflection = velocity - 2 * dot_d_n[:, numpy.newaxis] * \
+                     self.normal.flatten()
         return reflection
