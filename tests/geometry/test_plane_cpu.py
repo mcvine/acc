@@ -82,7 +82,7 @@ def test_reflection(xp, yp, zp, xv, yv, zv):
     """
     Check the properties of reflections off the plane.
     """
-    velocity = numpy.array([xv, yv, zv], dtype=float)
+    velocity = numpy.array([xv, yv, zv], dtype=float).reshape(1, 3)
 
     plane_1 = Plane.construct(numpy.array([1, 2, 3], dtype=float),
                               numpy.array([2, 3, 4], dtype=float),
@@ -123,7 +123,7 @@ def test_reflection_along_normal():
 
     velocity = 5 * plane.normal[0]
 
-    reflection = plane.reflect(velocity)
+    reflection = plane.reflect(velocity.reshape(1, 3))
 
     # The reflection should be the opposite of the velocity.
     assert numpy.allclose(velocity, -reflection)

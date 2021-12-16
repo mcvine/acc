@@ -8,7 +8,7 @@ import shutil
 from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
-from mcvine.acc.components.guide import Guide
+from mcvine.acc.components.optics.guide import Guide
 
 thisdir = os.path.dirname(__file__)
 interactive = False
@@ -36,12 +36,12 @@ class TestReflectivity:
         v_i = np.cross(side.normal[0], arbitrary_vector)
         v_i += side.normal[0] * speed / 1e4
         v_i *= speed / np.linalg.norm(v_i)
-        v_f = side.reflect(v_i)
+        v_f = side.reflect(v_i.reshape(1, 3))
         assert np.isclose(speed, np.linalg.norm(v_f))
 
         # check that reflection is at a shallow angle
         (v_i_hat, v_f_hat) = map(lambda v: v / np.linalg.norm(v), (v_i, v_f))
-        v_dot = np.dot(v_i_hat, v_f_hat)
+        v_dot = np.dot(v_i_hat, v_f_hat.T)
         assert 0.99 < v_dot < 1
 
         (k_i, k_f) = map(v2k, (v_i, v_f))  # Å-1

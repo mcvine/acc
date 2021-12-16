@@ -171,7 +171,7 @@ class Guide(AbstractComponent):
 
         # initialize arrays containing neutron duration and side index
         side = numpy.full((arr.shape[0], 1), -2, dtype=int)
-        old_side = side.copy()  # might not be necessary?
+        old_side = side.copy()
         new_duration = numpy.full((arr.shape[0], 1), numpy.inf)
 
         # propagate to the guide entrance plane
@@ -187,7 +187,10 @@ class Guide(AbstractComponent):
             for s in range(0, len(self.sides)):
                 intersection = self.sides[s].intersection_duration(position, velocity)
                 new_duration = numpy.minimum(intersection[1], duration,
-                                             where=((intersection[1] > 1e-10) & (s != old_side) & (old_side != 0)),
+                                             where=((intersection[1] > 1e-10) &
+                                                    (s != old_side) &
+                                                    (old_side != 0) &
+                                                    (old_side != -1)),
                                              out=new_duration)
 
                 # Update the index of which side was hit based on new minimum
@@ -205,17 +208,19 @@ class Guide(AbstractComponent):
             velocity_before = velocity.copy()
 
             # Update the velocity due to reflection
-            # TODO: vectorize this
-            for ind in range(len(neutrons)):
+            mask = numpy.logical_and(old_side != side, side > 0)
+            for s in range(1, len(self.sides)):
                 # Only update the velocity if reflecting on one of the guide sides
-                if side[ind] != old_side[ind] and side[ind] > 0:
-                    velocity[ind] = self.sides[side.item(ind)].reflect(velocity[ind])
+                side_mask = numpy.logical_and(mask, side == s).flatten()
+                velocity[side_mask] = self.sides[s].reflect(velocity[side_mask])
 
             # Calculate reflectivity
-            reflectivity = self.calc_reflectivity(velocity_before, velocity)
-            reflectivity = reflectivity.reshape((arr.shape[0], 1))
-            mask = numpy.logical_and(old_side != side, side > 0)
-            prob[mask] *= reflectivity[mask]
+            mask = mask.flatten()
+            reflectivity = self.calc_reflectivity(velocity_before[mask, :],
+                                                  velocity[mask, :])
+            prob[mask] = prob[mask] * reflectivity.reshape(
+                reflectivity.shape[0], 1)
+            side[prob <= 0] = -1
 
             old_side = side.copy()
             iter += 1
