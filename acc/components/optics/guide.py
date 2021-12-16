@@ -154,14 +154,16 @@ class Guide(AbstractComponent):
         # Filter out neutrons that do not hit guide entrance
         entrance_intersection, entrance_dur = \
             self.entrance.intersection_duration(arr[:, 0:3], arr[:, 3:6])
-        arr = arr[(entrance_intersection[:, 0] < self.w1 / 2) &
-                  (entrance_intersection[:, 0] > -self.w1 / 2) &
-                  (entrance_intersection[:, 1] < self.h1 / 2) &
-                  (entrance_intersection[:, 1] > -self.h1 / 2) &
-                  ((entrance_dur.flatten() > 1e-10) |
-                   numpy.isclose(arr[:, 2], 0.0)), :]
-        if len(arr) == 0:
-            neutrons.from_npyarr(arr)
+        mask = ((entrance_intersection[:, 0] < self.w1 / 2) &
+                (entrance_intersection[:, 0] > -self.w1 / 2) &
+                (entrance_intersection[:, 1] < self.h1 / 2) &
+                (entrance_intersection[:, 1] > -self.h1 / 2) &
+                ((entrance_dur.flatten() > 1e-10) |
+                 numpy.isclose(arr[:, 2], 0.0))).flatten()
+        arr = arr[mask]
+        entrance_dur = entrance_dur[mask]
+        neutrons.from_npyarr(arr)
+        if not len(neutrons):
             return
 
         position = arr[:, 0:3]  # x, y, z
