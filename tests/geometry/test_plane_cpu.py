@@ -4,7 +4,7 @@
 
 import numpy
 import pytest
-from mcvine.acc.geometry.plane import Plane
+from mcvine.acc.geometry.numpy_plane import Plane
 
 
 def test_construct_no_normal():

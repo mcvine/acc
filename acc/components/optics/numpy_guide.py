@@ -8,7 +8,7 @@ from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 # import mcvine
 # import mcvine.components as mc
 import numpy
-from mcvine.acc.geometry.plane import Plane
+from mcvine.acc.geometry.numpy_plane import Plane
 
 category = 'optics'
 
