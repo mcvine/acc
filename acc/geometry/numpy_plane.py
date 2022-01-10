@@ -23,13 +23,13 @@ class Plane:
         elif not normal.any():
             raise ValueError('normal has no magnitude')
 
-        normal_unit_vector = normal / numpy.linalg.norm(normal)
+        normal_hat = normal / numpy.linalg.norm(normal)
 
         self.point = point
-        self.normal = numpy.array(normal_unit_vector).reshape(1, 3)
+        self.normal = numpy.array(normal_hat).reshape(1, 3)
 
-    @classmethod
-    def construct(cls, point_p, point_q, point_r):
+    @staticmethod
+    def construct(point_p, point_q, point_r):
 
         """Construct a plane that includes the three given points.
 
@@ -86,5 +86,5 @@ class Plane:
         """
         dot_d_n = numpy.dot(velocity, self.normal.flatten())
         reflection = velocity - 2 * dot_d_n[:, numpy.newaxis] * \
-                     self.normal.flatten()
+            self.normal.flatten()
         return reflection
