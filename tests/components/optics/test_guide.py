@@ -8,7 +8,10 @@ import shutil
 from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
-from mcvine.acc.components.optics.numpy_guide import Guide
+from mcvine.acc import test
+from mcvine.acc.components.optics.guide import Guide
+from mcvine.acc.geometry.plane import Plane
+
 
 thisdir = os.path.dirname(__file__)
 interactive = False
@@ -16,9 +19,10 @@ interactive = False
 
 class TestReflectivity:
 
+    @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
     def test_velocity(self):
         """
-        in progress
+        Check that the reflectivity is calculated correctly for a reflection.
         """
         from mcni.utils.conversion import v2k
 
@@ -29,26 +33,26 @@ class TestReflectivity:
         W = 0.003  # Å-1
 
         guide = Guide('test guide', 3, 3, 2, 2, 16)
-        side = guide.sides[1]
+        side = guide.sides[2]
+        plane = Plane(side[0], side[1])
 
         speed = 400  # m/s
         arbitrary_vector = np.array([1, 1, 1], dtype=float)
-        v_i = np.cross(side.normal[0], arbitrary_vector)
-        v_i += side.normal[0] * speed / 1e4
+        v_i = np.cross(plane.state[1], arbitrary_vector)
+        v_i += plane.state[1] * speed / 1e4
         v_i *= speed / np.linalg.norm(v_i)
-        v_f = side.reflect(v_i.reshape(1, 3))
+        v_f = plane.reflect(v_i)
         assert np.isclose(speed, np.linalg.norm(v_f))
 
         # check that reflection is at a shallow angle
         (v_i_hat, v_f_hat) = map(lambda v: v / np.linalg.norm(v), (v_i, v_f))
-        v_dot = np.dot(v_i_hat, v_f_hat.T)
+        v_dot = np.dot(v_i_hat, v_f_hat)
         assert 0.99 < v_dot < 1
 
         (k_i, k_f) = map(v2k, (v_i, v_f))  # Å-1
         Q = np.linalg.norm(k_i - k_f)  # Å-1
 
-        actual = guide.calc_reflectivity(v_i.reshape(1, 3),
-                                         v_f.reshape(1, 3))[0]
+        actual = guide.reflectivity(v_i, v_f)
 
         if Q > Qc:
             p_l = 1 - np.tanh((Q - m * Qc) / W)
@@ -58,10 +62,11 @@ class TestReflectivity:
             assert np.isclose(actual, R0)
 
 
-def test():
-    '''
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_compare_mcvine():
+    """
     Tests the acc cpu implementation of a straight guide against mcvine
-    '''
+    """
     num_neutrons = 100000
     # Run the mcvine instrument first
     mcvine_instr = os.path.join(thisdir, "mcvine_guide_cpu_instrument.py")
@@ -72,8 +77,8 @@ def test():
                     overwrite_datafiles=True)
 
     # Run our guide implementation
-    instr = os.path.join(thisdir, "guide_cpu_instrument.py")
-    outdir = 'out.debug-guide_cpu_instrument'
+    instr = os.path.join(thisdir, "guide_gpu_instrument.py")
+    outdir = 'out.debug-guide_gpu_instrument'
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
     run_script.run1(instr, outdir, ncount=num_neutrons,
@@ -137,9 +142,11 @@ def do_process(guide, neutrons):
     return result
 
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 @pytest.mark.parametrize("position_x", np.arange(-0.5, 1, 0.5))
 @pytest.mark.parametrize("velocity_z", np.arange(3, 4.5, 0.5))
-def test_expected_exits(position_x, velocity_z):
+@pytest.mark.parametrize("use_propagate", [False, True])
+def test_expected_exits(position_x, velocity_z, use_propagate):
     """
     Check that neutrons exit the guide at the expected angle, etc.
     """
@@ -161,8 +168,12 @@ def test_expected_exits(position_x, velocity_z):
         angle_expected = math.pi - angle_expected - 2 * offset_from_normal
 
     # propagate particle through guide
-    result = do_process(guide, [neutron(position, velocity)])
-    (position, velocity, duration) = (result[0:3], result[3:6], result[8])
+    if use_propagate:
+        (position, velocity, duration, weight) = guide.propagate(
+            tuple(position), tuple(velocity), 0, 1)
+    else:
+        result = do_process(guide, [neutron(position, velocity)])
+        (position, velocity, duration) = (result[0:3], result[3:6], result[8])
     angle_actual = math.atan(velocity[1] / velocity[2])
     path_length = duration * np.linalg.norm(velocity)
 
@@ -171,10 +182,10 @@ def test_expected_exits(position_x, velocity_z):
     assert np.isclose(guide_length, position[2])
     assert np.isclose(angle_expected, angle_actual)
 
-    assert path_length > guide_length
-    assert path_length < guide_length * 1.1
+    assert guide_length < path_length < guide_length * 1.1
 
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_last_position_velocity():
     """
     Check that neutrons' position and velocity is as they exit.
@@ -268,6 +279,7 @@ def test_last_position_velocity():
     assert np.allclose(expected, actual)
 
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_miss_guide():
     """
     Checks several cases where neutrons should miss the guide
@@ -292,6 +304,7 @@ def test_miss_guide():
     assert len(r) == 0
 
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_pass_through_guide():
     """
     Test several cases where neutrons pass through the guide

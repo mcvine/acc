@@ -5,8 +5,6 @@
 import math
 from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
-# import mcvine
-# import mcvine.components as mc
 import numpy
 from mcvine.acc.geometry.numpy_plane import Plane
 
@@ -15,8 +13,8 @@ category = 'optics'
 
 class Guide(AbstractComponent):
 
-    @classmethod
-    def __new_plane(cls, point_p, point_q, point_r):
+    @staticmethod
+    def __new_plane(point_p, point_q, point_r):
         # Represent everything as numpy arrays in preparation for
         # vectorized operations across multi-dimensional arrays.
         return Plane.construct(numpy.array(point_p, dtype=float),
@@ -26,7 +24,6 @@ class Guide(AbstractComponent):
     def __init__(
             self, name,
             w1, h1, w2, h2, l,
-            # To do: take any notice of these arguments.
             R0=0.99, Qc=0.0219, alpha=6.07, m=2, W=0.003):
 
         """Initialize this Guide component.
@@ -66,11 +63,10 @@ class Guide(AbstractComponent):
                               [+w2/2, -h2/2, l])
             ]
         self.entrance = Guide.__new_plane([+w1/2, +h1/2, 0],
-                                          [+w1/2, -h1/2, 0],
+                                          [-w1/2, +h1/2, 0],
                                           [-w1/2, -h1/2, 0])
-        self.w1 = w1
-        self.h1 = h1
-        self.l = l
+        self.entrance_width = w1
+        self.entrance_height = h1
         self.R0 = R0
         self.Qc = Qc
         self.alpha = alpha
@@ -154,10 +150,10 @@ class Guide(AbstractComponent):
         # Filter out neutrons that do not hit guide entrance
         entrance_intersection, entrance_dur = \
             self.entrance.intersection_duration(arr[:, 0:3], arr[:, 3:6])
-        mask = ((entrance_intersection[:, 0] < self.w1 / 2) &
-                (entrance_intersection[:, 0] > -self.w1 / 2) &
-                (entrance_intersection[:, 1] < self.h1 / 2) &
-                (entrance_intersection[:, 1] > -self.h1 / 2) &
+        mask = ((entrance_intersection[:, 0] < self.entrance_width / 2) &
+                (entrance_intersection[:, 0] > -self.entrance_width / 2) &
+                (entrance_intersection[:, 1] < self.entrance_height / 2) &
+                (entrance_intersection[:, 1] > -self.entrance_height / 2) &
                 ((entrance_dur.flatten() > 1e-10) |
                  numpy.isclose(arr[:, 2], 0.0))).flatten()
         arr = arr[mask]
