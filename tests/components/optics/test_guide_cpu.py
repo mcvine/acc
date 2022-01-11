@@ -246,6 +246,99 @@ def test_expected_exits(position_x, velocity_z):
     assert path_length < guide_length * 1.1
 
 
+def test_last_position_velocity():
+    """
+    Check that neutrons' position and velocity is as they exit.
+    Checks: misses guide, enters and does not reflect, enters and reflects.
+    """
+    import math
+
+    # set up simple guide
+    # narrower exit to guarantee some reflections from level paths
+    guide_length = 10
+    guide_entry_x = 5
+    guide_exit_x = 4
+    guide = Guide(
+        'test guide', guide_entry_x * 2, 3, guide_exit_x * 2, 3, guide_length)
+
+    slope = (guide_entry_x - guide_exit_x) / guide_length
+    deflection_angle = 2 * math.atan(slope)
+
+    cases = set()
+
+    velocity_initial = np.array([0, 0, 5], dtype=float)
+    speed = np.linalg.norm(velocity_initial)
+
+    neutrons = []
+    expected = []
+    for position_x in np.arange(3.125, 6, 0.25):
+
+        # check that edge cases are avoided
+        assert not np.isclose(guide_entry_x, position_x)
+        assert not np.isclose(guide_exit_x, position_x)
+
+        # set up particle
+        position_initial = np.array([position_x, -1, 0], dtype=float)
+
+        neutrons.append(neutron(position_initial, velocity_initial))
+
+        # predict outcome
+        if position_x > guide_entry_x:
+            # misses altogether
+            cases.add('misses')
+        else:
+            if position_x < guide_exit_x:
+                # passes straight through
+                cases.add('direct')
+
+                position_final = position_initial.copy()
+                position_final[2] = guide_length
+                velocity_final = velocity_initial
+                duration = guide_length / speed
+            else:
+                # reflects off the side
+                cases.add('indirect')
+
+                # calculate geometry of reflection
+                unimpeded_length = (guide_entry_x - position_x) / slope
+                remaining_length = guide_length - unimpeded_length
+                sideways_deflection = \
+                    remaining_length * math.tan(deflection_angle)
+                distance_traveled = unimpeded_length + math.sqrt(
+                    remaining_length ** 2 + sideways_deflection ** 2)
+
+                # set up expected outcome
+                position_final = np.array([
+                    position_x - sideways_deflection,
+                    position_initial[1],
+                    guide_length
+                ], dtype=float)
+                velocity_final = np.array([
+                    speed * math.sin(-deflection_angle),
+                    0,
+                    speed * math.cos(deflection_angle)
+                ], dtype=float)
+                duration = distance_traveled / speed
+
+            assert abs(position_final[0]) < guide_exit_x
+            expected.append((position_final, velocity_final, duration))
+
+    # check that all kinds of cases are covered
+    assert len(cases) == 3
+
+    # propagate particles through guide
+    result = do_process(guide, neutrons[0:9])
+
+    expected = np.array(
+        [list(position) + list(velocity) + [duration]
+            for (position, velocity, duration) in expected]
+    )
+    actual = result.T[[0, 1, 2, 3, 4, 5, 8]].T
+
+    assert expected.shape == actual.shape
+    assert np.allclose(expected, actual)
+
+
 def test_miss_guide():
     """
     Checks several cases where neutrons should miss the guide
