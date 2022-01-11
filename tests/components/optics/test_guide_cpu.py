@@ -5,6 +5,7 @@ import histogram.hdf as hh
 import numpy as np
 import pytest
 import shutil
+import time
 from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
@@ -97,6 +98,76 @@ def test():
     assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage())
     assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage())
     return
+
+
+def calc_runtime(n, mcvine_script, acc_script, mcvine_iters=1, acc_iters=10):
+    """
+    Calculate the average runtimes of mcvine and acc implementations with a
+    specific number of neutrons and iterations to run each implementation
+    Parameters
+    ----------
+    n : number of neutrons to run each implementation
+    mcvine_script : filename of script for mcvine implementation
+    acc_script : filename of script for acc implementation
+    mcvine_iters : number of iterations to run mcvine script to obtain runtime
+    acc_iters : number of iterations to run acc script to obtain runtime
+
+    Returns
+    -------
+    Tuple containing average runtime (in ns) of mcvine and acc
+    """
+    if mcvine_iters <= 0 or acc_iters <= 0:
+        raise RuntimeError("Iteration count must be at least 1.")
+
+    mcvine_instr = os.path.join(thisdir, mcvine_script)
+    mcvine_outdir = 'out.debug-mcvine-timing'
+    if os.path.exists(mcvine_outdir):
+        shutil.rmtree(mcvine_outdir)
+
+    instr = os.path.join(thisdir, acc_script)
+    outdir = 'out.debug-acc-timing'
+    if os.path.exists(outdir):
+        shutil.rmtree(outdir)
+
+    # Lists holding the runtime for each iteration
+    mcvine_times = []
+    acc_times = []
+
+    for iter in range(mcvine_iters):
+        mcvine_start = time.time_ns()
+        run_script.run1(mcvine_instr, mcvine_outdir, ncount=n,
+                        overwrite_datafiles=True)
+        mcvine_end = time.time_ns()
+        mcvine_dur = mcvine_end - mcvine_start
+        mcvine_times.append(mcvine_dur)
+
+    for iter in range(acc_iters):
+        acc_start = time.time_ns()
+        run_script.run1(instr, outdir, ncount=n,
+                        overwrite_datafiles=True)
+        acc_end = time.time_ns()
+        acc_dur = acc_end - acc_start
+        acc_times.append(acc_dur)
+
+    mcvine_avg = np.sum(np.asarray(mcvine_times)) / len(mcvine_times)
+    acc_avg = np.sum(np.asarray(acc_times)) / len(acc_times)
+
+    return mcvine_avg, acc_avg
+
+
+def test_perf():
+    # List of neutron counts to run performance comparisons
+    #num_neutrons = [1e5, 5e5, 1e6, 5e6, 1e7]
+    num_neutrons = [1e6]
+
+    for n in num_neutrons:
+        mcvine_avg, acc_avg = calc_runtime(n, "mcvine_guide_cpu_instrument.py",
+                                           "guide_cpu_instrument.py", 1, 4)
+
+        print("N = {} -------------".format(n))
+        print("    MCViNE avg time: {} ns ({} s)".format(mcvine_avg,
+                                                         mcvine_avg * 1e-9))
+        print("    ACC avg time: {} ns ({} s)".format(acc_avg, acc_avg * 1e-9))
 
 
 def do_process(guide, neutrons):
@@ -327,6 +398,7 @@ def main():
     global interactive
     interactive = True
     test()
+    test_perf()
     return
 
 
