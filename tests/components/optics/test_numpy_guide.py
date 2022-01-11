@@ -157,7 +157,7 @@ def calc_runtime(n, mcvine_script, acc_script, mcvine_iters=1, acc_iters=10):
 
 def test_perf():
     # List of neutron counts to run performance comparisons
-    #num_neutrons = [1e5, 5e5, 1e6, 5e6, 1e7]
+    # num_neutrons = [1e5, 5e5, 1e6, 5e6, 1e7]
     num_neutrons = [1e6]
 
     for n in num_neutrons:
@@ -396,7 +396,7 @@ def test_pass_through_guide():
 def main():
     global interactive
     interactive = True
-    test()
+    test_compare_mcvine()
     test_perf()
     return
 

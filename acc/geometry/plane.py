@@ -279,8 +279,8 @@ class Plane:
         """
         intersection = empty(3, dtype=float)
         duration = empty(1, dtype=float)
-        plane_intersection_duration_kernel[1, 1](self.state, position, velocity,
-                                                 intersection, duration)
+        plane_intersection_duration_kernel[1, 1](
+            self.state, position, velocity, intersection, duration)
         return None if isnan(duration[0]) else (intersection, duration[0])
 
     def reflect(self, velocity):

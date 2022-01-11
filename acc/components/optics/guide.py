@@ -6,7 +6,6 @@ from math import inf, isnan, tanh
 from numba import cuda, guvectorize
 from numpy import array, count_nonzero, empty, empty_like
 
-from mcni import neutron_buffer
 from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 import mcvine.acc.geometry.plane as plane
@@ -324,7 +323,8 @@ def guide_propagate_kernel(
     position_out (array): write target, returns the particle's final position
     velocity_out (array): write target, returns the particle's final velocity
     duration_out (array): write target, returns the particle's new travel time
-    weight_out (array): write target, returns the particle's final weight factor
+    weight_out (array): write target,
+        returns the particle's final weight factor
     """
     (position, velocity, duration, weight) = \
         guide_propagate(guide_nature, guide_sides,

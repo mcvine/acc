@@ -339,7 +339,7 @@ def test_pass_through_guide():
 def main():
     global interactive
     interactive = True
-    test()
+    test_compare_mcvine()
     return
 
 
