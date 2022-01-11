@@ -17,6 +17,15 @@ category = 'optics'
 # mcni.utils.conversion.v2k
 @cuda.jit(device=True, inline=True)
 def v2k(n):
+    """
+    Reimplement the McStas V2K conversion.
+
+    Parameters:
+    n (float): V
+
+    Returns:
+    float: K
+    """
     mN = 1.6749286e-27
     hbar = 1.054571628e-34
     return n * 1e-10 * mN / hbar
@@ -26,6 +35,22 @@ def v2k(n):
 def guide_construct(
         dimensions,
         R0=0.99, Qc=0.0219, alpha=6.07, m=2, W=0.003):
+    """
+    Initialize this Guide component.
+    The guide is centered on the z-axis with the entrance at z=0.
+
+    Parameters:
+    dimensions (tuple): width, height of guide entry, exit, and guide length
+    R0: low-angle reflectivity
+    Qc: critical scattering vector
+    alpha: slope of reflectivity
+    m: m-value of material (0 is complete absorption)
+    W: width of supermirror cutoff
+
+    Returns a tuple:
+    guide_nature (tuple): various characteristics of the guide
+    guide_sides (tuple): the planes forming the sides of the guide
+    """
     (w1, h1, w2, h2, l) = dimensions
     return ((w1, h1, R0, Qc, alpha, m, W),
             (  # entrance
@@ -54,6 +79,17 @@ def guide_construct(
 @cuda.jit(device=True, inline=True)
 def guide_reflectivity(guide_nature, incident, reflected):
     (entrance_width, entrance_height, R0, Qc, alpha, m, W) = guide_nature
+    """
+    Calculate the mirror reflectivity for a neutron.
+
+    Parameters:
+    guide_nature (tuple): various characteristics of the guide
+    incident (tuple): initial velocity before reflecting
+    reflected (tuple): final velocity after reflecting
+
+    Returns:
+    float: the reflectivity for the neutron's given momentum change
+    """
     (ix, iy, iz) = incident
     (rx, ry, rz) = reflected
     # see eq 5.2 in mcstas manual, sec 5.1.1
@@ -68,6 +104,25 @@ def guide_reflectivity(guide_nature, incident, reflected):
 @cuda.jit(device=True, inline=True)
 def guide_propagate(guide_nature, guide_sides,
                     position, velocity, duration, weight):
+    """
+    Propagate a particle through a guide.
+    If the weight returned is 0 then the content of the other
+    values is undefined.
+
+    Parameters:
+    guide_nature (tuple): various characteristics of the guide
+    guide_sides (tuple): the planes forming the sides of the guide
+    position (tuple): x,y,z of the particle's initial position
+    velocity (tuple): x,y,z of the particle's initial velocity
+    duration (float): for how long the particle has traveled already
+    weight (float): the particle's initial weight factor
+
+    Returns a tuple:
+    tuple: x,y,z of the particle's exit position
+    tuple: x,y,z of the particle's exit velocity
+    float: for how long the particle has traveled when it exits the guide
+    float: the particle's weight factor on exit
+    """
     (entrance_width, entrance_height, R0, Qc, alpha, m, W) = guide_nature
     (pos_curr, vel_curr) = (position, velocity)
     if vel_curr[2] <= 0:
@@ -139,6 +194,25 @@ def guide_propagate(guide_nature, guide_sides,
 def guide_process(entrance_width, entrance_height,
                   R0, Qc, alpha, m, W,
                   sides, neutrons_in, neutrons_out):
+    """
+    Vectorized kernel for propagation of neutrons through guide via GPU.
+    Neutrons with a weight of 0 set in neutrons_out are absorbed and any
+    other written characteristics are undefined.
+
+    Parameters:
+    entrance_width (m): width at the guide entry
+    entrance_height (m): height at the guide entry
+    R0: low-angle reflectivity
+    Qc: critical scattering vector
+    alpha: slope of reflectivity
+    m: m-value of material (0 is complete absorption)
+    W: width of supermirror cutoff
+    sides (array): the planes forming the sides of the guide
+    neutrons_in (array): neutrons to propagate through the guide
+    neutrons_out (array): write target,
+        returns the neutrons as they emerge from the exit of the guide,
+        indexed identically as from neutrons_in
+    """
     guide_nature = (entrance_width, entrance_height, R0, Qc, alpha, m, W)
     guide_sides = (((sides[0][0][0], sides[0][0][1], sides[0][0][2]),
                     (sides[0][1][0], sides[0][1][1], sides[0][1][2])),
@@ -181,6 +255,21 @@ def guide_construct_kernel(
         dimensions,
         R0, Qc, alpha, m, W,
         guide_nature, guide_sides):
+    """
+    GPU kernel wrapping guide_construct.
+
+    Parameters:
+    dimensions (tuple): width, height of guide entry, exit, and guide length
+    R0: low-angle reflectivity
+    Qc: critical scattering vector
+    alpha: slope of reflectivity
+    m: m-value of material (0 is complete absorption)
+    W: width of supermirror cutoff
+    guide_nature (array): write target,
+        returns various characteristics of the guide
+    guide_sides (array): write target,
+        returns the planes forming the sides of the guide
+    """
     (nature, sides) = guide_construct(
         dimensions,
         R0, Qc, alpha, m, W)
@@ -203,6 +292,15 @@ def guide_construct_kernel(
 
 @cuda.jit
 def guide_reflectivity_kernel(guide_nature, incident, reflected, reflectivity):
+    """
+    GPU kernel wrapping guide_reflectivity.
+
+    Parameters:
+    guide_nature (vector): various characteristics of the guide
+    incident (vector): initial velocity before reflecting
+    reflected (vector): final velocity after reflecting
+    reflectivity (array): write target, returns the reflectivity
+    """
     reflectivity[0] = guide_reflectivity(guide_nature, incident, reflected)
 
 
@@ -211,6 +309,23 @@ def guide_propagate_kernel(
         guide_nature, guide_sides,
         position_in, velocity_in, duration_in, weight_in,
         position_out, velocity_out, duration_out, weight_out):
+    """
+    GPU kernel wrapping guide_propagate.
+    If weight_out is set to 0 then the content of the other write targets is
+    undefined.
+
+    Parameters:
+    guide_nature (vector): various characteristics of the guide
+    guide_sides (array): the planes forming the sides of the guide
+    position_in (vector): the particle's initial position
+    velocity_in (vector): the particle's initial velocity
+    duration_in (float): for how long the particle has traveled already
+    weight_in (float): the particle's initial weight factor
+    position_out (array): write target, returns the particle's final position
+    velocity_out (array): write target, returns the particle's final velocity
+    duration_out (array): write target, returns the particle's new travel time
+    weight_out (array): write target, returns the particle's final weight factor
+    """
     (position, velocity, duration, weight) = \
         guide_propagate(guide_nature, guide_sides,
                         position_in, velocity_in, duration_in, weight_in)
@@ -229,12 +344,9 @@ class Guide(AbstractComponent):
             self, name,
             w1, h1, w2, h2, l,
             R0=0.99, Qc=0.0219, alpha=6.07, m=2, W=0.003):
-
         """
         Initialize this Guide component.
-
-        The guide is centered on the z-axis
-        with the entrance at z=0.
+        The guide is centered on the z-axis with the entrance at z=0.
 
         Parameters:
         name (str): the name of this component
@@ -259,14 +371,14 @@ class Guide(AbstractComponent):
 
     def reflectivity(self, velocity_i, velocity_f):
         """
-        Calculate the mirror reflectivity.
+        Calculate the mirror reflectivity for a neutron.
 
         Parameters:
-        velocity_i: initial velocities before reflecting
-        velocity_f: final velocities after reflecting
+        velocity_i (vector): initial velocity before reflecting
+        velocity_f (vector): final velocity after reflecting
 
-        Returns
-        Reflectivity for each neutron
+        Returns:
+        float: the reflectivity for the neutron's given momentum change
         """
         reflectivity = empty(1)
         guide_reflectivity_kernel[1, 1](self.nature, velocity_i, velocity_f,
@@ -274,7 +386,6 @@ class Guide(AbstractComponent):
         return reflectivity[0]
 
     def propagate(self, position, velocity, duration, weight):
-
         """
         Propagate a particle through this guide.
 
