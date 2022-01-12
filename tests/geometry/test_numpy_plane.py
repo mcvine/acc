@@ -4,7 +4,7 @@
 
 import numpy
 import pytest
-from mcvine.acc.geometry.plane import Plane
+from mcvine.acc.geometry.numpy_plane import Plane
 
 
 def test_construct_no_normal():
@@ -12,7 +12,8 @@ def test_construct_no_normal():
     Check that one cannot construct a plane with a zero-magnitude normal.
     """
     with pytest.raises(ValueError):
-        Plane(numpy.array([1, 2, 3]), numpy.array([0, 0, 0]))
+        Plane(numpy.array([1, 2, 3], dtype=float),
+              numpy.array([0, 0, 0], dtype=float))
 
 
 def test_construct_collinear_points():
@@ -20,9 +21,9 @@ def test_construct_collinear_points():
     Check that one cannot construct a plane from points along the same line.
     """
     with pytest.raises(ValueError):
-        Plane.construct(numpy.array([1, 2, 3]),
-                        numpy.array([2, 4, 6]),
-                        numpy.array([3, 6, 9]))
+        Plane.construct(numpy.array([1, 2, 3], dtype=float),
+                        numpy.array([2, 4, 6], dtype=float),
+                        numpy.array([3, 6, 9], dtype=float))
 
 
 @pytest.mark.parametrize("x1", [2, 3])
