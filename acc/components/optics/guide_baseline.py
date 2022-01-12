@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
-from math import inf, isnan, tanh, sqrt
+from math import inf, isnan, tanh, sqrt, ceil
 from numba import cuda, guvectorize
 import numpy as np
 
@@ -129,10 +129,41 @@ def propagate(
     out_neutron[-1] = prob
     return
 
+@cuda.jit
+def process_kernel(
+        ww, hh, hw1, hh1, l,
+        R0, Qc, alpha, m, W,
+        in_neutrons, out_neutrons,
+):
+    x = cuda.grid(1)
+    if x < len(in_neutrons):
+        propagate(
+            ww, hh, hw1, hh1, l,
+            R0, Qc, alpha, m, W,
+            in_neutrons[x], out_neutrons[x],
+        )
+    return
+
+def call_process(
+        ww, hh, hw1, hh1, l,
+        R0, Qc, alpha, m, W,
+        in_neutrons, out_neutrons,
+):
+    N = len(in_neutrons)
+    threadsperblock = 10
+    nblocks = ceil(N/threadsperblock)
+    print(nblocks, threadsperblock)
+    process_kernel[nblocks, threadsperblock](
+        ww, hh, hw1, hh1, l,
+        R0, Qc, alpha, m, W,
+        in_neutrons, out_neutrons,
+    )
+    cuda.synchronize()
+
 @guvectorize(
     ["float32, float32, float32, float32, float32, "
      "float32, float32, float32, float32, float32, "
-     "float64[:, :], float64[:, :]"],
+     "float32[:, :], float32[:, :]"],
     "(),(),(),(),(), (),(),(),(),(),  (m,n)->(m,n)",
     target="cuda")
 def guv_process(
@@ -204,10 +235,12 @@ class Guide(AbstractComponent):
         Parameters:
         neutrons: a buffer containing the particles
         """
-        neutron_array = neutrons_as_npyarr(neutrons)
+        neutron_array = neutrons_as_npyarr(neutrons).astype("float32")
         neutron_array.shape = -1, ndblsperneutron
         neutrons_out = np.empty_like(neutron_array)
-        guv_process(*self._params, neutron_array, neutrons_out)
+        # guv_process(*self._params, neutron_array, neutrons_out)
+        call_process(*self._params, neutron_array, neutrons_out)
+        neutrons_out = neutrons_out.astype("float64")
         neutrons.from_npyarr(neutrons_out)
         mask = neutrons_out[:, -1]>0
         neutrons.resize(np.count_nonzero(mask), neutrons[0])

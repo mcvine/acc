@@ -22,7 +22,7 @@ def test_compare_mcvine():
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
-    num_neutrons = int(1e5)
+    num_neutrons = int(1e6)
     # Run the mcvine instrument first
     mcvine_instr = os.path.join(thisdir, "mcvine_guide_cpu_instrument.py")
     mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
