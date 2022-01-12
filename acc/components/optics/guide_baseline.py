@@ -38,7 +38,7 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
 
 max_bounces = 1000
 @cuda.jit(device=True)
-def guide_propagate(
+def propagate(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
         in_neutron, out_neutron,
@@ -122,7 +122,7 @@ def guide_propagate(
             vz = vz - d*hh;
         R = calc_reflectivity(q, R0, Qc, alpha, m, W)
         prob*=R
-        if prob==0: break
+        if prob<=0: break
         continue
     out_neutron[:6] = x,y,z,vx,vy,vz
     out_neutron[-2] = t
@@ -135,7 +135,7 @@ def guide_propagate(
      "float64[:, :], float64[:, :]"],
     "(),(),(),(),(), (),(),(),(),(),  (m,n)->(m,n)",
     target="cuda")
-def guide_process(
+def guv_process(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
         neutrons_in, neutrons_out,
@@ -157,7 +157,7 @@ def guide_process(
         indexed identically as from neutrons_in
     """
     for index in range(neutrons_in.shape[0]):
-        guide_propagate(
+        propagate(
             ww, hh, hw1, hh1, l,
             R0, Qc, alpha, m, W,
             neutrons_in[index], neutrons_out[index],
@@ -207,7 +207,7 @@ class Guide(AbstractComponent):
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
         neutrons_out = np.empty_like(neutron_array)
-        guide_process(*self._params, neutron_array, neutrons_out)
+        guv_process(*self._params, neutron_array, neutrons_out)
         neutrons.from_npyarr(neutrons_out)
         mask = neutrons_out[:, -1]>0
         neutrons.resize(np.count_nonzero(mask), neutrons[0])
