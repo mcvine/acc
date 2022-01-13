@@ -3,7 +3,7 @@
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
 from math import inf, isnan, tanh, sqrt, ceil
-from numba import cuda, guvectorize
+from numba import cuda
 import numpy as np
 
 from mcni.AbstractComponent import AbstractComponent
@@ -42,10 +42,8 @@ max_bounces = 100000
 def propagate(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutron, out_neutron,
+        in_neutron
 ):
-    for i in range(10):
-        out_neutron[i] = in_neutron[i]
     x,y,z,vx,vy,vz = in_neutron[:6]
     t = in_neutron[-2]
     prob = in_neutron[-1]
@@ -54,7 +52,7 @@ def propagate(
     x+=vx*dt; y+=vy*dt; z=0; t+=dt
     # check opening
     if (x<=-hw1 or x>=hw1 or y<=-hh1 or y>=hh1):
-        out_neutron[-1] = 0
+        in_neutron[-1] = 0
         return
     # bouncing loop
     for nb in range(max_bounces):
@@ -125,30 +123,30 @@ def propagate(
         prob*=R
         if prob<=0: break
         continue
-    out_neutron[:6] = x,y,z,vx,vy,vz
-    out_neutron[-2] = t
-    out_neutron[-1] = prob
+    in_neutron[:6] = x,y,z,vx,vy,vz
+    in_neutron[-2] = t
+    in_neutron[-1] = prob
     return
 
 @cuda.jit
 def process_kernel(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutrons, out_neutrons,
+        in_neutrons
 ):
     x = cuda.grid(1)
     if x < len(in_neutrons):
         propagate(
             ww, hh, hw1, hh1, l,
             R0, Qc, alpha, m, W,
-            in_neutrons[x], out_neutrons[x],
+            in_neutrons[x]
         )
     return
 
 def call_process(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutrons, out_neutrons,
+        in_neutrons
 ):
     N = len(in_neutrons)
     threadsperblock = 512
@@ -157,44 +155,9 @@ def call_process(
     process_kernel[nblocks, threadsperblock](
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutrons, out_neutrons,
+        in_neutrons
     )
     cuda.synchronize()
-
-@guvectorize(
-    ["float32, float32, float32, float32, float32, "
-     "float32, float32, float32, float32, float32, "
-     "float32[:, :], float32[:, :]"],
-    "(),(),(),(),(), (),(),(),(),(),  (m,n)->(m,n)",
-    target="cuda")
-def guv_process(
-        ww, hh, hw1, hh1, l,
-        R0, Qc, alpha, m, W,
-        neutrons_in, neutrons_out,
-):
-    """
-    Vectorized kernel for propagation of neutrons through guide via GPU.
-    Neutrons with a weight of 0 set in neutrons_out are absorbed and any
-    other written characteristics are undefined.
-
-    Parameters:
-    R0: low-angle reflectivity
-    Qc: critical scattering vector
-    alpha: slope of reflectivity
-    m: m-value of material (0 is complete absorption)
-    W: width of supermirror cutoff
-    neutrons_in (array): neutrons to propagate through the guide
-    neutrons_out (array): write target,
-        returns the neutrons as they emerge from the exit of the guide,
-        indexed identically as from neutrons_in
-    """
-    for index in range(neutrons_in.shape[0]):
-        propagate(
-            ww, hh, hw1, hh1, l,
-            R0, Qc, alpha, m, W,
-            neutrons_in[index], neutrons_out[index],
-        )
-
 
 class Guide(AbstractComponent):
 
@@ -227,26 +190,6 @@ class Guide(AbstractComponent):
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
 
-    def process_using_guv(self, neutrons):
-        """
-        Propagate a buffer of particles through this guide.
-        Adjusts the buffer to include only the particles that exit,
-        at the moment of exit.
-
-        Parameters:
-        neutrons: a buffer containing the particles
-        """
-        neutron_array = neutrons_as_npyarr(neutrons).astype("float32")
-        neutron_array.shape = -1, ndblsperneutron
-        neutrons_out = np.empty_like(neutron_array)
-        guv_process(*self._params, neutron_array, neutrons_out)
-        neutrons_out = neutrons_out.astype("float64")
-        neutrons.from_npyarr(neutrons_out)
-        mask = neutrons_out[:, -1]>0
-        neutrons.resize(np.count_nonzero(mask), neutrons[0])
-        neutrons.from_npyarr(neutrons_out[mask])
-        return neutrons
-
     def process(self, neutrons):
         """
         Propagate a buffer of particles through this guide.
@@ -258,10 +201,8 @@ class Guide(AbstractComponent):
         """
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
-        neutrons_out = np.empty_like(neutron_array)
-        call_process(*self._params, neutron_array, neutrons_out)
-        neutrons.from_npyarr(neutrons_out)
-        mask = neutrons_out[:, -1]>0
-        neutrons.resize(np.count_nonzero(mask), neutrons[0])
-        neutrons.from_npyarr(neutrons_out[mask])
+        call_process(*self._params, neutron_array)
+        good = neutron_array[:, -1]>0
+        neutrons.resize(int(good.sum()), neutrons[0])
+        neutrons.from_npyarr(neutron_array[good])
         return neutrons
