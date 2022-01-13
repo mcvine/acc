@@ -65,20 +65,25 @@ def test_compare_mcvine():
     """
     num_neutrons = 100000
     # Run the mcvine instrument first
-    mcvine_instr = os.path.join(thisdir, "mcvine_guide_cpu_instrument.py")
+    instr = os.path.join(thisdir, "guide_instrument.py")
     mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
     if os.path.exists(mcvine_outdir):
         shutil.rmtree(mcvine_outdir)
-    run_script.run1(mcvine_instr, mcvine_outdir, ncount=num_neutrons,
-                    overwrite_datafiles=True)
+    run_script.run1(
+        instr, mcvine_outdir,
+        ncount=num_neutrons, buffer_size=num_neutrons,
+        guide_factory = "mcvine.components.optics.Guide",
+        overwrite_datafiles=True)
 
     # Run our guide implementation
-    instr = os.path.join(thisdir, "guide_cpu_instrument.py")
     outdir = 'out.debug-guide_cpu_instrument'
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
-    run_script.run1(instr, outdir, ncount=num_neutrons,
-                    overwrite_datafiles=True)
+    run_script.run1(
+        instr, outdir,
+        ncount=num_neutrons, buffer_size=num_neutrons,
+        guide_mod = "mcvine.acc.components.optics.numpy_guide",
+        overwrite_datafiles=True)
 
     # Compare output files
     mcvine_Ixy = hh.load(os.path.join(mcvine_outdir, "Ixy.h5"))
@@ -100,15 +105,15 @@ def test_compare_mcvine():
     return
 
 
-def calc_runtime(n, mcvine_script, acc_script, mcvine_iters=1, acc_iters=10):
+def calc_runtime(n, nonacc_guide_factory, acc_guide_mod, mcvine_iters=1, acc_iters=10):
     """
     Calculate the average runtimes of mcvine and acc implementations with a
     specific number of neutrons and iterations to run each implementation
     Parameters
     ----------
     n : number of neutrons to run each implementation
-    mcvine_script : filename of script for mcvine implementation
-    acc_script : filename of script for acc implementation
+    nonacc_guide_factory : factory of nonacc mcvine guide component
+    acc_guide_mod : acc mcvine guide module
     mcvine_iters : number of iterations to run mcvine script to obtain runtime
     acc_iters : number of iterations to run acc script to obtain runtime
 
@@ -119,12 +124,11 @@ def calc_runtime(n, mcvine_script, acc_script, mcvine_iters=1, acc_iters=10):
     if mcvine_iters <= 0 or acc_iters <= 0:
         raise RuntimeError("Iteration count must be at least 1.")
 
-    mcvine_instr = os.path.join(thisdir, mcvine_script)
+    instr = os.path.join(thisdir, "guide_instrument.py")
     mcvine_outdir = 'out.debug-mcvine-timing'
     if os.path.exists(mcvine_outdir):
         shutil.rmtree(mcvine_outdir)
 
-    instr = os.path.join(thisdir, acc_script)
     outdir = 'out.debug-acc-timing'
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
@@ -135,16 +139,20 @@ def calc_runtime(n, mcvine_script, acc_script, mcvine_iters=1, acc_iters=10):
 
     for iter in range(mcvine_iters):
         mcvine_start = time.time_ns()
-        run_script.run1(mcvine_instr, mcvine_outdir, ncount=n,
-                        overwrite_datafiles=True)
+        run_script.run1(
+            instr, mcvine_outdir, ncount=n,
+            guide_factory = nonacc_guide_factory,
+            overwrite_datafiles=True)
         mcvine_end = time.time_ns()
         mcvine_dur = mcvine_end - mcvine_start
         mcvine_times.append(mcvine_dur)
 
     for iter in range(acc_iters):
         acc_start = time.time_ns()
-        run_script.run1(instr, outdir, ncount=n,
-                        overwrite_datafiles=True)
+        run_script.run1(
+            instr, outdir, ncount=n,
+            guide_mod = acc_guide_mod,
+            overwrite_datafiles=True)
         acc_end = time.time_ns()
         acc_dur = acc_end - acc_start
         acc_times.append(acc_dur)
@@ -161,8 +169,9 @@ def test_perf():
     num_neutrons = [1e6]
 
     for n in num_neutrons:
-        mcvine_avg, acc_avg = calc_runtime(n, "mcvine_guide_cpu_instrument.py",
-                                           "guide_cpu_instrument.py", 1, 4)
+        mcvine_avg, acc_avg = calc_runtime(
+            n, "mcvine.components.optics.Guide",
+            "mcvine.acc.components.optics.numpy_guide", 1, 4)
 
         print("N = {} -------------".format(n))
         print("    MCViNE avg time: {} ns ({} s)".format(mcvine_avg,

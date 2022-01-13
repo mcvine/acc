@@ -69,20 +69,24 @@ def test_compare_mcvine():
     """
     num_neutrons = 100000
     # Run the mcvine instrument first
-    mcvine_instr = os.path.join(thisdir, "mcvine_guide_cpu_instrument.py")
+    mcvine_instr = os.path.join(thisdir, "guide_instrument.py")
     mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
     if os.path.exists(mcvine_outdir):
         shutil.rmtree(mcvine_outdir)
-    run_script.run1(mcvine_instr, mcvine_outdir, ncount=num_neutrons,
-                    overwrite_datafiles=True)
+    run_script.run1(
+        mcvine_instr, mcvine_outdir, ncount=num_neutrons,
+        guide_factory = "mcvine.components.optics.Guide",
+        overwrite_datafiles=True)
 
     # Run our guide implementation
-    instr = os.path.join(thisdir, "guide_gpu_instrument.py")
+    instr = os.path.join(thisdir, "guide_instrument.py")
     outdir = 'out.debug-guide_gpu_instrument'
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
-    run_script.run1(instr, outdir, ncount=num_neutrons,
-                    overwrite_datafiles=True)
+    run_script.run1(
+        instr, outdir, ncount=num_neutrons,
+        guide_mod = "mcvine.acc.components.optics.guide",
+        overwrite_datafiles=True)
 
     # Compare output files
     mcvine_Ixy = hh.load(os.path.join(mcvine_outdir, "Ixy.h5"))
