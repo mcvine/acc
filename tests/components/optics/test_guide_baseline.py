@@ -28,8 +28,10 @@ def test_compare_mcvine():
     mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
     if os.path.exists(mcvine_outdir):
         shutil.rmtree(mcvine_outdir)
-    run_script.run1(mcvine_instr, mcvine_outdir, ncount=num_neutrons,
-                    overwrite_datafiles=True)
+    run_script.run1(
+        mcvine_instr, mcvine_outdir,
+        ncount=num_neutrons, buffer_size=num_neutrons,
+        overwrite_datafiles=True)
 
     # Run our guide implementation
     instr = os.path.join(thisdir, "guide_gpu_instrument.py")
@@ -38,7 +40,8 @@ def test_compare_mcvine():
         shutil.rmtree(outdir)
     run_script.run1(
         instr, outdir, guide_mod = "mcvine.acc.components.optics.guide_baseline",
-        ncount=num_neutrons, overwrite_datafiles=True, )
+        ncount=num_neutrons, buffer_size=num_neutrons,
+        overwrite_datafiles=True, )
 
     # Compare output files
     mcvine_Ixy = hh.load(os.path.join(mcvine_outdir, "Ixy.h5"))
@@ -53,12 +56,42 @@ def test_compare_mcvine():
         plotHist(mcvine_Ixdivx)
         plotHist(Ixy)
         plotHist(Ixdivx)
-    assert mcvine_Ixy.shape() == Ixy.shape()
-    assert mcvine_Ixdivx.shape() == Ixdivx.shape()
-    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage())
-    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage())
+        plotHist((Ixy-mcvine_Ixy)/mcvine_Ixy)
+    assert histogram_is_close(
+        Ixy.I, mcvine_Ixy.I,
+        min_nonzero_fraction=0.92, rtol=1e-3, min_rdiff_fraction=0.95,
+        atol=1e-7*1e-3, min_adiff_fraction=0.95
+    )
+    assert histogram_is_close(
+        Ixdivx.I, mcvine_Ixdivx.I,
+        min_nonzero_fraction=0.2, rtol=1e-3, min_rdiff_fraction=0.95,
+        atol=1e-7*1e-3, min_adiff_fraction=0.95
+    )
     return
 
+def histogram_is_close(
+        h1, h2, min_nonzero_fraction=0.9,
+        rtol=0.001, min_rdiff_fraction=0.9,
+        atol=1e-10, min_adiff_fraction=0.9,
+):
+    "check if histogram h1 is close to the reference h2"
+    if h2.shape != h1.shape: return False
+    rdiff = h1/h2-1
+    isfinite = np.isfinite(rdiff)
+    rdiff = rdiff[isfinite]
+    adiff = (h1-h2)[~isfinite]
+    # make sure there is enough data points that are not zero
+    print(rdiff.size, h2.size)
+    if rdiff.size<min_nonzero_fraction*h2.size: return False
+    # make sure for a good portion of nonzero data points,
+    # the relative diff is smaller than the given tolerance
+    print ((np.abs(rdiff)<rtol).sum() , rdiff.size)
+    if (np.abs(rdiff)<rtol).sum() < rdiff.size*min_rdiff_fraction:
+        return False
+    print ((np.abs(adiff)<atol).sum() , adiff.size)
+    if (np.abs(adiff)<atol).sum() < adiff.size*min_adiff_fraction:
+        return False
+    return True
 
 def main():
     global interactive
