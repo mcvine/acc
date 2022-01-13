@@ -6,7 +6,7 @@ from mcni import rng_seed
 def seed(): return 0
 rng_seed.seed = seed
 
-def instrument(guide_mod=None, guide_factory=None):
+def instrument(guide_mod=None, guide_factory=None, save_neutrons_after_guide=False):
     instrument = mcvine.instrument()
     source = mc.sources.Source_simple(
         name = 'source',
@@ -28,6 +28,9 @@ def instrument(guide_mod=None, guide_factory=None):
         R0=0.99, Qc=0.0219, alpha=6.07, m=3, W=0.003,
     )
     instrument.append(acc_guide, position=(0, 0, 1.))
+    if save_neutrons_after_guide:
+        after_guide = mc.monitors.NeutronToStorage(name='after_guide', path='after_guide.mcv')
+        instrument.append(after_guide, position=(0, 0, 11.))
     Ixy = mc.monitors.PSD_monitor(
         name = 'Ixy', nx=250, ny=250, filename="Ixy.dat", xwidth=0.08, yheight=0.08,
         restore_neutron=True
