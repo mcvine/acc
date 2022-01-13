@@ -32,11 +32,14 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
     """
     R = R0
     if Q > Qc:
-        R *= (1 - tanh((Q - m * Qc) / W)) * (1 - alpha * (Q - Qc)) / 2
-    if R<1e-5: R = 0
+        tmp = (Q - m * Qc) / W
+        if tmp < 10:
+            R *= (1 - tanh(tmp)) * (1 - alpha * (Q - Qc)) / 2
+        else:
+            R = 0
     return R
 
-max_bounces = 1000
+max_bounces = 100000
 @cuda.jit(device=True)
 def propagate(
         ww, hh, hw1, hh1, l,
@@ -150,7 +153,7 @@ def call_process(
         in_neutrons, out_neutrons,
 ):
     N = len(in_neutrons)
-    threadsperblock = 10
+    threadsperblock = 512
     nblocks = ceil(N/threadsperblock)
     print(nblocks, threadsperblock)
     process_kernel[nblocks, threadsperblock](
