@@ -13,14 +13,12 @@ category = 'optics'
 
 # mcni.utils.conversion.v2k
 from mcni.utils.conversion import V2K
+# In mcstas header
+# V2K = 1.58825361e-3
 @cuda.jit(device=True, inline=True)
 def v2k(v):
     """v in m/s, k in inverse AA """
     return v * V2K
-
-@cuda.jit(device=True, inline=True)
-def vec3len(x,y,z):
-    return sqrt(x*x+y*y+z*z)
 
 @cuda.jit(device=True, inline=True)
 def calc_reflectivity(Q, R0, Qc, alpha, m, W):
@@ -95,11 +93,11 @@ def propagate(
         if i == 0:
             break;                    # Neutron left guide.
 
-        # propagate time t1
+        # propagate time t1 to move to reflection point
         x+=vx*t1; y+=vy*t1; z+=vz*t1; t+=t1
 
         # reflection
-        if i==1: # Left vertical mirror
+        if i==1:                     # Left vertical mirror
             nlen2 = l*l + ww*ww;
             q = V2K*(-2)*vdotn_v1/sqrt(nlen2);
             d = 2*vdotn_v1/nlen2;
@@ -229,7 +227,7 @@ class Guide(AbstractComponent):
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
 
-    def process(self, neutrons):
+    def process_using_guv(self, neutrons):
         """
         Propagate a buffer of particles through this guide.
         Adjusts the buffer to include only the particles that exit,
@@ -241,9 +239,27 @@ class Guide(AbstractComponent):
         neutron_array = neutrons_as_npyarr(neutrons).astype("float32")
         neutron_array.shape = -1, ndblsperneutron
         neutrons_out = np.empty_like(neutron_array)
-        # guv_process(*self._params, neutron_array, neutrons_out)
-        call_process(*self._params, neutron_array, neutrons_out)
+        guv_process(*self._params, neutron_array, neutrons_out)
         neutrons_out = neutrons_out.astype("float64")
+        neutrons.from_npyarr(neutrons_out)
+        mask = neutrons_out[:, -1]>0
+        neutrons.resize(np.count_nonzero(mask), neutrons[0])
+        neutrons.from_npyarr(neutrons_out[mask])
+        return neutrons
+
+    def process(self, neutrons):
+        """
+        Propagate a buffer of particles through this guide.
+        Adjusts the buffer to include only the particles that exit,
+        at the moment of exit.
+
+        Parameters:
+        neutrons: a buffer containing the particles
+        """
+        neutron_array = neutrons_as_npyarr(neutrons)
+        neutron_array.shape = -1, ndblsperneutron
+        neutrons_out = np.empty_like(neutron_array)
+        call_process(*self._params, neutron_array, neutrons_out)
         neutrons.from_npyarr(neutrons_out)
         mask = neutrons_out[:, -1]>0
         neutrons.resize(np.count_nonzero(mask), neutrons[0])

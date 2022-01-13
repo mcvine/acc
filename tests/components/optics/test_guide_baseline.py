@@ -18,11 +18,12 @@ interactive = False
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_compare_mcvine():
+def test_compare_mcvine(num_neutrons = int(1e6), debug=False):
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
-    num_neutrons = int(1e6)
+    if debug:
+        assert num_neutrons < 1001
     # Run the mcvine instrument first
     instr = os.path.join(thisdir, "guide_instrument.py")
     mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
@@ -32,6 +33,7 @@ def test_compare_mcvine():
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
         guide_factory = "mcvine.components.optics.Guide",
+        save_neutrons_after_guide=debug,
         overwrite_datafiles=True)
 
     # Run our guide implementation
@@ -42,6 +44,7 @@ def test_compare_mcvine():
         instr, outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
         guide_mod = "mcvine.acc.components.optics.guide_baseline",
+        save_neutrons_after_guide=debug,
         overwrite_datafiles=True, )
 
     # Compare output files
@@ -60,13 +63,14 @@ def test_compare_mcvine():
         plotHist((Ixy-mcvine_Ixy)/mcvine_Ixy)
     assert histogram_is_close(
         Ixy.I, mcvine_Ixy.I,
-        min_nonzero_fraction=0.92, rtol=1e-3, min_rdiff_fraction=0.95,
-        atol=1e-7*1e-3, min_adiff_fraction=0.95
+        min_nonzero_fraction=0.92,
+        rtol=1e-3, min_rdiff_fraction=0.98,
+        atol=1e-7*1e-3, min_adiff_fraction=0.99
     )
     assert histogram_is_close(
         Ixdivx.I, mcvine_Ixdivx.I,
-        min_nonzero_fraction=0.2, rtol=1e-3, min_rdiff_fraction=0.95,
-        atol=1e-7*1e-3, min_adiff_fraction=0.95
+        min_nonzero_fraction=0.2, rtol=1e-3, min_rdiff_fraction=0.99,
+        atol=1e-7*1e-3, min_adiff_fraction=0.99
     )
     return
 
@@ -94,6 +98,12 @@ def histogram_is_close(
         return False
     return True
 
+def debug():
+    global interactive
+    interactive = True
+    test_compare_mcvine(debug=True, num_neutrons=100)
+    return
+
 def main():
     global interactive
     interactive = True
@@ -103,3 +113,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # debug()
