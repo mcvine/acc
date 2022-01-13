@@ -69,7 +69,8 @@ def test_compare_mcvine(num_neutrons = int(1e6), debug=False):
     )
     assert histogram_is_close(
         Ixdivx.I, mcvine_Ixdivx.I,
-        min_nonzero_fraction=0.2, rtol=1e-3, min_rdiff_fraction=0.99,
+        min_nonzero_fraction=0.2,
+        rtol=1e-3, min_rdiff_fraction=0.99,
         atol=1e-7*1e-3, min_adiff_fraction=0.99
     )
     return
