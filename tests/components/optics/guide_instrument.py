@@ -6,7 +6,10 @@ from mcni import rng_seed
 def seed(): return 0
 rng_seed.seed = seed
 
-def instrument(guide_mod=None, guide_factory=None, save_neutrons_after_guide=False):
+def instrument(
+        guide_mod=None, guide_factory=None,
+        save_neutrons_before_guide=False, save_neutrons_after_guide=False,
+):
     instrument = mcvine.instrument()
     source = mc.sources.Source_simple(
         name = 'source',
@@ -15,6 +18,9 @@ def instrument(guide_mod=None, guide_factory=None, save_neutrons_after_guide=Fal
         Lambda0 = 10., dLambda = 9.5,
     )
     instrument.append(source, position=(0,0,0.))
+    if save_neutrons_before_guide:
+        before_guide = mc.monitors.NeutronToStorage(name='before_guide', path='before_guide.mcv')
+        instrument.append(before_guide, position=(0, 0, 1.))
     if guide_mod:
         import importlib
         mod = importlib.import_module(guide_mod)

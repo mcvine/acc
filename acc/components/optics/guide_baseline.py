@@ -4,7 +4,7 @@
 
 from math import inf, isnan, tanh, sqrt, ceil
 from numba import cuda
-import numpy as np
+import numpy as np, time
 
 from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
@@ -199,10 +199,17 @@ class Guide(AbstractComponent):
         Parameters:
         neutrons: a buffer containing the particles
         """
+        t1 = time.time()
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
+        t2 = time.time()
         call_process(*self._params, neutron_array)
+        t3 = time.time()
         good = neutron_array[:, -1]>0
         neutrons.resize(int(good.sum()), neutrons[0])
         neutrons.from_npyarr(neutron_array[good])
+        t4 = time.time()
+        print("prepare input array: ", t2-t1)
+        print("call_process: ", t3-t2)
+        print("prepare output neutrons: ", t4-t3)
         return neutrons
