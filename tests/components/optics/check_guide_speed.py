@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+# This script check the speed of GPU guide component agaisnt the CPU one.
+# It reads neutrons from an input data file and then let both components process them.
+# Run save_neutrons_before_guide.py before running this script to generate
+# the input neutron data file
 
 import os, numpy as np, time
 thisdir = os.path.dirname(__file__)
