@@ -2,9 +2,9 @@
 
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
-from math import inf, isnan, tanh
-from numba import cuda, guvectorize
-from numpy import array, count_nonzero, empty, empty_like
+from math import ceil, inf, isnan, tanh
+from numba import cuda
+from numpy import array, count_nonzero, empty
 
 from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
@@ -185,18 +185,14 @@ def guide_propagate(guide_nature, guide_sides,
             return position, velocity, duration, 0
 
 
-@guvectorize(
-    ["float32, float32, float32, float32, float32, float32, float32, "
-     "float32[:, :, :], float64[:, :], float64[:, :]"],
-    "(),(),(),(),(),(),(),(p,q,r),(m,n)->(m,n)",
-    target="cuda")
+@cuda.jit
 def guide_process(entrance_width, entrance_height,
                   R0, Qc, alpha, m, W,
-                  sides, neutrons_in, neutrons_out):
+                  sides, neutrons):
     """
     Vectorized kernel for propagation of neutrons through guide via GPU.
-    Neutrons with a weight of 0 set in neutrons_out are absorbed and any
-    other written characteristics are undefined.
+    Neutrons are set with a weight of 0 to signify that they are absorbed and
+    any other written characteristics are undefined.
 
     Parameters:
     entrance_width (m): width at the guide entry
@@ -207,10 +203,7 @@ def guide_process(entrance_width, entrance_height,
     m: m-value of material (0 is complete absorption)
     W: width of supermirror cutoff
     sides (array): the planes forming the sides of the guide
-    neutrons_in (array): neutrons to propagate through the guide
-    neutrons_out (array): write target,
-        returns the neutrons as they emerge from the exit of the guide,
-        indexed identically as from neutrons_in
+    neutrons (array): neutrons propagating through the guide
     """
     guide_nature = (entrance_width, entrance_height, R0, Qc, alpha, m, W)
     guide_sides = (((sides[0][0][0], sides[0][0][1], sides[0][0][2]),
@@ -225,28 +218,30 @@ def guide_process(entrance_width, entrance_height,
                     (sides[4][1][0], sides[4][1][1], sides[4][1][2])),
                    ((sides[5][0][0], sides[5][0][1], sides[5][0][2]),
                     (sides[5][1][0], sides[5][1][1], sides[5][1][2])))
-    for index in range(neutrons_in.shape[0]):
-        position = (neutrons_in[index][0],
-                    neutrons_in[index][1],
-                    neutrons_in[index][2])
-        velocity = (neutrons_in[index][3],
-                    neutrons_in[index][4],
-                    neutrons_in[index][5])
-        duration = neutrons_in[index][8]
-        weight = neutrons_in[index][9]
-        for i in range(10):
-            neutrons_out[index][i] = 7
-        (position, velocity, duration, weight) = guide_propagate(
-            guide_nature, guide_sides, position, velocity, duration, weight)
-        neutrons_out[index][9] = weight
-        if weight > 0:
-            (neutrons_out[index][0],
-             neutrons_out[index][1],
-             neutrons_out[index][2]) = position
-            (neutrons_out[index][3],
-             neutrons_out[index][4],
-             neutrons_out[index][5]) = velocity
-            neutrons_out[index][8] = duration
+    index = cuda.grid(1)
+    if index >= len(neutrons):
+        return
+    position = (neutrons[index][0],
+                neutrons[index][1],
+                neutrons[index][2])
+    velocity = (neutrons[index][3],
+                neutrons[index][4],
+                neutrons[index][5])
+    duration = neutrons[index][8]
+    weight = neutrons[index][9]
+    for i in range(10):
+        neutrons[index][i] = 7
+    (position, velocity, duration, weight) = guide_propagate(
+        guide_nature, guide_sides, position, velocity, duration, weight)
+    neutrons[index][9] = weight
+    if weight > 0:
+        (neutrons[index][0],
+         neutrons[index][1],
+         neutrons[index][2]) = position
+        (neutrons[index][3],
+         neutrons[index][4],
+         neutrons[index][5]) = velocity
+        neutrons[index][8] = duration
 
 
 @cuda.jit
@@ -427,11 +422,16 @@ class Guide(AbstractComponent):
         (entrance_width, entrance_height, R0, Qc, alpha, m, W) = self.nature
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
-        neutrons_out = empty_like(neutron_array)
-        guide_process(entrance_width, entrance_height,
-                      R0, Qc, alpha, m, W,
-                      self.sides, neutron_array, neutrons_out)
-        mask = array(list(map(lambda weight: weight > 0, neutrons_out.T[9])),
+
+        threads_per_block = 256
+        number_of_blocks = ceil(len(neutrons) / threads_per_block)
+        guide_process[number_of_blocks, threads_per_block](
+            entrance_width, entrance_height,
+            R0, Qc, alpha, m, W,
+            self.sides, neutron_array)
+        cuda.synchronize()
+
+        mask = array(list(map(lambda weight: weight > 0, neutron_array.T[9])),
                      dtype=bool)
         neutrons.resize(count_nonzero(mask), neutrons[0])
-        neutrons.from_npyarr(neutrons_out[mask])
+        neutrons.from_npyarr(neutron_array[mask])
