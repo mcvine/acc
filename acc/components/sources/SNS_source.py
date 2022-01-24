@@ -94,10 +94,6 @@ def call_process(
     nblocks = math.ceil(N/threadsperblock)
     print(nblocks, threadsperblock)
     rng_states = create_xoroshiro128p_states(threadsperblock * nblocks, seed=1)
-    # Es = cuda.const.array_like(Es)
-    # ts = cuda.const.array_like(ts)
-    # Pvec = cuda.const.array_like(Pvec)
-    # Ptmat = cuda.const.array_like(Ptmat)
     process_kernel[nblocks, threadsperblock](
         in_neutrons,
         square, xwidth, yheight, radius, focus_xw, focus_yh, dist,
@@ -125,6 +121,10 @@ def process_kernel(
         rand_phi = xoroshiro128p_uniform_float32(rng_states, x)
         randE = xoroshiro128p_uniform_float32(rng_states, x)
         randt = xoroshiro128p_uniform_float32(rng_states, x)
+        Ptmat = cuda.const.array_like(Ptmat)
+        Es = cuda.const.array_like(Es)
+        ts = cuda.const.array_like(ts)
+        Pvec = cuda.const.array_like(Pvec)
         propagate(
             in_neutrons[x],
             square, xwidth, yheight, radius, focus_xw, focus_yh, dist,
