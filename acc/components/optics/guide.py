@@ -2,23 +2,15 @@
 #
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
-from math import inf, isnan, tanh, sqrt, ceil
+from math import ceil, sqrt, tanh
 from numba import cuda
-import numpy as np, time
+from time import time
 
 from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
+from mcni.utils.conversion import V2K
 
 category = 'optics'
-
-# mcni.utils.conversion.v2k
-from mcni.utils.conversion import V2K
-# In mcstas header
-# V2K = 1.58825361e-3
-@cuda.jit(device=True, inline=True)
-def v2k(v):
-    """v in m/s, k in inverse AA """
-    return v * V2K
 
 @cuda.jit(device=True, inline=True)
 def calc_reflectivity(Q, R0, Qc, alpha, m, W):
@@ -37,36 +29,39 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
             R = 0
     return R
 
+
 max_bounces = 100000
+
+
 @cuda.jit(device=True)
 def propagate(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
         in_neutron
 ):
-    x,y,z,vx,vy,vz = in_neutron[:6]
+    x, y, z, vx, vy, vz = in_neutron[:6]
     t = in_neutron[-2]
     prob = in_neutron[-1]
     # propagate to z=0
     dt = -z/vz
-    x+=vx*dt; y+=vy*dt; z=0.; t+=dt
+    x += vx*dt; y += vy*dt; z = 0.; t += dt
     # check opening
-    if (x<=-hw1 or x>=hw1 or y<=-hh1 or y>=hh1):
+    if x <= -hw1 or x >= hw1 or y <= -hh1 or y >= hh1:
         in_neutron[-1] = 0
         return
     # bouncing loop
     for nb in range(max_bounces):
         av = l*vx; bv = ww*vz
         ah = l*vy; bh = hh*vz
-        vdotn_v1 = bv + av;         # Left vertical
-        vdotn_v2 = bv - av;         # Right vertical
-        vdotn_h1 = bh + ah;         # Lower horizontal
-        vdotn_h2 = bh - ah;         # Upper horizontal
+        vdotn_v1 = bv + av         # Left vertical
+        vdotn_v2 = bv - av         # Right vertical
+        vdotn_h1 = bh + ah         # Lower horizontal
+        vdotn_h2 = bh - ah         # Upper horizontal
         # Compute the dot products of (O - r) and n as c1+c2 and c1-c2 
         cv1 = -hw1*l - z*ww; cv2 = x*l
         ch1 = -hh1*l - z*hh; ch2 = y*l
         # Compute intersection times.
-        t1 = (l - z)/vz; # for guide exit
+        t1 = (l - z) / vz  # for guide exit
         i = 0
         if vdotn_v1 < 0:
             t2 = (cv1 - cv2)/vdotn_v1
@@ -83,81 +78,83 @@ def propagate(
             if t2<t1:
                 t1 = t2
                 i = 3
-        if vdotn_h2 < 0 :
+        if vdotn_h2 < 0:
             t2 = (ch1 + ch2)/vdotn_h2
             if t2 < t1:
                 t1 = t2
                 i = 4
         if i == 0:
-            break;                    # Neutron left guide.
+            break                    # Neutron left guide.
 
         # propagate time t1 to move to reflection point
-        x+=vx*t1; y+=vy*t1; z+=vz*t1; t+=t1
+        x += vx*t1; y += vy*t1; z += vz*t1; t += t1
 
         # reflection
-        if i==1:                     # Left vertical mirror
+        if i == 1:                     # Left vertical mirror
             nlen2 = l*l + ww*ww
             q = V2K*(-2)*vdotn_v1/sqrt(nlen2)
             d = 2*vdotn_v1/nlen2
             vx = vx - d*l
             vz = vz - d*ww
-        elif i==2:                   # Right vertical mirror
+        elif i == 2:                   # Right vertical mirror
             nlen2 = l*l + ww*ww
             q = V2K*(-2)*vdotn_v2/sqrt(nlen2)
             d = 2*vdotn_v2/nlen2
             vx = vx + d*l
             vz = vz - d*ww
-        elif i== 3:                   # Lower horizontal mirror
+        elif i == 3:                   # Lower horizontal mirror
             nlen2 = l*l + hh*hh
             q = V2K*(-2)*vdotn_h1/sqrt(nlen2)
             d = 2*vdotn_h1/nlen2
             vy = vy - d*l
             vz = vz - d*hh
-        elif i== 4:                   # Upper horizontal mirror
+        elif i == 4:                   # Upper horizontal mirror
             nlen2 = l*l + hh*hh
             q = V2K*(-2)*vdotn_h2/sqrt(nlen2)
             d = 2*vdotn_h2/nlen2
             vy = vy + d*l
             vz = vz - d*hh
         R = calc_reflectivity(q, R0, Qc, alpha, m, W)
-        prob*=R
-        if prob<=0: break
-        continue
-    in_neutron[:6] = x,y,z,vx,vy,vz
+        prob *= R
+        if prob <= 0:
+            break
+    in_neutron[:6] = x, y, z, vx, vy, vz
     in_neutron[-2] = t
     in_neutron[-1] = prob
-    return
+
 
 @cuda.jit
 def process_kernel(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutrons
+        neutrons
 ):
     x = cuda.grid(1)
-    if x < len(in_neutrons):
+    if x < len(neutrons):
         propagate(
             ww, hh, hw1, hh1, l,
             R0, Qc, alpha, m, W,
-            in_neutrons[x]
+            neutrons[x]
         )
     return
+
 
 def call_process(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
         in_neutrons
 ):
-    N = len(in_neutrons)
-    threadsperblock = 512
-    nblocks = ceil(N/threadsperblock)
-    print(nblocks, threadsperblock)
-    process_kernel[nblocks, threadsperblock](
+    neutron_count = len(in_neutrons)
+    threads_per_block = 512
+    number_of_blocks = ceil(neutron_count / threads_per_block)
+    print("{} blocks, {} threads".format(number_of_blocks, threads_per_block))
+    process_kernel[number_of_blocks, threads_per_block](
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
         in_neutrons
     )
     cuda.synchronize()
+
 
 class Guide(AbstractComponent):
 
@@ -189,9 +186,12 @@ class Guide(AbstractComponent):
             float(ww), float(hh), float(hw1), float(hh1), float(l),
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
+
+        # Aim a neutron at the side of this guide to cause JIT compilation.
         import mcni
+        velocity = ((w1 + w2) / 2, 0, l / 2)
         neutrons = mcni.neutron_buffer(1)
-        neutrons[0] = mcni.neutron(r=(0,0,0), v=(0,0,1000), prob=1, time=0)
+        neutrons[0] = mcni.neutron(r=(0, 0, 0), v=velocity, prob=1, time=0)
         self.process(neutrons)
 
     def process(self, neutrons):
@@ -203,16 +203,16 @@ class Guide(AbstractComponent):
         Parameters:
         neutrons: a buffer containing the particles
         """
-        t1 = time.time()
+        t1 = time()
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
-        t2 = time.time()
+        t2 = time()
         call_process(*self._params, neutron_array)
-        t3 = time.time()
-        good = neutron_array[:, -1]>0
+        t3 = time()
+        good = neutron_array[:, -1] > 0
         neutrons.resize(int(good.sum()), neutrons[0])
         neutrons.from_npyarr(neutron_array[good])
-        t4 = time.time()
+        t4 = time()
         print("prepare input array: ", t2-t1)
         print("call_process: ", t3-t2)
         print("prepare output neutrons: ", t4-t3)

@@ -30,7 +30,7 @@ def test_compare_mcvine(num_neutrons = int(1e6), debug=False):
     run_script.run1(
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
-        guide_factory = "mcvine.components.optics.Guide",
+        guide_factory="mcvine.components.optics.Guide",
         save_neutrons_after_guide=debug,
         overwrite_datafiles=True)
 
@@ -41,7 +41,7 @@ def test_compare_mcvine(num_neutrons = int(1e6), debug=False):
     run_script.run1(
         instr, outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
-        guide_mod = "mcvine.acc.components.optics.guide",
+        guide_mod="mcvine.acc.components.optics.guide",
         save_neutrons_after_guide=debug,
         overwrite_datafiles=True, )
 
@@ -70,6 +70,7 @@ def debug():
     interactive = True
     test_compare_mcvine(debug=True, num_neutrons=100)
     return
+
 
 def main():
     global interactive
