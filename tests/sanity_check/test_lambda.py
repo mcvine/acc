@@ -11,15 +11,15 @@ if USE_CUDA:
     from numba import cuda
     import cupy as cp
 
-@cuda.jit(device=True)
-def atomic_func(a, x):
-    f = lambda x: math.sin(a*x)
-    return f(x)
+    @cuda.jit(device=True)
+    def atomic_func(a, x):
+        f = lambda x: math.sin(a*x)
+        return f(x)
 
-@cuda.jit
-def kernel(out):
-    ind = cuda.grid(1)
-    out[ind] = atomic_func(ind/5, math.pi/2)
+    @cuda.jit
+    def kernel(out):
+        ind = cuda.grid(1)
+        out[ind] = atomic_func(ind/5, math.pi/2)
 
 import pytest
 @pytest.mark.skipif(not USE_CUDA, reason='No CUDA')
