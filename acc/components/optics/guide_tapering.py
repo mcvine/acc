@@ -281,7 +281,10 @@ class Guide(AbstractComponent):
                         self.whalf_d, self.hhalf_d, self.lwhalf_d, self.lhhalf_d, float(R0), float(Qcx),
                         float(Qcy), float(alphax), float(alphay), float(mx), float(my), float(W)
                         )
-
+        import mcni
+        neutrons = mcni.neutron_buffer(1)
+        neutrons[0] = mcni.neutron(r=(0,0,0), v=(0,0,1000), prob=1, time=0)
+        self.process(neutrons)
 
     def load_segments(self):
         """
