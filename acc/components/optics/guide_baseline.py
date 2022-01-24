@@ -189,6 +189,10 @@ class Guide(AbstractComponent):
             float(ww), float(hh), float(hw1), float(hh1), float(l),
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
+        import mcni
+        neutrons = mcni.neutron_buffer(1)
+        neutrons[0] = mcni.neutron(r=(0,0,0), v=(0,0,1000), prob=1, time=0)
+        self.process(neutrons)
 
     def process(self, neutrons):
         """
