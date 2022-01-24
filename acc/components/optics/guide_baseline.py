@@ -49,7 +49,7 @@ def propagate(
     prob = in_neutron[-1]
     # propagate to z=0
     dt = -z/vz
-    x+=vx*dt; y+=vy*dt; z=0; t+=dt
+    x+=vx*dt; y+=vy*dt; z=0.; t+=dt
     # check opening
     if (x<=-hw1 or x>=hw1 or y<=-hh1 or y>=hh1):
         in_neutron[-1] = 0
@@ -57,37 +57,37 @@ def propagate(
     # bouncing loop
     for nb in range(max_bounces):
         av = l*vx; bv = ww*vz
-        ah = l*vy; bh = hh*vz;
+        ah = l*vy; bh = hh*vz
         vdotn_v1 = bv + av;         # Left vertical
         vdotn_v2 = bv - av;         # Right vertical
         vdotn_h1 = bh + ah;         # Lower horizontal
         vdotn_h2 = bh - ah;         # Upper horizontal
         # Compute the dot products of (O - r) and n as c1+c2 and c1-c2 
-        cv1 = -hw1*l - z*ww; cv2 = x*l;
-        ch1 = -hh1*l - z*hh; ch2 = y*l;
+        cv1 = -hw1*l - z*ww; cv2 = x*l
+        ch1 = -hh1*l - z*hh; ch2 = y*l
         # Compute intersection times.
         t1 = (l - z)/vz; # for guide exit
-        i = 0;
+        i = 0
         if vdotn_v1 < 0:
             t2 = (cv1 - cv2)/vdotn_v1
             if t2 < t1:
-                t1 = t2;
+                t1 = t2
                 i = 1
         if vdotn_v2 < 0:
             t2 = (cv1 + cv2)/vdotn_v2
             if t2<t1:
-                t1 = t2;
+                t1 = t2
                 i = 2
         if vdotn_h1 < 0:
             t2 = (ch1 - ch2)/vdotn_h1
             if t2<t1:
-                t1 = t2;
-                i = 3;
+                t1 = t2
+                i = 3
         if vdotn_h2 < 0 :
             t2 = (ch1 + ch2)/vdotn_h2
             if t2 < t1:
-                t1 = t2;
-                i = 4;
+                t1 = t2
+                i = 4
         if i == 0:
             break;                    # Neutron left guide.
 
@@ -96,29 +96,29 @@ def propagate(
 
         # reflection
         if i==1:                     # Left vertical mirror
-            nlen2 = l*l + ww*ww;
-            q = V2K*(-2)*vdotn_v1/sqrt(nlen2);
-            d = 2*vdotn_v1/nlen2;
-            vx = vx - d*l;
-            vz = vz - d*ww;
+            nlen2 = l*l + ww*ww
+            q = V2K*(-2)*vdotn_v1/sqrt(nlen2)
+            d = 2*vdotn_v1/nlen2
+            vx = vx - d*l
+            vz = vz - d*ww
         elif i==2:                   # Right vertical mirror
-            nlen2 = l*l + ww*ww;
-            q = V2K*(-2)*vdotn_v2/sqrt(nlen2);
-            d = 2*vdotn_v2/nlen2;
-            vx = vx + d*l;
-            vz = vz - d*ww;
+            nlen2 = l*l + ww*ww
+            q = V2K*(-2)*vdotn_v2/sqrt(nlen2)
+            d = 2*vdotn_v2/nlen2
+            vx = vx + d*l
+            vz = vz - d*ww
         elif i== 3:                   # Lower horizontal mirror
-            nlen2 = l*l + hh*hh;
-            q = V2K*(-2)*vdotn_h1/sqrt(nlen2);
-            d = 2*vdotn_h1/nlen2;
-            vy = vy - d*l;
-            vz = vz - d*hh;
+            nlen2 = l*l + hh*hh
+            q = V2K*(-2)*vdotn_h1/sqrt(nlen2)
+            d = 2*vdotn_h1/nlen2
+            vy = vy - d*l
+            vz = vz - d*hh
         elif i== 4:                   # Upper horizontal mirror
-            nlen2 = l*l + hh*hh;
-            q = V2K*(-2)*vdotn_h2/sqrt(nlen2);
-            d = 2*vdotn_h2/nlen2;
-            vy = vy + d*l;
-            vz = vz - d*hh;
+            nlen2 = l*l + hh*hh
+            q = V2K*(-2)*vdotn_h2/sqrt(nlen2)
+            d = 2*vdotn_h2/nlen2
+            vy = vy + d*l
+            vz = vz - d*hh
         R = calc_reflectivity(q, R0, Qc, alpha, m, W)
         prob*=R
         if prob<=0: break
@@ -189,6 +189,10 @@ class Guide(AbstractComponent):
             float(ww), float(hh), float(hw1), float(hh1), float(l),
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
+        import mcni
+        neutrons = mcni.neutron_buffer(1)
+        neutrons[0] = mcni.neutron(r=(0,0,0), v=(0,0,1000), prob=1, time=0)
+        self.process(neutrons)
 
     def process(self, neutrons):
         """

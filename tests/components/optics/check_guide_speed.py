@@ -9,7 +9,8 @@ thisdir = os.path.dirname(__file__)
 
 def test():
     from mcni.neutron_storage import load
-    neutrons = load('data/before_guide.mcv')
+    neutron_file = 'data/before_guide-n1e8.mcv'
+    neutrons = load(neutron_file)
     from mcvine.acc.components.optics import guide_baseline
     g = guide_baseline.Guide(
         name = 'guide',
@@ -20,7 +21,7 @@ def test():
     g.process(neutrons)
     print("GPU processing time:", time.time()-t1)
 
-    neutrons = load('data/before_guide.mcv')
+    neutrons = load(neutron_file)
     import mcvine.components as mc
     g = mc.optics.Guide(
         name = 'guide',
