@@ -9,7 +9,7 @@ from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
 from mcvine.acc import test
-from mcvine.acc.components.optics.guide import Guide
+from mcvine.acc.components.optics.oo_guide import Guide
 from mcvine.acc.geometry.plane import Plane
 
 
@@ -85,7 +85,7 @@ def test_compare_mcvine():
         shutil.rmtree(outdir)
     run_script.run1(
         instr, outdir, ncount=num_neutrons,
-        guide_mod = "mcvine.acc.components.optics.guide",
+        guide_mod = "mcvine.acc.components.optics.oo_guide",
         overwrite_datafiles=True)
 
     # Compare output files
