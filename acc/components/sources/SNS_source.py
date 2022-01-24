@@ -17,6 +17,7 @@ from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils import conversion
 from mcni import neutron_buffer, neutron
 
+Pt_tmp_arr_size = 256
 class SNS_source(AbstractComponent):
 
     def __init__(
@@ -30,6 +31,7 @@ class SNS_source(AbstractComponent):
         from ._SNS_source_utils import init
         self.INorm2, Es, Pvec, ts, Ptmat, EPmin, EPmax, Eidx_range, tidx_range = init(
             Emin, Emax, datapath)
+        assert len(ts) < Pt_tmp_arr_size
         Eidx_start, Eidx_stop = Eidx_range
         tidx_start, tidx_stop = tidx_range
         self._Et_generation_args = (
@@ -209,7 +211,7 @@ def generate(
     wl = (Es[Eidxh]-Eval)/(Es[Eidxh]-Es[Eidxl])
     nt = len(ts)
     # Pt = Ptmat[Eidxl]*wl + Ptmat[Eidxh]*(1-wl)
-    Pt = cuda.local.array(shape=256, dtype=nb.float64)
+    Pt = cuda.local.array(shape=Pt_tmp_arr_size, dtype=nb.float64)
     for it in range(nt):
         Pt[it] = Ptmat[Eidxl, it]*wl + Ptmat[Eidxh, it]*(1-wl)
     # generate t prob
