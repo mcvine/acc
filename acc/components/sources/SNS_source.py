@@ -57,6 +57,9 @@ class SNS_source(AbstractComponent):
             Pvec, ts, tidx_start, tidx_stop, Ptmat,
             self._prob
         )
+        import mcni
+        neutrons = mcni.neutron_buffer(1)
+        self.process(neutrons)
         return
 
     def process(self, neutrons):
