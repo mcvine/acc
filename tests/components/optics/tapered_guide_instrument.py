@@ -22,6 +22,10 @@ def instrument(
         Lambda0 = 10., dLambda = 9.5,
     )
     instrument.append(source, position=(0,0,0.))
+    if save_neutrons_before_guide:
+        before_guide = mc.monitors.NeutronToStorage(
+            name='before_guide', path='before_tapered_guide.mcv')
+        instrument.append(before_guide, position=(0, 0, 6.35))
     if guide_mod:
         import importlib
         mod = importlib.import_module(guide_mod)
@@ -39,7 +43,8 @@ def instrument(
     instrument.append(guide, position=(0, 0, 6.35))
     z_guide_end = 6.35+guide11_len
     if save_neutrons_after_guide:
-        after_guide = mc.monitors.NeutronToStorage(name='after_guide', path='after_guide.mcv')
+        after_guide = mc.monitors.NeutronToStorage(
+            name='after_guide', path='after_tapered_guide.mcv')
         instrument.append(after_guide, position=(0, 0, z_guide_end))
     Ixy = mc.monitors.PSD_monitor(
         name = 'Ixy', nx=250, ny=250, filename="Ixy.dat", xwidth=0.25, yheight=0.25,
