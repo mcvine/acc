@@ -59,7 +59,7 @@ def sns_source_load(filename, xcol=0, ycol=2):
     tvec = mat[0, :, 0]
     for i in range(nE):
         assert np.allclose(mat[i, :, 0], tvec)
-    return xvec, yvec, veclen, tvec, mat[:, :, 2]
+    return np.ascontiguousarray(xvec), np.ascontiguousarray(yvec), veclen, np.ascontiguousarray(tvec), mat[:, :, 2]
 
 
 # ## Compute integrated probability
