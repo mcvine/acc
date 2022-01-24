@@ -15,7 +15,7 @@ from mcni.AbstractComponent import AbstractComponent
 from mcni.utils import conversion
 from mcni import neutron_buffer, neutron
 
-class SNS_source_numba(AbstractComponent):
+class SNS_source(AbstractComponent):
 
     def __init__(
             self, name, datapath, Emin, Emax, xwidth, yheight,
