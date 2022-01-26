@@ -156,6 +156,7 @@ def propagate(w1, w2, h1, h2, l_seg, ww, hh,
             if i <= 2:
                 m = mx
                 if m <= 0.0:
+                    # TODO: check w1[0], rename to option?
                     m = abs(mx * w1[0] / w1[seg])
                 R = calc_reflectivity(q, R0, Qcx, alphax, m, W)
                 if R > 0:
@@ -166,6 +167,7 @@ def propagate(w1, w2, h1, h2, l_seg, ww, hh,
             else:
                 m = my
                 if m <= 0.0:
+                    # TODO: check h1[0], rename to option?
                     m = abs(my * h1[0] / h1[seg])
                 R = calc_reflectivity(q, R0, Qcy, alphay, m, W)
                 if R > 0:
@@ -173,9 +175,6 @@ def propagate(w1, w2, h1, h2, l_seg, ww, hh,
                 else:
                     x += hadj
                     break
-            # TODO: check the following, seems redundant?
-            x += hadj
-            x -= hadj
         x += hadj
 
     in_neutron[:6] = x, y, z, vx, vy, vz
@@ -225,7 +224,7 @@ class Guide(AbstractComponent):
     def __init__(
             self, name, option,
             l, mx, my,
-            R0=0.99, Qcx=0.0219, Qcy=0.0219, alphax=6.07, alphay=6.07, W=0.003):
+            R0=0.99, Qcx=0.021, Qcy=0.021, alphax=6.07, alphay=6.07, W=0.003):
         """
         Initialize this Guide component.
         The guide is centered on the z-axis with the entrance at z=0.
@@ -237,8 +236,10 @@ class Guide(AbstractComponent):
         mx: m-value of material (0 is complete absorption) for horizontal (top and bottom) mirrors
         my: m-value of material (0 is complete absorption) for vertical (left and right) mirrors
         R0: low-angle reflectivity
-        Qc: critical scattering vector
-        alpha: slope of reflectivity
+        Qcx: critical scattering vector for horizontal mirrors
+        Qcy: critical scattering vector for vertical mirrors
+        alphax: slope of reflectivity for horizontal mirrors
+        alphay: slope of reflectivity for vertical mirrors
         W: width of supermirror cutoff
         """
         self.name = name
