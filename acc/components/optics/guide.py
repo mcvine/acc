@@ -3,7 +3,7 @@
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
 from math import ceil, sqrt, tanh
-from numba import cuda
+from numba import cuda, float64, void
 from time import time
 
 from mcni.AbstractComponent import AbstractComponent
@@ -12,7 +12,8 @@ from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-@cuda.jit(device=True, inline=True)
+@cuda.jit(float64(float64, float64, float64, float64, float64, float64),
+          device=True, inline=True)
 def calc_reflectivity(Q, R0, Qc, alpha, m, W):
     """
     Calculate the mirror reflectivity for a neutron.
@@ -33,7 +34,10 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
 max_bounces = 100000
 
 
-@cuda.jit(device=True)
+@cuda.jit(void(float64, float64, float64, float64, float64,
+               float64, float64, float64, float64, float64,
+               float64[:]),
+          device=True)
 def propagate(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
@@ -123,7 +127,9 @@ def propagate(
     in_neutron[-1] = prob
 
 
-@cuda.jit
+@cuda.jit(void(float64, float64, float64, float64, float64,
+               float64, float64, float64, float64, float64,
+               float64[:, :]))
 def process_kernel(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
