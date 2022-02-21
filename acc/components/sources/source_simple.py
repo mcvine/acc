@@ -107,6 +107,33 @@ class Source_simple(AbstractComponent):
         print("prepare output neutrons: ", t4-t3)
         return neutrons
 
+    def process_no_buffer(self, N):
+        t1 = time.time()
+        call_process_no_buffer(N, *self._params)
+        t2 = time.time()
+        print("call_process: ", t2-t1)
+        return
+
+
+def call_process_no_buffer(
+        N,
+        square, width, height, radius,
+        wl_distr, Lambda0, dLambda, E0, dE,
+        xw, yh, dist, pmul,
+):
+    neutron_count = N
+    threads_per_block = 512
+    nblocks = math.ceil(neutron_count / threads_per_block)
+    print("{} blocks, {} threads".format(nblocks, threads_per_block))
+    rng_states = create_xoroshiro128p_states(threads_per_block * nblocks, seed=1)
+    process_kernel_no_buffer[nblocks, threads_per_block](
+        N,
+        square, width, height, radius,
+        wl_distr, Lambda0, dLambda, E0, dE,
+        xw, yh, dist, pmul,
+        rng_states,
+    )
+    cuda.synchronize()
 
 def call_process(
         in_neutrons,
@@ -128,6 +155,32 @@ def call_process(
     )
     cuda.synchronize()
 
+
+@cuda.jit
+def process_kernel_no_buffer(
+        N,
+        square, width, height, radius,
+        wl_distr, Lambda0, dLambda, E0, dE,
+        xw, yh, dist, pmul,
+        rng_states
+):
+    x = cuda.grid(1)
+    if x < N:
+        r1 = xoroshiro128p_uniform_float32(rng_states, x)
+        r2 = xoroshiro128p_uniform_float32(rng_states, x)
+        r3 = xoroshiro128p_uniform_float32(rng_states, x)
+        r4 = xoroshiro128p_uniform_float32(rng_states, x)
+        r5 = xoroshiro128p_uniform_float32(rng_states, x)
+        # r1 = r2 = r3 = r4 = r5 = 0.5
+        neutron = cuda.local.array(shape=10, dtype=FLOAT)
+        propagate(
+            neutron,
+            r1, r2, r3, r4, r5,
+            square, width, height, radius,
+            wl_distr, Lambda0, dLambda, E0, dE,
+            xw, yh, dist, pmul
+        )
+    return
 
 @cuda.jit
 def process_kernel(

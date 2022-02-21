@@ -15,6 +15,11 @@ src = Source_simple(
 )
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_component_no_buffer(N=10):
+    src.process_no_buffer(N)
+    return
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_component():
     neutrons = src.process(neutron_buffer(10))
     for n in neutrons:
@@ -38,8 +43,10 @@ def test_mcstas_component_long(ncount=1e6):
     return
 
 def main():
+    test_component_no_buffer(N=5)
+    # test_component_no_buffer(N=1e8)
     # test_component()
-    test_component_long(1e7)
+    # test_component_long(1e7)
     # test_mcstas_component_long(1e7)
     return
 
