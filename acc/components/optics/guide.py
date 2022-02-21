@@ -2,8 +2,10 @@
 #
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
+import numpy as np
+
 from math import ceil, sqrt, tanh
-from numba import cuda
+from numba import cuda, float32, void
 from time import time
 
 from mcni.AbstractComponent import AbstractComponent
@@ -12,7 +14,8 @@ from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-@cuda.jit(device=True, inline=True)
+@cuda.jit(float32(float32, float32, float32, float32, float32, float32),
+          device=True, inline=True)
 def calc_reflectivity(Q, R0, Qc, alpha, m, W):
     """
     Calculate the mirror reflectivity for a neutron.
@@ -33,7 +36,10 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
 max_bounces = 100000
 
 
-@cuda.jit(device=True)
+@cuda.jit(void(float32, float32, float32, float32, float32,
+               float32, float32, float32, float32, float32,
+               float32[:]),
+          device=True)
 def propagate(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
@@ -123,7 +129,9 @@ def propagate(
     in_neutron[-1] = prob
 
 
-@cuda.jit
+@cuda.jit(void(float32, float32, float32, float32, float32,
+               float32, float32, float32, float32, float32,
+               float32[:, :]))
 def process_kernel(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
@@ -206,9 +214,11 @@ class Guide(AbstractComponent):
         t1 = time()
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
+        neutron_array = neutron_array.astype(np.float32)
         t2 = time()
         call_process(*self._params, neutron_array)
         t3 = time()
+        neutron_array = neutron_array.astype(np.float64)
         good = neutron_array[:, -1] > 0
         neutrons.resize(int(good.sum()), neutrons[0])
         neutrons.from_npyarr(neutron_array[good])
