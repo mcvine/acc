@@ -5,7 +5,7 @@
 import numpy as np
 
 from math import ceil, sqrt, tanh
-from numba import cuda, float32, void
+from numba import cuda, float32, float64, void
 from time import time
 
 from mcni.AbstractComponent import AbstractComponent
@@ -14,7 +14,19 @@ from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-@cuda.jit(float32(float32, float32, float32, float32, float32, float32),
+# adjust between float32 and float64
+float_prec = float32
+
+
+def get_numpy_precision():
+    return {
+        float32: np.float32,
+        float64: np.float64
+    }[float_prec]
+
+
+@cuda.jit(float_prec(float_prec, float_prec, float_prec, float_prec, float_prec,
+                     float_prec),
           device=True, inline=True)
 def calc_reflectivity(Q, R0, Qc, alpha, m, W):
     """
@@ -36,9 +48,9 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
 max_bounces = 100000
 
 
-@cuda.jit(void(float32, float32, float32, float32, float32,
-               float32, float32, float32, float32, float32,
-               float32[:]),
+@cuda.jit(void(float_prec, float_prec, float_prec, float_prec, float_prec,
+               float_prec, float_prec, float_prec, float_prec, float_prec,
+               float_prec[:]),
           device=True)
 def propagate(
         ww, hh, hw1, hh1, l,
@@ -129,9 +141,9 @@ def propagate(
     in_neutron[-1] = prob
 
 
-@cuda.jit(void(float32, float32, float32, float32, float32,
-               float32, float32, float32, float32, float32,
-               float32[:, :]))
+@cuda.jit(void(float_prec, float_prec, float_prec, float_prec, float_prec,
+               float_prec, float_prec, float_prec, float_prec, float_prec,
+               float_prec[:, :]))
 def process_kernel(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
@@ -214,11 +226,17 @@ class Guide(AbstractComponent):
         t1 = time()
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
-        neutron_array = neutron_array.astype(np.float32)
+        neutron_array_dtype_api = neutron_array.dtype
+        neutron_array_dtype_int = get_numpy_precision()
+        is_needs_cast = \
+            neutron_array_dtype_api != neutron_array_dtype_int
+        if is_needs_cast:
+            neutron_array = neutron_array.astype(neutron_array_dtype_int)
         t2 = time()
         call_process(*self._params, neutron_array)
         t3 = time()
-        neutron_array = neutron_array.astype(np.float64)
+        if is_needs_cast:
+            neutron_array = neutron_array.astype(neutron_array_dtype_api)
         good = neutron_array[:, -1] > 0
         neutrons.resize(int(good.sum()), neutrons[0])
         neutrons.from_npyarr(neutron_array[good])

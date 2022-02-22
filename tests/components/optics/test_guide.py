@@ -9,14 +9,14 @@ from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
 from mcvine.acc import test
-
+from mcvine.acc.components.optics.guide import get_numpy_precision
 
 thisdir = os.path.dirname(__file__)
 interactive = False
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_compare_mcvine(num_neutrons = int(1e6), debug=False):
+def test_compare_mcvine(num_neutrons=int(1e7), debug=False):
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
@@ -61,8 +61,12 @@ def test_compare_mcvine(num_neutrons = int(1e6), debug=False):
         plotHist((Ixy-mcvine_Ixy)/mcvine_Ixy)
     assert mcvine_Ixy.shape() == Ixy.shape()
     assert mcvine_Ixdivx.shape() == Ixdivx.shape()
-    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage())
-    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage())
+
+    tolerance = 1e-7 if get_numpy_precision() == np.float32 else 1e-8
+    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage(),
+                       atol=tolerance)
+    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage(),
+                       atol=tolerance)
 
 
 def debug():
