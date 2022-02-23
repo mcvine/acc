@@ -13,7 +13,7 @@ from mcni.utils.conversion import V2K, SE2V, K2V
 
 category = 'sources'
 
-FLOAT = nb.float32
+FLOAT = nb.float64
 
 class Source_simple(AbstractComponent):
 
