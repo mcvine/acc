@@ -5,7 +5,7 @@
 import numpy as np
 
 from math import ceil, inf, sqrt, tanh
-from numba import cuda, float32, void
+from numba import cuda, float32, float64, int64, void
 from time import time
 
 from mcni.AbstractComponent import AbstractComponent
@@ -13,7 +13,6 @@ from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils.conversion import V2K
 
 category = 'optics'
-
 
 @cuda.jit(float32(float32, float32, float32, float32, float32, float32),
           device=True, inline=True)
@@ -65,18 +64,19 @@ def propagate(
         ch1 = -hh1*l - z*hh; ch2 = y*l
         # Compute intersection times.
         t1 = (l - z) / vz  # for guide exit
-        vdots = (-1., vdotn_v1, vdotn_v2, vdotn_h1, vdotn_h2)
-        times = (t1,
-                 (cv1 - cv2) / vdotn_v1,
-                 (cv1 + cv2) / vdotn_v2,
-                 (ch1 - ch2) / vdotn_h1,
-                 (ch1 + ch2) / vdotn_h2)
+        vdots = (float64(0), float64(-1),
+                 vdotn_v1, vdotn_v2,
+                 vdotn_h1, vdotn_h2)
+        times = (float64(0), t1,
+                 (cv1 - cv2) / vdotn_v1, (cv1 + cv2) / vdotn_v2,
+                 (ch1 - ch2) / vdotn_h1, (ch1 + ch2) / vdotn_h2)
         best_time = inf
-        for i in range(0, 5):
-            if vdots[i] < 0 and best_time > times[i]:
-                best_time = times[i]
-                side = i
-        if side == 0:
+        side = -1
+        for i in range(1, 6):
+            is_better = vdots[i] < 0 and best_time > times[i]
+            best_time = float64(is_better) and times[i] or best_time
+            side = int64(is_better) and i or side
+        if side == 1:
             # Neutron left guide.
             break
         t1 = best_time
@@ -85,22 +85,22 @@ def propagate(
         x += vx*t1; y += vy*t1; z += vz*t1; t += t1
 
         # reflection
-        if side < 3:
+        if side < 4:
             # left or right vertical mirror
-            vdot = (vdotn_v1, vdotn_v2)[side - 1]
+            vdot = (vdotn_v1, vdotn_v2)[side - 2]
             nlen2 = l*l + ww*ww
             q = V2K*(-2)*vdot/sqrt(nlen2)
             d = 2*vdot/nlen2
-            vxd = (d*l, -d*l)[side - 1]
+            vxd = (d*l, -d*l)[side - 2]
             vx = vx - vxd
             vz = vz - d*ww
         else:
             # lower or upper horizontal mirror
-            vdot = (vdotn_h1, vdotn_h2)[side - 3]
+            vdot = (vdotn_h1, vdotn_h2)[side - 4]
             nlen2 = l*l + hh*hh
             q = V2K*(-2)*vdot/sqrt(nlen2)
             d = 2*vdot/nlen2
-            vyd = (d*l, -d*l)[side - 3]
+            vyd = (d*l, -d*l)[side - 4]
             vy = vy - vyd
             vz = vz - d*hh
         R = calc_reflectivity(q, R0, Qc, alpha, m, W)
