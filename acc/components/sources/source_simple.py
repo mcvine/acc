@@ -84,14 +84,6 @@ class Source_simple(AbstractComponent):
         self.process(neutrons)
 
     def process(self, neutrons):
-        """
-        Propagate a buffer of particles through this guide.
-        Adjusts the buffer to include only the particles that exit,
-        at the moment of exit.
-
-        Parameters:
-        neutrons: a buffer containing the particles
-        """
         if not len(neutrons):
             return
         t1 = time.time()
@@ -251,7 +243,7 @@ def propagate(
 @cuda.jit(device=True)
 def randvec_target_rect(
         target, width, height, rand1, rand2,
-        vec
+        vecout
 ):
     dx = width*(rand1*2-1)/2.0
     dy = height*(rand2*2-1)/2.0
@@ -269,8 +261,9 @@ def randvec_target_rect(
     normalize_vec3(p2)
     scale_vec3(p1, dx)
     scale_vec3(p2, dy)
-    add_vec3(p1, target, target)
-    add_vec3(p2, target, target)
+    tmp = cuda.local.array(shape=3, dtype=FLOAT)
+    add_vec3(p1, target, tmp)
+    add_vec3(p2, tmp, vecout)
     dist2 = math.sqrt(dx*dx + dy*dy + dist*dist)
     return (width*height*dist)/(dist2*dist2*dist2)
 
