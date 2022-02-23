@@ -50,16 +50,6 @@ def test_component_long_with_monitors(ncount = 1e6):
         overwrite_datafiles=True)
     return
 
-def test_mcstas_component_long(ncount=1e6):
-    src = mc.sources.Source_simple(
-        'src', S_filename=dat,
-        Emin=5, Emax=20,
-        width = 0.03, height=0.03,
-        dist = 5., xw=0.03, yh=0.03
-    )
-    neutrons = src.process(neutron_buffer(int(ncount)))
-    return
-
 def main():
     # test_component_no_buffer(N=5)
     # test_component_no_buffer(N=1e8)
