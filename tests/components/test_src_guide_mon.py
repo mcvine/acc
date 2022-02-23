@@ -81,7 +81,7 @@ def test_component_no_buffer(N=10, ntotthreads=int(1e5)):
 
 def main():
     # test_component_no_buffer(N=5, ntotthreads=1)
-    test_component_no_buffer(N=1e8)
+    test_component_no_buffer(N=1e8, ntotthreads=int(1e5))
     # test_component_no_buffer(N=1e9, ntotthreads=int(1e5))
     from matplotlib import pyplot as plt
     plt.pcolormesh(mon.x_centers, mon.div_centers, mon.out_p)
