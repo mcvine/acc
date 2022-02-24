@@ -81,8 +81,8 @@ def test_component_no_buffer(N=10, ntotthreads=int(1e5)):
 
 def main():
     N = 5
-    N = 1e8
-    test_component_no_buffer(N=1e8, ntotthreads=int(1e5))
+    N = 1e11
+    test_component_no_buffer(N=N, ntotthreads=int(1e6))
     from matplotlib import pyplot as plt
     plt.pcolormesh(mon.x_centers, mon.div_centers, mon.out_p/N)
     plt.colorbar()
