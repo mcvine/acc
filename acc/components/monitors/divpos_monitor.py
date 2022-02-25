@@ -76,7 +76,7 @@ def propagate(
         return
     ix = int(math.floor( (x-xmin)/(xmax-xmin)*npos ))
     idiv = int(math.floor( (div+maxdiv)/(2*maxdiv)*ndiv ))
-    out_N[idiv, ix] += 1
-    out_p[idiv, ix] += p
-    out_p2[idiv, ix] += p*p
+    cuda.atomic.add(out_N, (idiv,ix), 1)
+    cuda.atomic.add(out_p, (idiv,ix), p)
+    cuda.atomic.add(out_p2, (idiv,ix), p*p)
     return
