@@ -4,8 +4,8 @@
 
 import numpy as np
 
-from math import ceil, sqrt, tanh
-from numba import cuda, float32, void
+from math import ceil, inf, sqrt, tanh
+from numba import cuda, float32, float64, int64, void
 from time import time
 
 from mcni.AbstractComponent import AbstractComponent
@@ -25,11 +25,7 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
     """
     R = R0
     if Q > Qc:
-        tmp = (Q - m * Qc) / W
-        if tmp < 10:
-            R *= (1 - tanh(tmp)) * (1 - alpha * (Q - Qc)) / 2
-        else:
-            R = 0
+        R *= (1 - tanh((Q - m * Qc) / W)) * (1 - alpha * (Q - Qc)) / 2
     return R
 
 
@@ -68,57 +64,44 @@ def propagate(
         ch1 = -hh1*l - z*hh; ch2 = y*l
         # Compute intersection times.
         t1 = (l - z) / vz  # for guide exit
-        i = 0
-        if vdotn_v1 < 0:
-            t2 = (cv1 - cv2)/vdotn_v1
-            if t2 < t1:
-                t1 = t2
-                i = 1
-        if vdotn_v2 < 0:
-            t2 = (cv1 + cv2)/vdotn_v2
-            if t2<t1:
-                t1 = t2
-                i = 2
-        if vdotn_h1 < 0:
-            t2 = (ch1 - ch2)/vdotn_h1
-            if t2<t1:
-                t1 = t2
-                i = 3
-        if vdotn_h2 < 0:
-            t2 = (ch1 + ch2)/vdotn_h2
-            if t2 < t1:
-                t1 = t2
-                i = 4
-        if i == 0:
-            break                    # Neutron left guide.
+        vdots = (float64(0), float64(-1),
+                 vdotn_v1, vdotn_v2,
+                 vdotn_h1, vdotn_h2)
+        times = (float64(0), t1,
+                 (cv1 - cv2) / vdotn_v1, (cv1 + cv2) / vdotn_v2,
+                 (ch1 - ch2) / vdotn_h1, (ch1 + ch2) / vdotn_h2)
+        best_time = inf
+        side = -1
+        for i in range(1, 6):
+            is_better = vdots[i] < 0 and best_time > times[i]
+            best_time = float64(is_better) and times[i] or best_time
+            side = int64(is_better) and i or side
+        if side == 1:
+            # Neutron left guide.
+            break
+        t1 = best_time
 
         # propagate time t1 to move to reflection point
         x += vx*t1; y += vy*t1; z += vz*t1; t += t1
 
         # reflection
-        if i == 1:                     # Left vertical mirror
+        if side < 4:
+            # left or right vertical mirror
+            vdot = (vdotn_v1, vdotn_v2)[side - 2]
             nlen2 = l*l + ww*ww
-            q = V2K*(-2)*vdotn_v1/sqrt(nlen2)
-            d = 2*vdotn_v1/nlen2
-            vx = vx - d*l
+            q = V2K*(-2)*vdot/sqrt(nlen2)
+            d = 2*vdot/nlen2
+            vxd = (d*l, -d*l)[side - 2]
+            vx = vx - vxd
             vz = vz - d*ww
-        elif i == 2:                   # Right vertical mirror
-            nlen2 = l*l + ww*ww
-            q = V2K*(-2)*vdotn_v2/sqrt(nlen2)
-            d = 2*vdotn_v2/nlen2
-            vx = vx + d*l
-            vz = vz - d*ww
-        elif i == 3:                   # Lower horizontal mirror
+        else:
+            # lower or upper horizontal mirror
+            vdot = (vdotn_h1, vdotn_h2)[side - 4]
             nlen2 = l*l + hh*hh
-            q = V2K*(-2)*vdotn_h1/sqrt(nlen2)
-            d = 2*vdotn_h1/nlen2
-            vy = vy - d*l
-            vz = vz - d*hh
-        elif i == 4:                   # Upper horizontal mirror
-            nlen2 = l*l + hh*hh
-            q = V2K*(-2)*vdotn_h2/sqrt(nlen2)
-            d = 2*vdotn_h2/nlen2
-            vy = vy + d*l
+            q = V2K*(-2)*vdot/sqrt(nlen2)
+            d = 2*vdot/nlen2
+            vyd = (d*l, -d*l)[side - 4]
+            vy = vy - vyd
             vz = vz - d*hh
         R = calc_reflectivity(q, R0, Qc, alpha, m, W)
         prob *= R
