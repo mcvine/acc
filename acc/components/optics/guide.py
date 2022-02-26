@@ -131,29 +131,6 @@ def propagate(
     in_neutron[-1] = prob
 
 
-"""
-@cuda.jit(
-    void(
-        NB_FLOAT[:, :],
-        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-    )
-)
-def process_kernel(
-        neutrons,
-        ww, hh, hw1, hh1, l,
-        R0, Qc, alpha, m, W,
-):
-    x = cuda.grid(1)
-    if x < len(neutrons):
-        propagate(
-            neutrons[x],
-            ww, hh, hw1, hh1, l,
-            R0, Qc, alpha, m, W,
-        )
-    return
-"""
-
 @cuda.jit()
 def process_kernel(
         neutrons, n_neutrons_per_thread,
