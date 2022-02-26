@@ -12,7 +12,8 @@ from mcni.utils.conversion import V2K, SE2V, K2V
 
 category = 'monitors'
 
-FLOAT = nb.float64
+from ...config import get_numba_floattype, get_numpy_floattype
+NB_FLOAT = get_numba_floattype()
 RAD2DEG = 180./math.pi
 
 class DivPos_monitor(AbstractComponent):
@@ -42,10 +43,6 @@ class DivPos_monitor(AbstractComponent):
             ymax = yheight/2; ymin = -ymax
         assert xmin < xmax
         assert ymin < ymax
-        self._params = (
-            xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
-            npos, ndiv
-        )
         dx = (xmax-xmin)/npos
         self.x_centers = np.arange(xmin+dx/2, xmax, dx)
         ddiv = 2*maxdiv/ndiv
@@ -54,6 +51,10 @@ class DivPos_monitor(AbstractComponent):
         self.out_N = np.zeros(shape)
         self.out_p = np.zeros(shape)
         self.out_p2 = np.zeros(shape)
+        self.propagate_params = (
+            xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
+            npos, ndiv, self.out_N, self.out_p, self.out_p2
+        )
 
 
 @cuda.jit(device=True)

@@ -3,50 +3,28 @@
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
 import numpy as np
-
-from math import ceil, sqrt, tanh
+from math import sqrt
 from numba import cuda, void
-from time import time
-
-from mcni.AbstractComponent import AbstractComponent
-from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
+from ...config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
-@cuda.jit(NB_FLOAT(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-                   NB_FLOAT),
-          device=True, inline=True)
-def calc_reflectivity(Q, R0, Qc, alpha, m, W):
-    """
-    Calculate the mirror reflectivity for a neutron.
-
-    Returns:
-    float: the reflectivity for the neutron's given momentum change
-    """
-    R = R0
-    if Q > Qc:
-        tmp = (Q - m * Qc) / W
-        if tmp < 10:
-            R *= (1 - tanh(tmp)) * (1 - alpha * (Q - Qc)) / 2
-        else:
-            R = 0
-    return R
-
+from ._guide_utils import calc_reflectivity
 
 max_bounces = 100000
-
-
-@cuda.jit(void(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT[:]),
-          device=True)
+@cuda.jit(
+    void(
+        NB_FLOAT[:],
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+    ), device=True
+)
 def propagate(
+        in_neutron,
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutron
 ):
     x, y, z, vx, vy, vz = in_neutron[:6]
     t = in_neutron[-2]
@@ -132,42 +110,27 @@ def propagate(
     in_neutron[-1] = prob
 
 
-@cuda.jit(void(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT[:, :]))
+@cuda.jit()
 def process_kernel(
+        neutrons, n_neutrons_per_thread,
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        neutrons
 ):
-    x = cuda.grid(1)
-    if x < len(neutrons):
+    N = len(neutrons)
+    thread_index = cuda.grid(1)
+    start_index = thread_index*n_neutrons_per_thread
+    end_index = min(start_index+n_neutrons_per_thread, N)
+    for i in range(start_index, end_index):
         propagate(
+            neutrons[i],
             ww, hh, hw1, hh1, l,
             R0, Qc, alpha, m, W,
-            neutrons[x]
         )
     return
 
 
-def call_process(
-        ww, hh, hw1, hh1, l,
-        R0, Qc, alpha, m, W,
-        in_neutrons
-):
-    neutron_count = len(in_neutrons)
-    threads_per_block = 512
-    number_of_blocks = ceil(neutron_count / threads_per_block)
-    print("{} blocks, {} threads".format(number_of_blocks, threads_per_block))
-    process_kernel[number_of_blocks, threads_per_block](
-        ww, hh, hw1, hh1, l,
-        R0, Qc, alpha, m, W,
-        in_neutrons
-    )
-    cuda.synchronize()
-
-
-class Guide(AbstractComponent):
+from ..ComponentBase import ComponentBase
+class Guide(ComponentBase):
 
     def __init__(
             self, name,
@@ -193,7 +156,7 @@ class Guide(AbstractComponent):
         self.name = name
         ww = .5*(w2-w1); hh = .5*(h2 - h1)
         hw1 = 0.5*w1; hh1 = 0.5*h1
-        self._params = (
+        self.propagate_params = (
             float(ww), float(hh), float(hw1), float(hh1), float(l),
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
@@ -205,34 +168,4 @@ class Guide(AbstractComponent):
         neutrons[0] = mcni.neutron(r=(0, 0, 0), v=velocity, prob=1, time=0)
         self.process(neutrons)
 
-    def process(self, neutrons):
-        """
-        Propagate a buffer of particles through this guide.
-        Adjusts the buffer to include only the particles that exit,
-        at the moment of exit.
-
-        Parameters:
-        neutrons: a buffer containing the particles
-        """
-        t1 = time()
-        neutron_array = neutrons_as_npyarr(neutrons)
-        neutron_array.shape = -1, ndblsperneutron
-        neutron_array_dtype_api = neutron_array.dtype
-        neutron_array_dtype_int = get_numpy_floattype()
-        is_needs_cast = \
-            neutron_array_dtype_api != neutron_array_dtype_int
-        if is_needs_cast:
-            neutron_array = neutron_array.astype(neutron_array_dtype_int)
-        t2 = time()
-        call_process(*self._params, neutron_array)
-        t3 = time()
-        if is_needs_cast:
-            neutron_array = neutron_array.astype(neutron_array_dtype_api)
-        good = neutron_array[:, -1] > 0
-        neutrons.resize(int(good.sum()), neutrons[0])
-        neutrons.from_npyarr(neutron_array[good])
-        t4 = time()
-        print("prepare input array: ", t2-t1)
-        print("call_process: ", t3-t2)
-        print("prepare output neutrons: ", t4-t3)
-        return neutrons
+Guide.process_kernel = process_kernel

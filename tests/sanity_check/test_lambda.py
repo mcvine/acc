@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-This example shows how to write both the CUDA and the CPU code and test them.
+This example shows using lambda function in numba CUDA kernel
 """
 
 import numpy as np

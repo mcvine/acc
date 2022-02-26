@@ -7,15 +7,14 @@ import numba as nb
 from numba.cuda.random import xoroshiro128p_uniform_float32, create_xoroshiro128p_states
 import time
 
-from mcni.AbstractComponent import AbstractComponent
-from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils.conversion import V2K, SE2V, K2V
+from .SourceBase import SourceBase
+from ...config import get_numba_floattype, get_numpy_floattype
+NB_FLOAT = get_numba_floattype()
 
 category = 'sources'
 
-FLOAT = nb.float64
-
-class Source_simple(AbstractComponent):
+class Source_simple(SourceBase):
 
     def __init__(
             self, name,
@@ -74,7 +73,7 @@ class Source_simple(AbstractComponent):
         if (E0==0 and dE==0 and (Lambda0 <= 0 or dLambda < 0 or Lambda0-dLambda <= 0)) :
             raise RuntimeError("bad wavelength distribution spec")
         wl_distr = Lambda0!=0
-        self._params = (
+        self.propagate_params = (
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
             xw, yh, dist, pmul
@@ -83,131 +82,63 @@ class Source_simple(AbstractComponent):
         neutrons = mcni.neutron_buffer(1)
         self.process(neutrons)
 
-    def process(self, neutrons):
-        if not len(neutrons):
-            return
-        t1 = time.time()
-        neutron_array = neutrons_as_npyarr(neutrons)
-        neutron_array.shape = -1, ndblsperneutron
-        t2 = time.time()
-        call_process(neutron_array, *self._params)
-        t3 = time.time()
-        neutrons.from_npyarr(neutron_array)
-        t4 = time.time()
-        print("prepare input array: ", t2-t1)
-        print("call_process: ", t3-t2)
-        print("prepare output neutrons: ", t4-t3)
-        return neutrons
-
-    def process_no_buffer(self, N):
-        t1 = time.time()
-        call_process_no_buffer(N, *self._params)
-        t2 = time.time()
-        print("call_process: ", t2-t1)
-        return
-
-
-def call_process_no_buffer(
-        N,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-):
-    neutron_count = N
-    threads_per_block = 512
-    nblocks = math.ceil(neutron_count / threads_per_block)
-    print("{} blocks, {} threads".format(nblocks, threads_per_block))
-    rng_states = create_xoroshiro128p_states(threads_per_block * nblocks, seed=1)
-    process_kernel_no_buffer[nblocks, threads_per_block](
-        N,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-        rng_states,
-    )
-    cuda.synchronize()
-
-def call_process(
-        in_neutrons,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-):
-    neutron_count = len(in_neutrons)
-    threads_per_block = 512
-    nblocks = math.ceil(neutron_count / threads_per_block)
-    print("{} blocks, {} threads".format(nblocks, threads_per_block))
-    rng_states = create_xoroshiro128p_states(threads_per_block * nblocks, seed=1)
-    process_kernel[nblocks, threads_per_block](
-        in_neutrons,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-        rng_states,
-    )
-    cuda.synchronize()
-
 
 @cuda.jit
 def process_kernel_no_buffer(
-        N,
+        rng_states, N, n_neutrons_per_thread,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
-        rng_states
 ):
-    x = cuda.grid(1)
-    if x < N:
-        r1 = xoroshiro128p_uniform_float32(rng_states, x)
-        r2 = xoroshiro128p_uniform_float32(rng_states, x)
-        r3 = xoroshiro128p_uniform_float32(rng_states, x)
-        r4 = xoroshiro128p_uniform_float32(rng_states, x)
-        r5 = xoroshiro128p_uniform_float32(rng_states, x)
-        # r1 = r2 = r3 = r4 = r5 = 0.5
-        neutron = cuda.local.array(shape=10, dtype=FLOAT)
+    thread_index = cuda.grid(1)
+    start_index = thread_index*n_neutrons_per_thread
+    end_index = min(start_index+n_neutrons_per_thread, N)
+    neutron = cuda.local.array(shape=10, dtype=NB_FLOAT)
+    for i in range(start_index, end_index):
         propagate(
+            thread_index, rng_states,
             neutron,
-            r1, r2, r3, r4, r5,
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
             xw, yh, dist, pmul
         )
     return
+Source_simple.process_kernel_no_buffer = process_kernel_no_buffer
 
 @cuda.jit
 def process_kernel(
-        neutrons,
+        rng_states, neutrons, n_neutrons_per_thread,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
-        rng_states
 ):
-    x = cuda.grid(1)
-    if x < len(neutrons):
-        r1 = xoroshiro128p_uniform_float32(rng_states, x)
-        r2 = xoroshiro128p_uniform_float32(rng_states, x)
-        r3 = xoroshiro128p_uniform_float32(rng_states, x)
-        r4 = xoroshiro128p_uniform_float32(rng_states, x)
-        r5 = xoroshiro128p_uniform_float32(rng_states, x)
-        # r1 = r2 = r3 = r4 = r5 = 0.5
+    N = len(neutrons)
+    thread_index = cuda.grid(1)
+    start_index = thread_index*n_neutrons_per_thread
+    end_index = min(start_index+n_neutrons_per_thread, N)
+    for i in range(start_index, end_index):
         propagate(
-            neutrons[x],
-            r1, r2, r3, r4, r5,
+            thread_index, rng_states, neutrons[i],
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
-            xw, yh, dist, pmul
+            xw, yh, dist, pmul,
         )
     return
-
+Source_simple.process_kernel = process_kernel
 
 @cuda.jit(device=True)
 def propagate(
+        threadindex, rng_states,
         in_neutron,
-        r1, r2, r3, r4, r5,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul
 ):
+    r1 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r2 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r3 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r4 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r5 = xoroshiro128p_uniform_float32(rng_states, threadindex)
     if square:
         x = width * (r1 - 0.5)
         y = height * (r2 - 0.5)
@@ -218,10 +149,10 @@ def propagate(
         y=r*math.sin(chi)
     in_neutron[:3] = x, y, 0.
     # choose final vector
-    target = cuda.local.array(shape=3, dtype=FLOAT)
+    target = cuda.local.array(shape=3, dtype=NB_FLOAT)
     target[0] = target[1] = 0.0
     target[2] = dist
-    vec_f = cuda.local.array(shape=3, dtype=FLOAT)
+    vec_f = cuda.local.array(shape=3, dtype=NB_FLOAT)
     solidangle = randvec_target_rect(target, xw, yh, r3, r4, vec_f)
     # vector from moderator to final position is
     # (vec_f[0]-x, vec_f[1]-y, dist)
@@ -240,6 +171,7 @@ def propagate(
     return
 
 
+from ... import vec3
 @cuda.jit(device=True)
 def randvec_target_rect(
         target, width, height, rand1, rand2,
@@ -247,55 +179,22 @@ def randvec_target_rect(
 ):
     dx = width*(rand1*2-1)/2.0
     dy = height*(rand2*2-1)/2.0
-    dist = len_vec3(target)
+    dist = vec3.length(target)
     # horiz direction perp to target
-    p1 = cuda.local.array(shape=3, dtype=FLOAT)
-    vertical = cuda.local.array(shape=3, dtype=FLOAT)
+    p1 = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vertical = cuda.local.array(shape=3, dtype=NB_FLOAT)
     vertical[0] = vertical[2] = 0.0
     vertical[1] = 1.0
-    cross_vec3(target, vertical, p1)
-    normalize_vec3(p1)
+    vec3.cross(target, vertical, p1)
+    vec3.normalize(p1)
     # another perp unit vec
-    p2 = cuda.local.array(shape=3, dtype=FLOAT)
-    cross_vec3(target, p1, p2)
-    normalize_vec3(p2)
-    scale_vec3(p1, dx)
-    scale_vec3(p2, dy)
-    tmp = cuda.local.array(shape=3, dtype=FLOAT)
-    add_vec3(p1, target, tmp)
-    add_vec3(p2, tmp, vecout)
+    p2 = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vec3.cross(target, p1, p2)
+    vec3.normalize(p2)
+    vec3.scale(p1, dx)
+    vec3.scale(p2, dy)
+    tmp = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vec3.add(p1, target, tmp)
+    vec3.add(p2, tmp, vecout)
     dist2 = math.sqrt(dx*dx + dy*dy + dist*dist)
     return (width*height*dist)/(dist2*dist2*dist2)
-
-
-@cuda.jit(device=True, inline=True)
-def cross_vec3(v1, v2, vout):
-    vout[0] = v1[1]*v2[2]-v1[2]*v2[1]
-    vout[1] = v1[2]*v2[0]-v1[0]*v2[2]
-    vout[2] = v1[0]*v2[1]-v1[1]*v2[0]
-    return
-
-@cuda.jit(device=True, inline=True)
-def len_vec3(v):
-    return math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])
-
-@cuda.jit(device=True, inline=True)
-def normalize_vec3(v):
-    l = len_vec3(v)
-    scale_vec3(v, 1.0/l)
-    return
-
-@cuda.jit(device=True, inline=True)
-def scale_vec3(v, s):
-    v[0]*=s
-    v[1]*=s
-    v[2]*=s
-    return
-
-@cuda.jit(device=True, inline=True)
-def add_vec3(v1, v2, v3):
-    v3[0]=v1[0]+v2[0]
-    v3[1]=v1[1]+v2[1]
-    v3[2]=v1[2]+v2[2]
-    return
-

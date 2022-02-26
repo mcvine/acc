@@ -1,4 +1,7 @@
+ntotalthreads = int(1e6)
+threads_per_block = 512
 floattype = "float64"
+rng_seed = 1
 
 def get_numpy_floattype():
     import numpy as np
