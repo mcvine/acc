@@ -1,3 +1,14 @@
+"""
+Requirement for a source component
+* component class
+  - inherit from SourceBase
+  - ctor must create self.propagate_params
+* `propagate` method
+  - first three arguments: `threadindex`, `rng_states`, `neutron`
+  - other args: match comp.propagate_params
+* process_kernel methods: see template at the end of this module
+"""
+
 from numba import cuda
 import math
 from numba.cuda.random import create_xoroshiro128p_states

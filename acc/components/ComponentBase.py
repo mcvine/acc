@@ -1,7 +1,12 @@
 """
 Requirement for a component
-* `propagate` method.
+* component class
+  - inherit from ComponentBase
+  - ctor must create self.propagate_params
+* `propagate` method
   - first argument: `neutron`
+  - other args: match comp.propagate_params
+* process_kernel method: see template at the end of this module
 """
 
 from numba import cuda
