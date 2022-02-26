@@ -7,15 +7,14 @@ import numba as nb
 from numba.cuda.random import xoroshiro128p_uniform_float32, create_xoroshiro128p_states
 import time
 
-from mcni.AbstractComponent import AbstractComponent
-from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils.conversion import V2K, SE2V, K2V
+from .SourceBase import SourceBase
 
 category = 'sources'
 
 FLOAT = nb.float64
 
-class Source_simple(AbstractComponent):
+class Source_simple(SourceBase):
 
     def __init__(
             self, name,
@@ -83,22 +82,6 @@ class Source_simple(AbstractComponent):
         neutrons = mcni.neutron_buffer(1)
         self.process(neutrons)
 
-    def process(self, neutrons):
-        if not len(neutrons):
-            return
-        t1 = time.time()
-        neutron_array = neutrons_as_npyarr(neutrons)
-        neutron_array.shape = -1, ndblsperneutron
-        t2 = time.time()
-        call_process(neutron_array, *self.propagate_params)
-        t3 = time.time()
-        neutrons.from_npyarr(neutron_array)
-        t4 = time.time()
-        print("prepare input array: ", t2-t1)
-        print("call_process: ", t3-t2)
-        print("prepare output neutrons: ", t4-t3)
-        return neutrons
-
     def process_no_buffer(self, N):
         t1 = time.time()
         call_process_no_buffer(N, *self.propagate_params)
@@ -127,27 +110,6 @@ def call_process_no_buffer(
     )
     cuda.synchronize()
 
-def call_process(
-        in_neutrons,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-):
-    neutron_count = len(in_neutrons)
-    threads_per_block = 512
-    nblocks = math.ceil(neutron_count / threads_per_block)
-    print("{} blocks, {} threads".format(nblocks, threads_per_block))
-    rng_states = create_xoroshiro128p_states(threads_per_block * nblocks, seed=1)
-    process_kernel[nblocks, threads_per_block](
-        rng_states,
-        in_neutrons,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-    )
-    cuda.synchronize()
-
-
 @cuda.jit
 def process_kernel_no_buffer(
         rng_states,
@@ -170,23 +132,24 @@ def process_kernel_no_buffer(
 
 @cuda.jit
 def process_kernel(
-        rng_states,
-        neutrons,
+        rng_states, neutrons, n_neutrons_per_thread,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
 ):
-    x = cuda.grid(1)
-    if x < len(neutrons):
+    N = len(neutrons)
+    thread_index = cuda.grid(1)
+    start_index = thread_index*n_neutrons_per_thread
+    end_index = min(start_index+n_neutrons_per_thread, N)
+    for i in range(start_index, end_index):
         propagate(
-            x, rng_states,
-            neutrons[x],
+            thread_index, rng_states, neutrons[i],
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
-            xw, yh, dist, pmul
+            xw, yh, dist, pmul,
         )
     return
-
+Source_simple.process_kernel = process_kernel
 
 @cuda.jit(device=True)
 def propagate(
