@@ -171,6 +171,7 @@ def propagate(
     return
 
 
+from ... import vec3
 @cuda.jit(device=True)
 def randvec_target_rect(
         target, width, height, rand1, rand2,
@@ -178,55 +179,22 @@ def randvec_target_rect(
 ):
     dx = width*(rand1*2-1)/2.0
     dy = height*(rand2*2-1)/2.0
-    dist = len_vec3(target)
+    dist = vec3.length(target)
     # horiz direction perp to target
     p1 = cuda.local.array(shape=3, dtype=FLOAT)
     vertical = cuda.local.array(shape=3, dtype=FLOAT)
     vertical[0] = vertical[2] = 0.0
     vertical[1] = 1.0
-    cross_vec3(target, vertical, p1)
-    normalize_vec3(p1)
+    vec3.cross(target, vertical, p1)
+    vec3.normalize(p1)
     # another perp unit vec
     p2 = cuda.local.array(shape=3, dtype=FLOAT)
-    cross_vec3(target, p1, p2)
-    normalize_vec3(p2)
-    scale_vec3(p1, dx)
-    scale_vec3(p2, dy)
+    vec3.cross(target, p1, p2)
+    vec3.normalize(p2)
+    vec3.scale(p1, dx)
+    vec3.scale(p2, dy)
     tmp = cuda.local.array(shape=3, dtype=FLOAT)
-    add_vec3(p1, target, tmp)
-    add_vec3(p2, tmp, vecout)
+    vec3.add(p1, target, tmp)
+    vec3.add(p2, tmp, vecout)
     dist2 = math.sqrt(dx*dx + dy*dy + dist*dist)
     return (width*height*dist)/(dist2*dist2*dist2)
-
-
-@cuda.jit(device=True, inline=True)
-def cross_vec3(v1, v2, vout):
-    vout[0] = v1[1]*v2[2]-v1[2]*v2[1]
-    vout[1] = v1[2]*v2[0]-v1[0]*v2[2]
-    vout[2] = v1[0]*v2[1]-v1[1]*v2[0]
-    return
-
-@cuda.jit(device=True, inline=True)
-def len_vec3(v):
-    return math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])
-
-@cuda.jit(device=True, inline=True)
-def normalize_vec3(v):
-    l = len_vec3(v)
-    scale_vec3(v, 1.0/l)
-    return
-
-@cuda.jit(device=True, inline=True)
-def scale_vec3(v, s):
-    v[0]*=s
-    v[1]*=s
-    v[2]*=s
-    return
-
-@cuda.jit(device=True, inline=True)
-def add_vec3(v1, v2, v3):
-    v3[0]=v1[0]+v2[0]
-    v3[1]=v1[1]+v2[1]
-    v3[2]=v1[2]+v2[2]
-    return
-
