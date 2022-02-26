@@ -12,7 +12,8 @@ from mcni.utils.conversion import V2K, SE2V, K2V
 
 category = 'monitors'
 
-FLOAT = nb.float64
+from ...config import get_numba_floattype, get_numpy_floattype
+NB_FLOAT = get_numba_floattype()
 RAD2DEG = 180./math.pi
 
 class DivPos_monitor(AbstractComponent):
