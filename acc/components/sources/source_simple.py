@@ -9,10 +9,10 @@ import time
 
 from mcni.utils.conversion import V2K, SE2V, K2V
 from .SourceBase import SourceBase
+from ...config import get_numba_floattype, get_numpy_floattype
+NB_FLOAT = get_numba_floattype()
 
 category = 'sources'
-
-FLOAT = nb.float64
 
 class Source_simple(SourceBase):
 
@@ -93,7 +93,7 @@ def process_kernel_no_buffer(
     thread_index = cuda.grid(1)
     start_index = thread_index*n_neutrons_per_thread
     end_index = min(start_index+n_neutrons_per_thread, N)
-    neutron = cuda.local.array(shape=10, dtype=FLOAT)
+    neutron = cuda.local.array(shape=10, dtype=NB_FLOAT)
     for i in range(start_index, end_index):
         propagate(
             thread_index, rng_states,
@@ -149,10 +149,10 @@ def propagate(
         y=r*math.sin(chi)
     in_neutron[:3] = x, y, 0.
     # choose final vector
-    target = cuda.local.array(shape=3, dtype=FLOAT)
+    target = cuda.local.array(shape=3, dtype=NB_FLOAT)
     target[0] = target[1] = 0.0
     target[2] = dist
-    vec_f = cuda.local.array(shape=3, dtype=FLOAT)
+    vec_f = cuda.local.array(shape=3, dtype=NB_FLOAT)
     solidangle = randvec_target_rect(target, xw, yh, r3, r4, vec_f)
     # vector from moderator to final position is
     # (vec_f[0]-x, vec_f[1]-y, dist)
@@ -181,19 +181,19 @@ def randvec_target_rect(
     dy = height*(rand2*2-1)/2.0
     dist = vec3.length(target)
     # horiz direction perp to target
-    p1 = cuda.local.array(shape=3, dtype=FLOAT)
-    vertical = cuda.local.array(shape=3, dtype=FLOAT)
+    p1 = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vertical = cuda.local.array(shape=3, dtype=NB_FLOAT)
     vertical[0] = vertical[2] = 0.0
     vertical[1] = 1.0
     vec3.cross(target, vertical, p1)
     vec3.normalize(p1)
     # another perp unit vec
-    p2 = cuda.local.array(shape=3, dtype=FLOAT)
+    p2 = cuda.local.array(shape=3, dtype=NB_FLOAT)
     vec3.cross(target, p1, p2)
     vec3.normalize(p2)
     vec3.scale(p1, dx)
     vec3.scale(p2, dy)
-    tmp = cuda.local.array(shape=3, dtype=FLOAT)
+    tmp = cuda.local.array(shape=3, dtype=NB_FLOAT)
     vec3.add(p1, target, tmp)
     vec3.add(p2, tmp, vecout)
     dist2 = math.sqrt(dx*dx + dy*dy + dist*dist)
