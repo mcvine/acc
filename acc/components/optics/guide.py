@@ -3,10 +3,8 @@
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
 import numpy as np
-
 from math import ceil, sqrt, tanh
 from numba import cuda, void
-
 from mcni.utils.conversion import V2K
 from ..ComponentBase import ComponentBase
 
