@@ -10,7 +10,8 @@ from numba.cuda.random import xoroshiro128p_uniform_float32, create_xoroshiro128
 from mcni import neutron_buffer, neutron
 from mcvine.acc.components.sources import source_simple
 from mcvine.acc.components.optics import guide
-FLOAT = nb.float32
+from mcvine.acc.config import get_numba_floattype
+FLOAT = get_numba_floattype()
 
 src = source_simple.Source_simple(
     'src',
@@ -63,24 +64,19 @@ def process_kernel_no_buffer(
 ):
     x = cuda.grid(1)
     if x < N:
-        r1 = xoroshiro128p_uniform_float32(rng_states, x)
-        r2 = xoroshiro128p_uniform_float32(rng_states, x)
-        r3 = xoroshiro128p_uniform_float32(rng_states, x)
-        r4 = xoroshiro128p_uniform_float32(rng_states, x)
-        r5 = xoroshiro128p_uniform_float32(rng_states, x)
         neutron = cuda.local.array(shape=10, dtype=FLOAT)
         source_simple.propagate(
+            x, rng_states,
             neutron,
-            r1, r2, r3, r4, r5,
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
             xw, yh, dist, pmul
         )
         neutron[2] -= dist
         guide.propagate(
+            neutron,
             ww, hh, hw1, hh1, l,
             R0, Qc, alpha, m, W,
-            neutron
         )
     return
 
@@ -88,7 +84,7 @@ def process_kernel_no_buffer(
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_component_no_buffer(N=10):
     t1 = time.time()
-    call_process_no_buffer(N, *src._params, *guide1._params)
+    call_process_no_buffer(N, *src.propagate_params, *guide1.propagate_params)
     print(f"Time: {time.time()-t1}")
     return
 
