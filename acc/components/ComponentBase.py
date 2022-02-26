@@ -4,6 +4,8 @@ Requirement for a component
   - first argument: `neutron`
 """
 
+from numba import cuda
+import math
 
 from mcni.AbstractComponent import AbstractComponent
 class ComponentBase(AbstractComponent):
@@ -22,10 +24,9 @@ class ComponentBase(AbstractComponent):
             neutron_array = neutron_array.astype(neutron_array_dtype_int)
         t2 = time()
         from ..config import ntotalthreads, threads_per_block
-        call_process(
+        self.call_process(
             self.__class__.process_kernel,
             neutron_array,
-            *self.propagate_params,
             ntotthreads=ntotalthreads, threads_per_block = threads_per_block,
         )
         t3 = time()
@@ -39,21 +40,22 @@ class ComponentBase(AbstractComponent):
         print(self.name, ":call_process: ", t3-t2)
         print(self.name, ":prepare output neutrons: ", t4-t3)
         return neutrons
-    pass
 
-from numba import cuda
-import math
-def call_process(process_kernel, in_neutrons, *params, ntotthreads=int(1e6), threads_per_block=512):
-    N = len(in_neutrons)
-    ntotthreads = min(N, ntotthreads)
-    nblocks = math.ceil(ntotthreads / threads_per_block)
-    actual_nthreads = threads_per_block * nblocks
-    n_neutrons_per_thread = math.ceil(N / actual_nthreads)
-    print("%s blocks, %s threads, %s neutrons per thread" % (
-        nblocks, threads_per_block, n_neutrons_per_thread))
-    process_kernel[nblocks, threads_per_block](in_neutrons, n_neutrons_per_thread, *params)
-    cuda.synchronize()
-    return
+    def call_process(
+            self, process_kernel, in_neutrons,
+            ntotthreads=int(1e6), threads_per_block=512,
+    ):
+        N = len(in_neutrons)
+        ntotthreads = min(N, ntotthreads)
+        nblocks = math.ceil(ntotthreads / threads_per_block)
+        actual_nthreads = threads_per_block * nblocks
+        n_neutrons_per_thread = math.ceil(N / actual_nthreads)
+        print("%s blocks, %s threads, %s neutrons per thread" % (
+            nblocks, threads_per_block, n_neutrons_per_thread))
+        process_kernel[nblocks, threads_per_block](
+            in_neutrons, n_neutrons_per_thread, *self.propagate_params)
+        cuda.synchronize()
+        return
 
 template_for_process_kernel = """
 @cuda.jit()
