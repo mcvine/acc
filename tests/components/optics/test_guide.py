@@ -9,7 +9,7 @@ from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine import run_script
 from mcvine.acc import test
-from mcvine.acc.components.optics.guide import get_numpy_precision
+from mcvine.acc.config import get_numpy_floattype
 
 thisdir = os.path.dirname(__file__)
 interactive = False
@@ -62,7 +62,7 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False):
     assert mcvine_Ixy.shape() == Ixy.shape()
     assert mcvine_Ixdivx.shape() == Ixdivx.shape()
 
-    tolerance = 1e-7 if get_numpy_precision() == np.float32 else 1e-8
+    tolerance = 1e-7 if get_numpy_floattype() == np.float32 else 1e-8
     assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage(),
                        atol=tolerance)
     assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage(),
@@ -79,7 +79,7 @@ def debug():
 def main():
     global interactive
     interactive = True
-    test_compare_mcvine()
+    test_compare_mcvine(num_neutrons=int(1e6))
     return
 
 

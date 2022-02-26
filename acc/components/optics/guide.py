@@ -5,7 +5,7 @@
 import numpy as np
 
 from math import ceil, sqrt, tanh
-from numba import cuda, float32, float64, void
+from numba import cuda, void
 from time import time
 
 from mcni.AbstractComponent import AbstractComponent
@@ -14,19 +14,10 @@ from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-# adjust between float32 and float64
-float_prec = float32
-
-
-def get_numpy_precision():
-    return {
-        float32: np.float32,
-        float64: np.float64
-    }[float_prec]
-
-
-@cuda.jit(float_prec(float_prec, float_prec, float_prec, float_prec, float_prec,
-                     float_prec),
+from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
+NB_FLOAT = get_numba_floattype()
+@cuda.jit(NB_FLOAT(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+                   NB_FLOAT),
           device=True, inline=True)
 def calc_reflectivity(Q, R0, Qc, alpha, m, W):
     """
@@ -48,9 +39,9 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
 max_bounces = 100000
 
 
-@cuda.jit(void(float_prec, float_prec, float_prec, float_prec, float_prec,
-               float_prec, float_prec, float_prec, float_prec, float_prec,
-               float_prec[:]),
+@cuda.jit(void(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+               NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+               NB_FLOAT[:]),
           device=True)
 def propagate(
         ww, hh, hw1, hh1, l,
@@ -141,9 +132,9 @@ def propagate(
     in_neutron[-1] = prob
 
 
-@cuda.jit(void(float_prec, float_prec, float_prec, float_prec, float_prec,
-               float_prec, float_prec, float_prec, float_prec, float_prec,
-               float_prec[:, :]))
+@cuda.jit(void(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+               NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+               NB_FLOAT[:, :]))
 def process_kernel(
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
@@ -227,7 +218,7 @@ class Guide(AbstractComponent):
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
         neutron_array_dtype_api = neutron_array.dtype
-        neutron_array_dtype_int = get_numpy_precision()
+        neutron_array_dtype_int = get_numpy_floattype()
         is_needs_cast = \
             neutron_array_dtype_api != neutron_array_dtype_int
         if is_needs_cast:
