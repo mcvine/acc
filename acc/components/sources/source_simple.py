@@ -82,53 +82,28 @@ class Source_simple(SourceBase):
         neutrons = mcni.neutron_buffer(1)
         self.process(neutrons)
 
-    def process_no_buffer(self, N):
-        t1 = time.time()
-        call_process_no_buffer(N, *self.propagate_params)
-        t2 = time.time()
-        print("call_process: ", t2-t1)
-        return
-
-
-def call_process_no_buffer(
-        N,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-):
-    neutron_count = N
-    threads_per_block = 512
-    nblocks = math.ceil(neutron_count / threads_per_block)
-    print("{} blocks, {} threads".format(nblocks, threads_per_block))
-    rng_states = create_xoroshiro128p_states(threads_per_block * nblocks, seed=1)
-    process_kernel_no_buffer[nblocks, threads_per_block](
-        rng_states,
-        N,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-    )
-    cuda.synchronize()
 
 @cuda.jit
 def process_kernel_no_buffer(
-        rng_states,
-        N,
+        rng_states, N, n_neutrons_per_thread,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
 ):
-    x = cuda.grid(1)
-    if x < N:
-        neutron = cuda.local.array(shape=10, dtype=FLOAT)
+    thread_index = cuda.grid(1)
+    start_index = thread_index*n_neutrons_per_thread
+    end_index = min(start_index+n_neutrons_per_thread, N)
+    neutron = cuda.local.array(shape=10, dtype=FLOAT)
+    for i in range(start_index, end_index):
         propagate(
-            x, rng_states,
+            thread_index, rng_states,
             neutron,
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
             xw, yh, dist, pmul
         )
     return
+Source_simple.process_kernel_no_buffer = process_kernel_no_buffer
 
 @cuda.jit
 def process_kernel(
