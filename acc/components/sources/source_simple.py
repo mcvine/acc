@@ -74,7 +74,7 @@ class Source_simple(AbstractComponent):
         if (E0==0 and dE==0 and (Lambda0 <= 0 or dLambda < 0 or Lambda0-dLambda <= 0)) :
             raise RuntimeError("bad wavelength distribution spec")
         wl_distr = Lambda0!=0
-        self._params = (
+        self.propagate_params = (
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
             xw, yh, dist, pmul
@@ -90,7 +90,7 @@ class Source_simple(AbstractComponent):
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
         t2 = time.time()
-        call_process(neutron_array, *self._params)
+        call_process(neutron_array, *self.propagate_params)
         t3 = time.time()
         neutrons.from_npyarr(neutron_array)
         t4 = time.time()
@@ -101,7 +101,7 @@ class Source_simple(AbstractComponent):
 
     def process_no_buffer(self, N):
         t1 = time.time()
-        call_process_no_buffer(N, *self._params)
+        call_process_no_buffer(N, *self.propagate_params)
         t2 = time.time()
         print("call_process: ", t2-t1)
         return
@@ -119,11 +119,11 @@ def call_process_no_buffer(
     print("{} blocks, {} threads".format(nblocks, threads_per_block))
     rng_states = create_xoroshiro128p_states(threads_per_block * nblocks, seed=1)
     process_kernel_no_buffer[nblocks, threads_per_block](
+        rng_states,
         N,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
-        rng_states,
     )
     cuda.synchronize()
 
@@ -139,35 +139,29 @@ def call_process(
     print("{} blocks, {} threads".format(nblocks, threads_per_block))
     rng_states = create_xoroshiro128p_states(threads_per_block * nblocks, seed=1)
     process_kernel[nblocks, threads_per_block](
+        rng_states,
         in_neutrons,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
-        rng_states,
     )
     cuda.synchronize()
 
 
 @cuda.jit
 def process_kernel_no_buffer(
+        rng_states,
         N,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
-        rng_states
 ):
     x = cuda.grid(1)
     if x < N:
-        r1 = xoroshiro128p_uniform_float32(rng_states, x)
-        r2 = xoroshiro128p_uniform_float32(rng_states, x)
-        r3 = xoroshiro128p_uniform_float32(rng_states, x)
-        r4 = xoroshiro128p_uniform_float32(rng_states, x)
-        r5 = xoroshiro128p_uniform_float32(rng_states, x)
-        # r1 = r2 = r3 = r4 = r5 = 0.5
         neutron = cuda.local.array(shape=10, dtype=FLOAT)
         propagate(
+            x, rng_states,
             neutron,
-            r1, r2, r3, r4, r5,
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
             xw, yh, dist, pmul
@@ -176,23 +170,17 @@ def process_kernel_no_buffer(
 
 @cuda.jit
 def process_kernel(
+        rng_states,
         neutrons,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul,
-        rng_states
 ):
     x = cuda.grid(1)
     if x < len(neutrons):
-        r1 = xoroshiro128p_uniform_float32(rng_states, x)
-        r2 = xoroshiro128p_uniform_float32(rng_states, x)
-        r3 = xoroshiro128p_uniform_float32(rng_states, x)
-        r4 = xoroshiro128p_uniform_float32(rng_states, x)
-        r5 = xoroshiro128p_uniform_float32(rng_states, x)
-        # r1 = r2 = r3 = r4 = r5 = 0.5
         propagate(
+            x, rng_states,
             neutrons[x],
-            r1, r2, r3, r4, r5,
             square, width, height, radius,
             wl_distr, Lambda0, dLambda, E0, dE,
             xw, yh, dist, pmul
@@ -202,12 +190,17 @@ def process_kernel(
 
 @cuda.jit(device=True)
 def propagate(
+        threadindex, rng_states,
         in_neutron,
-        r1, r2, r3, r4, r5,
         square, width, height, radius,
         wl_distr, Lambda0, dLambda, E0, dE,
         xw, yh, dist, pmul
 ):
+    r1 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r2 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r3 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r4 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+    r5 = xoroshiro128p_uniform_float32(rng_states, threadindex)
     if square:
         x = width * (r1 - 0.5)
         y = height * (r2 - 0.5)

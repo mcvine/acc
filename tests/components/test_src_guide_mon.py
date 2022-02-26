@@ -33,7 +33,7 @@ mon1 = divpos_monitor.DivPos_monitor(
 )
 
 
-def call_process_no_buffer(N, src, guide, mon, out_N, out_p, out_p2, ntotthreads=int(1e5)):
+def call_process_no_buffer(N, src, guide, mon, ntotthreads=int(1e5)):
     ntotthreads = min(N, ntotthreads)
     threads_per_block = 512
     nblocks = math.ceil(ntotthreads / threads_per_block)
@@ -44,12 +44,12 @@ def call_process_no_buffer(N, src, guide, mon, out_N, out_p, out_p2, ntotthreads
     rng_states = create_xoroshiro128p_states(actual_nthreads, seed=1)
     counter = np.zeros(1, dtype=int)
     process_kernel_no_buffer[nblocks, threads_per_block](
-        counter, N, n_neutrons_per_thread, src, guide, mon, rng_states, out_N, out_p, out_p2)
+        counter, N, n_neutrons_per_thread, src, guide, mon, rng_states)
     cuda.synchronize()
     print(f"processed {counter.sum():g} neutrons")
 
 @cuda.jit
-def process_kernel_no_buffer(counter, N, n_neutrons_per_thread, src, guide1, mon, rng_states, out_N, out_p, out_p2):
+def process_kernel_no_buffer(counter, N, n_neutrons_per_thread, src, guide1, mon, rng_states):
     dist = 1.
     guide_len = 10.
     gap = 1.
@@ -58,16 +58,11 @@ def process_kernel_no_buffer(counter, N, n_neutrons_per_thread, src, guide1, mon
     end_index = min(start_index+n_neutrons_per_thread, N)
     neutron = cuda.local.array(shape=10, dtype=FLOAT)
     for i in range(start_index, end_index):
-        r1 = xoroshiro128p_uniform_float32(rng_states, x)
-        r2 = xoroshiro128p_uniform_float32(rng_states, x)
-        r3 = xoroshiro128p_uniform_float32(rng_states, x)
-        r4 = xoroshiro128p_uniform_float32(rng_states, x)
-        r5 = xoroshiro128p_uniform_float32(rng_states, x)
-        source_simple.propagate(neutron, r1, r2, r3, r4, r5, *src)
+        source_simple.propagate(x, rng_states, neutron, *src)
         neutron[2] -= dist
-        guide.propagate(*guide1, neutron)
+        guide.propagate(neutron, *guide1)
         neutron[2] -= guide_len + gap
-        divpos_monitor.propagate(neutron, *mon, out_N, out_p, out_p2)
+        divpos_monitor.propagate(neutron, *mon)
     cuda.atomic.add(counter, 0, max(end_index-start_index, 0))
     return
 
@@ -76,8 +71,7 @@ def process_kernel_no_buffer(counter, N, n_neutrons_per_thread, src, guide1, mon
 def test_component_no_buffer(N=10, ntotthreads=int(1e5)):
     t1 = time.time()
     call_process_no_buffer(
-        N, src1._params, guide1._params, mon1._params,
-        mon1.out_N, mon1.out_p, mon1.out_p2,
+        N, src1.propagate_params, guide1.propagate_params, mon1.propagate_params,
         ntotthreads=ntotthreads)
     print(f"Time: {time.time()-t1}")
     return
