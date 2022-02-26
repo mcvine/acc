@@ -39,14 +39,17 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
 max_bounces = 100000
 
 
-@cuda.jit(void(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT[:]),
-          device=True)
+@cuda.jit(
+    void(
+        NB_FLOAT[:],
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+    ), device=True
+)
 def propagate(
+        in_neutron,
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutron
 ):
     x, y, z, vx, vy, vz = in_neutron[:6]
     t = in_neutron[-2]
@@ -132,37 +135,41 @@ def propagate(
     in_neutron[-1] = prob
 
 
-@cuda.jit(void(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-               NB_FLOAT[:, :]))
+@cuda.jit(
+    void(
+        NB_FLOAT[:, :],
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+    )
+)
 def process_kernel(
+        neutrons,
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        neutrons
 ):
     x = cuda.grid(1)
     if x < len(neutrons):
         propagate(
+            neutrons[x],
             ww, hh, hw1, hh1, l,
             R0, Qc, alpha, m, W,
-            neutrons[x]
         )
     return
 
 
 def call_process(
+        in_neutrons,
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutrons
 ):
     neutron_count = len(in_neutrons)
     threads_per_block = 512
     number_of_blocks = ceil(neutron_count / threads_per_block)
     print("{} blocks, {} threads".format(number_of_blocks, threads_per_block))
     process_kernel[number_of_blocks, threads_per_block](
+        in_neutrons,
         ww, hh, hw1, hh1, l,
         R0, Qc, alpha, m, W,
-        in_neutrons
     )
     cuda.synchronize()
 
@@ -193,7 +200,7 @@ class Guide(AbstractComponent):
         self.name = name
         ww = .5*(w2-w1); hh = .5*(h2 - h1)
         hw1 = 0.5*w1; hh1 = 0.5*h1
-        self._params = (
+        self.propagate_params = (
             float(ww), float(hh), float(hw1), float(hh1), float(l),
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
@@ -224,7 +231,7 @@ class Guide(AbstractComponent):
         if is_needs_cast:
             neutron_array = neutron_array.astype(neutron_array_dtype_int)
         t2 = time()
-        call_process(*self._params, neutron_array)
+        call_process(neutron_array, *self.propagate_params)
         t3 = time()
         if is_needs_cast:
             neutron_array = neutron_array.astype(neutron_array_dtype_api)
