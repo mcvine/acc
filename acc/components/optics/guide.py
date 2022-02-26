@@ -3,34 +3,15 @@
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
 import numpy as np
-from math import ceil, sqrt, tanh
+from math import sqrt
 from numba import cuda, void
 from mcni.utils.conversion import V2K
-from ..ComponentBase import ComponentBase
 
 category = 'optics'
 
-from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
+from ...config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
-@cuda.jit(NB_FLOAT(NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-                   NB_FLOAT),
-          device=True, inline=True)
-def calc_reflectivity(Q, R0, Qc, alpha, m, W):
-    """
-    Calculate the mirror reflectivity for a neutron.
-
-    Returns:
-    float: the reflectivity for the neutron's given momentum change
-    """
-    R = R0
-    if Q > Qc:
-        tmp = (Q - m * Qc) / W
-        if tmp < 10:
-            R *= (1 - tanh(tmp)) * (1 - alpha * (Q - Qc)) / 2
-        else:
-            R = 0
-    return R
-
+from ._guide_utils import calc_reflectivity
 
 max_bounces = 100000
 @cuda.jit(
@@ -148,6 +129,7 @@ def process_kernel(
     return
 
 
+from ..ComponentBase import ComponentBase
 class Guide(ComponentBase):
 
     def __init__(
