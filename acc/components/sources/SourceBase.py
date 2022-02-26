@@ -14,25 +14,8 @@ import math
 from numba.cuda.random import create_xoroshiro128p_states
 
 from ...config import rng_seed
-from ..ComponentBase import ComponentBase as base
+from ..StochasticComponentBase import StochasticComponentBase as base
 class SourceBase(base):
-
-    def call_process(
-            self, process_kernel, in_neutrons,
-            ntotthreads=int(1e6), threads_per_block=512,
-    ):
-        N = len(in_neutrons)
-        ntotthreads = min(N, ntotthreads)
-        nblocks = math.ceil(ntotthreads / threads_per_block)
-        actual_nthreads = threads_per_block * nblocks
-        n_neutrons_per_thread = math.ceil(N / actual_nthreads)
-        print("%s blocks, %s threads, %s neutrons per thread" % (
-            nblocks, threads_per_block, n_neutrons_per_thread))
-        rng_states = create_xoroshiro128p_states(actual_nthreads, seed=rng_seed)
-        process_kernel[nblocks, threads_per_block](
-            rng_states, in_neutrons, n_neutrons_per_thread, *self.propagate_params)
-        cuda.synchronize()
-        return
 
     def process_no_buffer(self, N):
         import time
