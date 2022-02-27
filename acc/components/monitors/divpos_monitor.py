@@ -81,3 +81,5 @@ def propagate(
     cuda.atomic.add(out_p, (idiv,ix), p)
     cuda.atomic.add(out_p2, (idiv,ix), p*p)
     return
+
+# DivPos_monitor.process_kernel = process_kernel
