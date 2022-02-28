@@ -29,18 +29,24 @@ class StochasticComponentBase(base):
             nblocks, threads_per_block, n_neutrons_per_thread))
         rng_states = create_xoroshiro128p_states(actual_nthreads, seed=rng_seed)
         process_kernel[nblocks, threads_per_block](
-            rng_states, in_neutrons, n_neutrons_per_thread, *self.propagate_params)
+            rng_states, in_neutrons, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()
         return
 
-template_for_process_kernel = """
-@cuda.jit
-def process_kernel(rng_states, neutrons, n_neutrons_per_thread, {param_str}):
-    N = len(neutrons)
-    thread_index = cuda.grid(1)
-    start_index = thread_index*n_neutrons_per_thread
-    end_index = min(start_index+n_neutrons_per_thread, N)
-    for i in range(start_index, end_index):
-        propagate(thread_index, rng_states, neutrons[i], {param_str})
-    return
-"""
+    @classmethod
+    def register_propagate_method(cls, propagate):
+        cls.process_kernel = make_process_kernel(propagate)
+        return
+
+
+def make_process_kernel(propagate):
+    @cuda.jit()
+    def process_kernel(rng_states, neutrons, n_neutrons_per_thread, args):
+        N = len(neutrons)
+        thread_index = cuda.grid(1)
+        start_index = thread_index*n_neutrons_per_thread
+        end_index = min(start_index+n_neutrons_per_thread, N)
+        for i in range(start_index, end_index):
+            propagate(thread_index, rng_states, neutrons[i], *args)
+        return
+    return process_kernel

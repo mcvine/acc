@@ -8,7 +8,7 @@ from numba.cuda.random import xoroshiro128p_uniform_float32, create_xoroshiro128
 import time
 
 from mcni.utils.conversion import V2K, SE2V, K2V
-from .SourceBase import SourceBase
+from .SourceBase import SourceBase, make_process_kernel
 from ...config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
@@ -105,27 +105,6 @@ def process_kernel_no_buffer(
     return
 Source_simple.process_kernel_no_buffer = process_kernel_no_buffer
 
-@cuda.jit
-def process_kernel(
-        rng_states, neutrons, n_neutrons_per_thread,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-):
-    N = len(neutrons)
-    thread_index = cuda.grid(1)
-    start_index = thread_index*n_neutrons_per_thread
-    end_index = min(start_index+n_neutrons_per_thread, N)
-    for i in range(start_index, end_index):
-        propagate(
-            thread_index, rng_states, neutrons[i],
-            square, width, height, radius,
-            wl_distr, Lambda0, dLambda, E0, dE,
-            xw, yh, dist, pmul,
-        )
-    return
-Source_simple.process_kernel = process_kernel
-
 @cuda.jit(device=True)
 def propagate(
         threadindex, rng_states,
@@ -198,3 +177,5 @@ def randvec_target_rect(
     vec3.add(p2, tmp, vecout)
     dist2 = math.sqrt(dx*dx + dy*dy + dist*dist)
     return (width*height*dist)/(dist2*dist2*dist2)
+
+Source_simple.register_propagate_method(propagate)
