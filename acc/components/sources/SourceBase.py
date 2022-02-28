@@ -6,7 +6,7 @@ Requirement for a source component
 * `propagate` method
   - first three arguments: `threadindex`, `rng_states`, `neutron`
   - other args: match comp.propagate_params
-* process_kernel methods: see template at the end of this module
+* at the end of the module, register the propagate method
 """
 
 from numba import cuda

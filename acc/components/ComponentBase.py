@@ -6,7 +6,7 @@ Requirement for a component
 * `propagate` method
   - first argument: `neutron`
   - other args: match comp.propagate_params
-* process_kernel method: see template at the end of this module
+* at the end of the module, register the propagate method
 """
 
 from numba import cuda
