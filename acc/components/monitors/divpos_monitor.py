@@ -6,7 +6,6 @@ from numba import cuda
 import numba as nb, numpy as np
 import time
 
-from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils.conversion import V2K, SE2V, K2V
 
@@ -14,9 +13,8 @@ from ...config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 RAD2DEG = 180./math.pi
 
-class DivPos_monitor(AbstractComponent):
-
-    category = 'monitors'
+from .MonitorBase import MonitorBase as base
+class DivPos_monitor(base):
 
     def __init__(
             self, name,
@@ -58,15 +56,13 @@ class DivPos_monitor(AbstractComponent):
             npos, ndiv, self.out_N, self.out_p, self.out_p2
         )
 
-    def save(self, scale_factor=1.):
-        import histogram as H, histogram.hdf as hh
+    def getHistogram(self, scale_factor=1.):
+        import histogram as H
         axes = [('x', self.x_centers, 'm'), ('div', self.div_centers, 'deg')]
-        h = H.histogram(
+        return H.histogram(
             'Idiv_x', axes,
             data=self.out_p.T*scale_factor,
             errors=self.out_p2.T*scale_factor)
-        hh.dump(h, self.filename)
-        return
 
 
 @cuda.jit(device=True)
@@ -94,4 +90,4 @@ def propagate(
     cuda.atomic.add(out_p2, (idiv,ix), p*p)
     return
 
-# DivPos_monitor.process_kernel = process_kernel
+DivPos_monitor.register_propagate_method(propagate)
