@@ -2,9 +2,31 @@
 # Jiao Lin <jiao.lin@gmail.com>
 #
 
-import os, sys, yaml, warnings
+import os, sys, yaml, warnings, imp
 from mcni import run_ppsd, run_ppsd_in_parallel
 from .components.StochasticComponentBase import StochasticComponentBase
+
+def run(script, workdir, ncount, **kwds):
+    """run a mcvine.acc simulation script on one node. The script must define the instrument.
+
+Parameters:
+
+* script: path to instrument script. the script must either create an instrument or provide a method to do so
+* workdir: working dir
+* ncount: neutron count
+
+"""
+    compiled_script = compile(script)
+    m = imp.load_source('mcvinesim', compiled_script)
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
+    os.chdir(workdir)
+    curdir = os.path.abspath(os.curdir)
+    try:
+        m.run(ncount, **kwds)
+    finally:
+        os.chdir(curdir)
+    return
 
 def compile(script, compiled_script=None):
     """compile a mcvine.acc simulation script. The script must define the instrument.
@@ -47,19 +69,7 @@ Parameters:
         compiled_script = f + "_compiled" + ext
     with open(compiled_script, 'wt') as stream:
         stream.write(text)
-    return
-
-def run(script, workdir, ncount, **kwds):
-    """run a mcvine.acc simulation script on one node. The script must define the instrument.
-
-Parameters:
-
-* script: path to instrument script. the script must either create an instrument or provide a method to do so
-* workdir: working dir
-* ncount: neutron count
-
-"""
-    kwds_fn = _saveKwds(kwds)
+    return compiled_script
 
 def calcTransformations(instrument):
     """given a mcni.Instrument instance, calculate transformation matrices and
@@ -128,7 +138,6 @@ def run(ncount, **kwds):
 """
 
 def loadInstrument(script, **kwds):
-    import imp
     m = imp.load_source('mcvinesim', script)
     assert hasattr(m, 'instrument')
     instrument = m.instrument

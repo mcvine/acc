@@ -50,17 +50,3 @@ Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
     Instrument(instrument).process_no_buffer(ncount)
-    return instrument
-def main():
-    N = 5
-    N = 1e8
-    instrument = run(N)
-    mon1 = instrument.components[-1]
-    from matplotlib import pyplot as plt
-    plt.pcolormesh(mon1.x_centers, mon1.div_centers, mon1.out_p/N)
-    plt.colorbar()
-    plt.clim(0, 1e-6)
-    plt.show()
-    return
-
-if __name__ == '__main__': main()
