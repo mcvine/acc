@@ -1,28 +1,11 @@
 
 script = '/home/97n/dv/mcvine/acc/tests/acc_sgm_instrument.py'
-kwds_fn = '/tmp/tmpzpc2nq6m'
+kwds_fn = '/tmp/tmpiai86yi1'
 import pickle
 kwds = pickle.load(open(kwds_fn, 'rb'))
-from mcvine.acc.run_script import loadInstrument
+from mcvine.acc.run_script import loadInstrument, calcTransformations
 instrument = loadInstrument(script, **kwds)
-
-from mcni.instrument_simulator import default_simulator as ds
-nct = ds.neutron_coordinates_transformer
-comps = instrument.components
-geometer = instrument.geometer
-transformations = [
-    nct.relativePositionOrientation(
-        geometer.position(comps[i]), geometer.orientation(comps[i]),
-        geometer.position(comps[i+1]), geometer.orientation(comps[i+1]),
-    ) for i in range(len(comps)-1)
-]
-offsets = []; rotmats = []
-for offset, rotmat in transformations:
-    offsets.append(offset); rotmats.append(rotmat)
-    print(offset); print(rotmat)
-    continue
-import numpy as np
-offsets = np.array(offsets); rotmats = np.array(rotmats)
+offsets, rotmats = calcTransformations(instrument)
 
 from numba import cuda
 import numba as nb
@@ -63,7 +46,7 @@ from mcvine.acc.components.sources.SourceBase import SourceBase
 class Instrument(SourceBase):
 
     def __init__(self):
-        self.propagate_params = [c.propagate_params for c in comps]
+        self.propagate_params = [c.propagate_params for c in instrument.components]
         return
 
 Instrument.process_kernel_no_buffer = process_kernel_no_buffer
@@ -74,7 +57,7 @@ def main():
     N = 5
     N = 1e8
     run(N)
-    mon1 = comps[-1]
+    mon1 = instrument.components[-1]
     from matplotlib import pyplot as plt
     plt.pcolormesh(mon1.x_centers, mon1.div_centers, mon1.out_p/N)
     plt.colorbar()

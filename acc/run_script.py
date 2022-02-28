@@ -55,32 +55,38 @@ Parameters:
         stream.write(text)
     return
 
+def calcTransformations(instrument):
+    """given a mcni.Instrument instance, calculate transformation matrices and
+    offset vectors from one component to the next
+    """
+    from mcni.instrument_simulator import default_simulator as ds
+    nct = ds.neutron_coordinates_transformer
+    comps = instrument.components
+    geometer = instrument.geometer
+    transformations = [
+        nct.relativePositionOrientation(
+            geometer.position(comps[i]), geometer.orientation(comps[i]),
+            geometer.position(comps[i+1]), geometer.orientation(comps[i+1]),
+        ) for i in range(len(comps)-1)
+    ]
+    offsets = []; rotmats = []
+    for offset, rotmat in transformations:
+        offsets.append(offset); rotmats.append(rotmat)
+        print(offset); print(rotmat)
+        continue
+    import numpy as np
+    offsets = np.array(offsets); rotmats = np.array(rotmats)
+    return offsets, rotmats
+
 
 cuda_mod_template = """
 script = {script!r}
 kwds_fn = {kwds_fn!r}
 import pickle
 kwds = pickle.load(open(kwds_fn, 'rb'))
-from mcvine.acc.run_script import loadInstrument
+from mcvine.acc.run_script import loadInstrument, calcTransformations
 instrument = loadInstrument(script, **kwds)
-
-from mcni.instrument_simulator import default_simulator as ds
-nct = ds.neutron_coordinates_transformer
-comps = instrument.components
-geometer = instrument.geometer
-transformations = [
-    nct.relativePositionOrientation(
-        geometer.position(comps[i]), geometer.orientation(comps[i]),
-        geometer.position(comps[i+1]), geometer.orientation(comps[i+1]),
-    ) for i in range(len(comps)-1)
-]
-offsets = []; rotmats = []
-for offset, rotmat in transformations:
-    offsets.append(offset); rotmats.append(rotmat)
-    print(offset); print(rotmat)
-    continue
-import numpy as np
-offsets = np.array(offsets); rotmats = np.array(rotmats)
+offsets, rotmats = calcTransformations(instrument)
 
 from numba import cuda
 import numba as nb
@@ -109,7 +115,7 @@ from mcvine.acc.components.sources.SourceBase import SourceBase
 class Instrument(SourceBase):
 
     def __init__(self):
-        self.propagate_params = [c.propagate_params for c in comps]
+        self.propagate_params = [c.propagate_params for c in instrument.components]
         return
 
 Instrument.process_kernel_no_buffer = process_kernel_no_buffer
