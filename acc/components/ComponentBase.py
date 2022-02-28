@@ -62,6 +62,12 @@ class ComponentBase(AbstractComponent):
         cuda.synchronize()
         return
 
+    @classmethod
+    def register_propagate_method(cls, propagate):
+        cls.process_kernel = make_process_kernel(propagate)
+        return
+
+
 def make_process_kernel(propagate):
     @cuda.jit()
     def process_kernel(neutrons, n_neutrons_per_thread, args):

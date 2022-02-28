@@ -33,6 +33,11 @@ class StochasticComponentBase(base):
         cuda.synchronize()
         return
 
+    @classmethod
+    def register_propagate_method(cls, propagate):
+        cls.process_kernel = make_process_kernel(propagate)
+        return
+
 
 def make_process_kernel(propagate):
     @cuda.jit()

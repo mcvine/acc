@@ -17,8 +17,9 @@ import mcvine.acc.components.monitors.divpos_monitor as compmod2
 @cuda.jit
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
-    args0, args1, args2, offsets, rotmats,
+    args
 ):
+    args0, args1, args2, offsets, rotmats = args
     thread_index = cuda.grid(1)
     start_index = thread_index*n_neutrons_per_thread
     end_index = min(start_index+n_neutrons_per_thread, N)
@@ -42,8 +43,8 @@ from mcvine.acc.components.sources.SourceBase import SourceBase
 class Instrument(SourceBase):
     def __init__(self, instrument):
         offsets, rotmats = calcTransformations(instrument)
-        self.propagate_params = [c.propagate_params for c in instrument.components]
-        self.propagate_params += [offsets, rotmats]
+        self.propagate_params = tuple(c.propagate_params for c in instrument.components)
+        self.propagate_params += (offsets, rotmats)
         return
 Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 

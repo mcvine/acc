@@ -111,7 +111,7 @@ def propagate(
 
 
 
-from ..ComponentBase import ComponentBase, make_process_kernel
+from ..ComponentBase import ComponentBase
 class Guide(ComponentBase):
 
     def __init__(
@@ -150,4 +150,4 @@ class Guide(ComponentBase):
         neutrons[0] = mcni.neutron(r=(0, 0, 0), v=velocity, prob=1, time=0)
         self.process(neutrons)
 
-Guide.process_kernel = make_process_kernel(propagate)
+Guide.register_propagate_method(propagate)

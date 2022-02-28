@@ -41,18 +41,25 @@ class SourceBase(base):
             nblocks, threads_per_block, n_neutrons_per_thread))
         rng_states = create_xoroshiro128p_states(actual_nthreads, seed=rng_seed)
         process_kernel_no_buffer[nblocks, threads_per_block](
-            rng_states, N, n_neutrons_per_thread, *self.propagate_params)
+            rng_states, N, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()
         return
 
+    @classmethod
+    def register_propagate_method(cls, propagate):
+        cls.process_kernel = make_process_kernel(propagate)
+        cls.process_kernel_no_buffer = make_process_kernel_no_buffer(propagate)
+        return
 
-template_for_process_kernel = """
-@cuda.jit
-def process_kernel_no_buffer(rng_states, neutrons, n_neutrons_per_thread, {param_str}):
-    thread_index = cuda.grid(1)
-    start_index = thread_index*n_neutrons_per_thread
-    end_index = min(start_index+n_neutrons_per_thread, N)
-    neutron = cuda.local.array(shape=10, dtype=FLOAT)
-    for i in range(start_index, end_index):
-        propagate(thread_index, rng_states, neutron, {param_str})
-"""
+
+def make_process_kernel_no_buffer(propagate):
+    @cuda.jit()
+    def process_kernel_no_buffer(rng_states, N, n_neutrons_per_thread, args):
+        thread_index = cuda.grid(1)
+        start_index = thread_index*n_neutrons_per_thread
+        end_index = min(start_index+n_neutrons_per_thread, N)
+        neutron = cuda.local.array(shape=10, dtype=FLOAT)
+        for i in range(start_index, end_index):
+            propagate(thread_index, rng_states, neutron, *args)
+        return
+    return process_kernel_no_buffer

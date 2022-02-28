@@ -178,4 +178,4 @@ def randvec_target_rect(
     dist2 = math.sqrt(dx*dx + dy*dy + dist*dist)
     return (width*height*dist)/(dist2*dist2*dist2)
 
-Source_simple.process_kernel = make_process_kernel(propagate)
+Source_simple.register_propagate_method(propagate)
