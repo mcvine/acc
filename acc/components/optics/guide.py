@@ -110,26 +110,8 @@ def propagate(
     in_neutron[-1] = prob
 
 
-@cuda.jit()
-def process_kernel(
-        neutrons, n_neutrons_per_thread,
-        ww, hh, hw1, hh1, l,
-        R0, Qc, alpha, m, W,
-):
-    N = len(neutrons)
-    thread_index = cuda.grid(1)
-    start_index = thread_index*n_neutrons_per_thread
-    end_index = min(start_index+n_neutrons_per_thread, N)
-    for i in range(start_index, end_index):
-        propagate(
-            neutrons[i],
-            ww, hh, hw1, hh1, l,
-            R0, Qc, alpha, m, W,
-        )
-    return
 
-
-from ..ComponentBase import ComponentBase
+from ..ComponentBase import ComponentBase, make_process_kernel
 class Guide(ComponentBase):
 
     def __init__(
@@ -168,4 +150,4 @@ class Guide(ComponentBase):
         neutrons[0] = mcni.neutron(r=(0, 0, 0), v=velocity, prob=1, time=0)
         self.process(neutrons)
 
-Guide.process_kernel = process_kernel
+Guide.process_kernel = make_process_kernel(propagate)

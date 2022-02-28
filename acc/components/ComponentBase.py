@@ -58,18 +58,18 @@ class ComponentBase(AbstractComponent):
         print("%s blocks, %s threads, %s neutrons per thread" % (
             nblocks, threads_per_block, n_neutrons_per_thread))
         process_kernel[nblocks, threads_per_block](
-            in_neutrons, n_neutrons_per_thread, *self.propagate_params)
+            in_neutrons, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()
         return
 
-template_for_process_kernel = """
-@cuda.jit()
-def process_kernel(neutrons, n_neutrons_per_thread, {param_str}):
-    N = len(neutrons)
-    thread_index = cuda.grid(1)
-    start_index = thread_index*n_neutrons_per_thread
-    end_index = min(start_index+n_neutrons_per_thread, N)
-    for i in range(start_index, end_index):
-        propagate(neutrons[i], {param_str})
-    return
-"""
+def make_process_kernel(propagate):
+    @cuda.jit()
+    def process_kernel(neutrons, n_neutrons_per_thread, args):
+        N = len(neutrons)
+        thread_index = cuda.grid(1)
+        start_index = thread_index*n_neutrons_per_thread
+        end_index = min(start_index+n_neutrons_per_thread, N)
+        for i in range(start_index, end_index):
+            propagate(neutrons[i], *args)
+        return
+    return process_kernel

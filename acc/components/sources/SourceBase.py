@@ -14,7 +14,7 @@ import math
 from numba.cuda.random import create_xoroshiro128p_states
 
 from ...config import rng_seed
-from ..StochasticComponentBase import StochasticComponentBase as base
+from ..StochasticComponentBase import StochasticComponentBase as base, make_process_kernel
 class SourceBase(base):
 
     def process_no_buffer(self, N):
@@ -47,16 +47,6 @@ class SourceBase(base):
 
 
 template_for_process_kernel = """
-@cuda.jit
-def process_kernel(rng_states, neutrons, n_neutrons_per_thread, {param_str}):
-    N = len(neutrons)
-    thread_index = cuda.grid(1)
-    start_index = thread_index*n_neutrons_per_thread
-    end_index = min(start_index+n_neutrons_per_thread, N)
-    for i in range(start_index, end_index):
-        propagate(thread_index, rng_states, neutrons[i], {param_str})
-    return
-
 @cuda.jit
 def process_kernel_no_buffer(rng_states, neutrons, n_neutrons_per_thread, {param_str}):
     thread_index = cuda.grid(1)
