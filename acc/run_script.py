@@ -6,26 +6,18 @@ import os, sys, yaml, warnings
 from mcni import run_ppsd, run_ppsd_in_parallel
 from .components.StochasticComponentBase import StochasticComponentBase
 
-def run(script, workdir, ncount, **kwds):
-    """run a mcvine.acc simulation script on one node. The script must define the instrument.
+def compile(script, compiled_script=None):
+    """compile a mcvine.acc simulation script. The script must define the instrument.
 
 Parameters:
 
 * script: path to instrument script. the script must either create an instrument or provide a method to do so
-* workdir: working dir
-* ncount: neutron count
-
 """
-    kwds_fn = _saveKwds(kwds)
-    instrument = loadInstrument(script, **kwds)
+    instrument = loadInstrument(script)
     comps = instrument.components
-    ncount = int(ncount)
-    workdir = os.path.abspath(workdir)
-    nargs = 0
     modules = []
     body = []
     for i, comp in enumerate(comps):
-        nargs += len(comp.propagate_params)
         modules.append(comp.__module__)
         prefix = (
             "thread_index, rng_states, "
@@ -45,15 +37,29 @@ Parameters:
     args = ', '.join(args)
     indent = 8*' '
     body = '\n'.join([indent+line for line in body])
-    text = cuda_mod_template.format(
-        script = script, kwds_fn = kwds_fn,
+    text = compiled_script_template.format(
+        script = script,
         module_imports = module_imports,
         args=args, propagate_body=body
     )
-    cuda_script_fn = "cuda_" + os.path.basename(script)
-    with open(cuda_script_fn, 'wt') as stream:
+    if compiled_script is None:
+        f, ext = os.path.splitext(script)
+        compiled_script = f + "_compiled" + ext
+    with open(compiled_script, 'wt') as stream:
         stream.write(text)
     return
+
+def run(script, workdir, ncount, **kwds):
+    """run a mcvine.acc simulation script on one node. The script must define the instrument.
+
+Parameters:
+
+* script: path to instrument script. the script must either create an instrument or provide a method to do so
+* workdir: working dir
+* ncount: neutron count
+
+"""
+    kwds_fn = _saveKwds(kwds)
 
 def calcTransformations(instrument):
     """given a mcni.Instrument instance, calculate transformation matrices and
@@ -79,14 +85,10 @@ def calcTransformations(instrument):
     return offsets, rotmats
 
 
-cuda_mod_template = """
+compiled_script_template = """#!/usr/bin/env python
+
 script = {script!r}
-kwds_fn = {kwds_fn!r}
-import pickle
-kwds = pickle.load(open(kwds_fn, 'rb'))
 from mcvine.acc.run_script import loadInstrument, calcTransformations
-instrument = loadInstrument(script, **kwds)
-offsets, rotmats = calcTransformations(instrument)
 
 from numba import cuda
 import numba as nb
@@ -100,7 +102,7 @@ NB_FLOAT = get_numba_floattype()
 @cuda.jit
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
-    {args}
+    {args}, offsets, rotmats,
 ):
     thread_index = cuda.grid(1)
     start_index = thread_index*n_neutrons_per_thread
@@ -113,15 +115,16 @@ def process_kernel_no_buffer(
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
 class Instrument(SourceBase):
-
-    def __init__(self):
+    def __init__(self, instrument):
+        offsets, rotmats = calcTransformations(instrument)
         self.propagate_params = [c.propagate_params for c in instrument.components]
+        self.propagate_params += [offsets, rotmats]
         return
-
 Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 
-def run(ncount):
-    Instrument().process_no_buffer(ncount)
+def run(ncount, **kwds):
+    instrument = loadInstrument(script, **kwds)
+    Instrument(instrument).process_no_buffer(ncount)
 """
 
 def loadInstrument(script, **kwds):

@@ -1,11 +1,7 @@
+#!/usr/bin/env python
 
 script = '/home/97n/dv/mcvine/acc/tests/acc_sgm_instrument.py'
-kwds_fn = '/tmp/tmpiai86yi1'
-import pickle
-kwds = pickle.load(open(kwds_fn, 'rb'))
 from mcvine.acc.run_script import loadInstrument, calcTransformations
-instrument = loadInstrument(script, **kwds)
-offsets, rotmats = calcTransformations(instrument)
 
 from numba import cuda
 import numba as nb
@@ -21,7 +17,7 @@ import mcvine.acc.components.monitors.divpos_monitor as compmod2
 @cuda.jit
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
-    args0, args1, args2
+    args0, args1, args2, offsets, rotmats,
 ):
     thread_index = cuda.grid(1)
     start_index = thread_index*n_neutrons_per_thread
@@ -44,19 +40,21 @@ def process_kernel_no_buffer(
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
 class Instrument(SourceBase):
-
-    def __init__(self):
+    def __init__(self, instrument):
+        offsets, rotmats = calcTransformations(instrument)
         self.propagate_params = [c.propagate_params for c in instrument.components]
+        self.propagate_params += [offsets, rotmats]
         return
-
 Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 
-def run(ncount):
-    Instrument().process_no_buffer(ncount)
+def run(ncount, **kwds):
+    instrument = loadInstrument(script, **kwds)
+    Instrument(instrument).process_no_buffer(ncount)
+    return instrument
 def main():
     N = 5
     N = 1e8
-    run(N)
+    instrument = run(N)
     mon1 = instrument.components[-1]
     from matplotlib import pyplot as plt
     plt.pcolormesh(mon1.x_centers, mon1.div_centers, mon1.out_p/N)
