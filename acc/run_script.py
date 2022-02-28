@@ -16,12 +16,12 @@ Parameters:
 * ncount: neutron count
 
 """
+    curdir = os.path.abspath(os.curdir)
     compiled_script = compile(script)
     m = imp.load_source('mcvinesim', compiled_script)
     if not os.path.exists(workdir):
         os.makedirs(workdir)
     os.chdir(workdir)
-    curdir = os.path.abspath(os.curdir)
     try:
         m.run(ncount, **kwds)
     finally:
@@ -95,7 +95,7 @@ def calcTransformations(instrument):
 compiled_script_template = """#!/usr/bin/env python
 
 script = {script!r}
-from mcvine.acc.run_script import loadInstrument, calcTransformations
+from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonitorOutputs
 
 from numba import cuda
 import numba as nb
@@ -133,7 +133,13 @@ Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
     Instrument(instrument).process_no_buffer(ncount)
+    saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
 """
+
+def saveMonitorOutputs(instrument, scale_factor=1.0):
+    for comp in instrument.components:
+        if getattr(comp, 'category', None) == 'monitors':
+            comp.save(scale_factor=scale_factor)
 
 def loadInstrument(script, **kwds):
     m = imp.load_source('mcvinesim', script)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 script = '/home/97n/dv/mcvine/acc/tests/acc_sgm_instrument.py'
-from mcvine.acc.run_script import loadInstrument, calcTransformations
+from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonitorOutputs
 
 from numba import cuda
 import numba as nb
@@ -45,3 +45,4 @@ Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
     Instrument(instrument).process_no_buffer(ncount)
+    saveMonitorOutputs(instrument, scale_factor=1.0/ncount)

@@ -10,20 +10,21 @@ from mcni.AbstractComponent import AbstractComponent
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils.conversion import V2K, SE2V, K2V
 
-category = 'monitors'
-
 from ...config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 RAD2DEG = 180./math.pi
 
 class DivPos_monitor(AbstractComponent):
 
+    category = 'monitors'
+
     def __init__(
             self, name,
             xmin=0., xmax=0., ymin=0., ymax=0.,
             xwidth=0., yheight=0.,
             maxdiv=2.,
-            npos=20., ndiv=20.
+            npos=20., ndiv=20.,
+            filename = "divpos.h5",
     ):
         """
         Initialize this Source_simple component.
@@ -37,6 +38,7 @@ class DivPos_monitor(AbstractComponent):
             Width in meter
         """
         self.name = name
+        self.filename = filename
         if xwidth > 0:
             xmax = xwidth/2; xmin = -xmax
         if yheight > 0:
@@ -55,6 +57,16 @@ class DivPos_monitor(AbstractComponent):
             xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
             npos, ndiv, self.out_N, self.out_p, self.out_p2
         )
+
+    def save(self, scale_factor=1.):
+        import histogram as H, histogram.hdf as hh
+        axes = [('x', self.x_centers, 'm'), ('div', self.div_centers, 'deg')]
+        h = H.histogram(
+            'Idiv_x', axes,
+            data=self.out_p.T*scale_factor,
+            errors=self.out_p2.T*scale_factor)
+        hh.dump(h, self.filename)
+        return
 
 
 @cuda.jit(device=True)
