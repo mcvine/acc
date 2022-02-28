@@ -47,10 +47,7 @@ Parameters:
             else ""
         )
         if i>0:
-            body.append("vec3.copy(neutron[:3], r); vec3.copy(neutron[3:6], v)")
-            body.append("offset, rotmat = offsets[{}], rotmats[{}]".format(i-1, i-1))
-            body.append("vec3.abs2rel(r, rotmat, offset, neutron[:3])")
-            body.append("vec3.mXv(rotmat, v, neutron[3:6])")
+            body.append("abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(i-1, i-1))
         body.append("compmod{}.propagate({} neutron, *args{})".format(i, prefix, i))
         continue
     module_imports = ['import {} as compmod{}'.format(m, i) for i, m in enumerate(modules)]
@@ -103,7 +100,7 @@ from mcvine.acc.run_script import loadInstrument, calcTransformations
 from numba import cuda
 import numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
-from mcvine.acc import vec3
+from mcvine.acc.neutron import abs2rel
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
