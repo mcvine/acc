@@ -12,6 +12,8 @@ Requirement for a source component
 from numba import cuda
 import math
 from numba.cuda.random import create_xoroshiro128p_states
+from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
+NB_FLOAT = get_numba_floattype()
 
 from ...config import rng_seed
 from ..StochasticComponentBase import StochasticComponentBase as base, make_process_kernel
@@ -58,7 +60,7 @@ def make_process_kernel_no_buffer(propagate):
         thread_index = cuda.grid(1)
         start_index = thread_index*n_neutrons_per_thread
         end_index = min(start_index+n_neutrons_per_thread, N)
-        neutron = cuda.local.array(shape=10, dtype=FLOAT)
+        neutron = cuda.local.array(shape=10, dtype=NB_FLOAT)
         for i in range(start_index, end_index):
             propagate(thread_index, rng_states, neutron, *args)
         return
