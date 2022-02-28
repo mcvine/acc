@@ -26,7 +26,11 @@ NewComponent.register_propagate_method(propagate)
 ```
 
 ## Run acc instrument
-Instead of using `mcvine.run_script.run*` methods, use `mcvine.acc.run_script.run`.
+To run a mcvine instrument with all components being acc components, 
+instead of using `mcvine.run_script.run*` methods, use `mcvine.acc.run_script.run`.
+
+To run a mcvine instrument with a mixture of acc and non-acc components, or
+all non-acc components, use `mcvine.run_script.run*` methods.
 
 ## Testing
 
