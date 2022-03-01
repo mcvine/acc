@@ -138,7 +138,8 @@ def run(ncount, **kwds):
 
 def saveMonitorOutputs(instrument, scale_factor=1.0):
     for comp in instrument.components:
-        if getattr(comp, 'category', None) == 'monitors':
+        from .components.monitors.MonitorBase import MonitorBase
+        if isinstance(comp, MonitorBase):
             comp.save(scale_factor=scale_factor)
 
 def loadInstrument(script, **kwds):

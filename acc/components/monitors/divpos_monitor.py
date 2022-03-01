@@ -1,14 +1,12 @@
 # -*- python -*-
 #
 
+category = 'monitors'
+
 import math
 from numba import cuda
 import numba as nb, numpy as np
-import time
-
-from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcni.utils.conversion import V2K, SE2V, K2V
-
 from ...config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 RAD2DEG = 180./math.pi
