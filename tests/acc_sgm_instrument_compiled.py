@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
 script = '/home/97n/dv/mcvine/acc/tests/acc_sgm_instrument.py'
-from mcvine.acc.run_script import loadInstrument, calcTransformations
+from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonitorOutputs
 
 from numba import cuda
 import numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
-from mcvine.acc import vec3
+from mcvine.acc.neutron import abs2rel
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
@@ -28,15 +28,9 @@ def process_kernel_no_buffer(
     v = cuda.local.array(3, dtype=NB_FLOAT)
     for i in range(start_index, end_index):
         compmod0.propagate(thread_index, rng_states,  neutron, *args0)
-        vec3.copy(neutron[:3], r); vec3.copy(neutron[3:6], v)
-        offset, rotmat = offsets[0], rotmats[0]
-        vec3.abs2rel(r, rotmat, offset, neutron[:3])
-        vec3.mXv(rotmat, v, neutron[3:6])
+        abs2rel(neutron[:3], neutron[3:6], rotmats[0], offsets[0], r, v)
         compmod1.propagate( neutron, *args1)
-        vec3.copy(neutron[:3], r); vec3.copy(neutron[3:6], v)
-        offset, rotmat = offsets[1], rotmats[1]
-        vec3.abs2rel(r, rotmat, offset, neutron[:3])
-        vec3.mXv(rotmat, v, neutron[3:6])
+        abs2rel(neutron[:3], neutron[3:6], rotmats[1], offsets[1], r, v)
         compmod2.propagate( neutron, *args2)
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
@@ -51,3 +45,4 @@ Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
     Instrument(instrument).process_no_buffer(ncount)
+    saveMonitorOutputs(instrument, scale_factor=1.0/ncount)

@@ -83,28 +83,6 @@ class Source_simple(SourceBase):
         self.process(neutrons)
 
 
-@cuda.jit
-def process_kernel_no_buffer(
-        rng_states, N, n_neutrons_per_thread,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul,
-):
-    thread_index = cuda.grid(1)
-    start_index = thread_index*n_neutrons_per_thread
-    end_index = min(start_index+n_neutrons_per_thread, N)
-    neutron = cuda.local.array(shape=10, dtype=NB_FLOAT)
-    for i in range(start_index, end_index):
-        propagate(
-            thread_index, rng_states,
-            neutron,
-            square, width, height, radius,
-            wl_distr, Lambda0, dLambda, E0, dE,
-            xw, yh, dist, pmul
-        )
-    return
-Source_simple.process_kernel_no_buffer = process_kernel_no_buffer
-
 @cuda.jit(device=True)
 def propagate(
         threadindex, rng_states,

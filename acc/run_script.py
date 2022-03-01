@@ -16,12 +16,12 @@ Parameters:
 * ncount: neutron count
 
 """
+    curdir = os.path.abspath(os.curdir)
     compiled_script = compile(script)
     m = imp.load_source('mcvinesim', compiled_script)
     if not os.path.exists(workdir):
         os.makedirs(workdir)
     os.chdir(workdir)
-    curdir = os.path.abspath(os.curdir)
     try:
         m.run(ncount, **kwds)
     finally:
@@ -47,10 +47,7 @@ Parameters:
             else ""
         )
         if i>0:
-            body.append("vec3.copy(neutron[:3], r); vec3.copy(neutron[3:6], v)")
-            body.append("offset, rotmat = offsets[{}], rotmats[{}]".format(i-1, i-1))
-            body.append("vec3.abs2rel(r, rotmat, offset, neutron[:3])")
-            body.append("vec3.mXv(rotmat, v, neutron[3:6])")
+            body.append("abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(i-1, i-1))
         body.append("compmod{}.propagate({} neutron, *args{})".format(i, prefix, i))
         continue
     module_imports = ['import {} as compmod{}'.format(m, i) for i, m in enumerate(modules)]
@@ -98,12 +95,12 @@ def calcTransformations(instrument):
 compiled_script_template = """#!/usr/bin/env python
 
 script = {script!r}
-from mcvine.acc.run_script import loadInstrument, calcTransformations
+from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonitorOutputs
 
 from numba import cuda
 import numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
-from mcvine.acc import vec3
+from mcvine.acc.neutron import abs2rel
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
@@ -136,7 +133,14 @@ Instrument.process_kernel_no_buffer = process_kernel_no_buffer
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
     Instrument(instrument).process_no_buffer(ncount)
+    saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
 """
+
+def saveMonitorOutputs(instrument, scale_factor=1.0):
+    for comp in instrument.components:
+        from .components.monitors.MonitorBase import MonitorBase
+        if isinstance(comp, MonitorBase):
+            comp.save(scale_factor=scale_factor)
 
 def loadInstrument(script, **kwds):
     m = imp.load_source('mcvinesim', script)

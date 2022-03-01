@@ -23,6 +23,7 @@ def test_run():
 
 def main():
     test_run()
+    os.system("plothist --min=0 --max=1e-6 {}/divpos.h5".format(workdir))
     return
 
 if __name__ == '__main__': main()
