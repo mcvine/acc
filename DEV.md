@@ -8,12 +8,15 @@
 @cuda.jit()
 def propagate(neutron, param1, param2, ...):
 
-# must inherint from appropriate base class
-# Normally it is mcvine.acc.components.ComponentBase.ComponentBase
+# must inherint from an appropriate base class
+# Normally it is
+#   mcvine.acc.components.ComponentBase.ComponentBase
 # For components needing random numbers, use
-# mcvine.acc.components.StochasticComponentBase.StochasticComponentBase
+#   mcvine.acc.components.StochasticComponentBase.StochasticComponentBase
 # For source components, use
-# mcvine.acc.components.sources.SourceBase.SourceBase
+#   mcvine.acc.components.sources.SourceBase.SourceBase
+# For monitor components, use
+#   mcvine.acc.components.monitors.MonitorBase.MonitorBase
 # For example
 from mcvine.acc.components.ComponentBase import ComponentBase
 class NewComponent(ComponentBase):
