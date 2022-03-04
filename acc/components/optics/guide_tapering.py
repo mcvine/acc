@@ -2,49 +2,34 @@
 #
 # Copyright (c) 2021 by UT-Battelle, LLC.
 
-from math import inf, isnan, tanh, sqrt, ceil
+from math import sqrt, ceil
 
-import numpy
-from numba import cuda
-import numpy as np, time
-
-from mcni.AbstractComponent import AbstractComponent
-from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
+from numba import cuda, void
+import numpy as np
+from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-# mcni.utils.conversion.v2k
-from mcni.utils.conversion import V2K
-# In mcstas header
-# V2K = 1.58825361e-3
-@cuda.jit(device=True, inline=True)
-def v2k(v):
-    """v in m/s, k in inverse AA """
-    return v * V2K
+from ...config import get_numba_floattype, get_numpy_floattype
+from ._guide_utils import calc_reflectivity
+NB_FLOAT = get_numba_floattype()
+NP_FLOAT = get_numpy_floattype()
 
-@cuda.jit(device=True, inline=True)
-def calc_reflectivity(Q, R0, Qc, alpha, m, W):
-    """
-    Calculate the mirror reflectivity for a neutron.
-
-    Returns:
-    float: the reflectivity for the neutron's given momentum change
-    """
-    R = R0
-    if Q > Qc:
-        tmp = (Q - m * Qc) / W
-        if tmp < 10:
-            R *= (1 - tanh(tmp)) * (1 - alpha * (Q - Qc)) / 2
-        else:
-            R = 0
-    return R
 
 max_bounces = 100000
-@cuda.jit(device=True)
-def propagate(w1, w2, h1, h2, l_seg, ww, hh,
+@cuda.jit(
+    void(
+        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
+        NB_FLOAT,
+        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
+        NB_FLOAT[:],
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        NB_FLOAT
+    ), device=True)
+def propagate(in_neutron, w1, w2, h1, h2, l_seg, ww, hh,
               whalf, hhalf, lwhalf, lhhalf,
               R0, Qcx, Qcy, alphax, alphay,
-              mx, my, W, in_neutron):
+              mx, my, W):
     x,y,z,vx,vy,vz = in_neutron[:6]
     t = in_neutron[-2]
     prob = in_neutron[-1]
@@ -181,21 +166,6 @@ def propagate(w1, w2, h1, h2, l_seg, ww, hh,
 
     return
 
-@cuda.jit
-def process_kernel(
-        w1, w2, h1, h2, l_seg, ww, hh,
-        whalf, hhalf, lwhalf, lhhalf,
-        R0, Qcx, Qcy, alphax, alphay, mx, my, W, in_neutrons
-):
-    x = cuda.grid(1)
-    if x < len(in_neutrons):
-        propagate(
-            w1, w2, h1, h2, l_seg, ww, hh, whalf,
-            hhalf, lwhalf, lhhalf, R0, Qcx, Qcy,
-            alphax, alphay, mx, my, W, in_neutrons[x]
-        )
-    return
-
 @cuda.jit()
 def prep_inputs(w1, w2, h1, h2, l_seg, ww, hh, whalf, hhalf, lwhalf, lhhalf):
     """
@@ -219,7 +189,8 @@ def prep_inputs(w1, w2, h1, h2, l_seg, ww, hh, whalf, hhalf, lwhalf, lhhalf):
     lhhalf[ind] = l_seg * (0.5 * h1_)
 
 
-class Guide(AbstractComponent):
+from ..ComponentBase import ComponentBase
+class Guide(ComponentBase):
 
     def __init__(
             self, name, option,
@@ -264,12 +235,12 @@ class Guide(AbstractComponent):
         self.w2_d = cuda.to_device(self.w2)
 
         # prepare temporary arrays on GPU
-        self.ww_d = cuda.device_array(self.nseg, dtype=np.float64)
-        self.hh_d = cuda.device_array(self.nseg, dtype=np.float64)
-        self.whalf_d = cuda.device_array(self.nseg, dtype=np.float64)
-        self.hhalf_d = cuda.device_array(self.nseg, dtype=np.float64)
-        self.lwhalf_d = cuda.device_array(self.nseg, dtype=np.float64)
-        self.lhhalf_d = cuda.device_array(self.nseg, dtype=np.float64)
+        self.ww_d = cuda.device_array(self.nseg, dtype=NP_FLOAT)
+        self.hh_d = cuda.device_array(self.nseg, dtype=NP_FLOAT)
+        self.whalf_d = cuda.device_array(self.nseg, dtype=NP_FLOAT)
+        self.hhalf_d = cuda.device_array(self.nseg, dtype=NP_FLOAT)
+        self.lwhalf_d = cuda.device_array(self.nseg, dtype=NP_FLOAT)
+        self.lhhalf_d = cuda.device_array(self.nseg, dtype=NP_FLOAT)
 
         threadsperblock = 512
         nblocks = ceil(self.nseg / threadsperblock)
@@ -278,10 +249,12 @@ class Guide(AbstractComponent):
                                               self.hh_d, self.whalf_d, self.hhalf_d, self.lwhalf_d, self.lhhalf_d)
         cuda.synchronize()
 
-        self._params = (self.w1_d, self.w2_d, self.h1_d, self.h2_d, float(self.l_seg), self.ww_d, self.hh_d,
-                        self.whalf_d, self.hhalf_d, self.lwhalf_d, self.lhhalf_d, float(R0), float(Qcx),
-                        float(Qcy), float(alphax), float(alphay), float(mx), float(my), float(W)
-                        )
+        self.propagate_params = (
+            self.w1_d, self.w2_d, self.h1_d, self.h2_d, float(self.l_seg), self.ww_d, self.hh_d,
+            self.whalf_d, self.hhalf_d, self.lwhalf_d, self.lhhalf_d, float(R0), float(Qcx),
+            float(Qcy), float(alphax), float(alphay), float(mx), float(my), float(W)
+        )
+
         import mcni
         neutrons = mcni.neutron_buffer(1)
         neutrons[0] = mcni.neutron(r=(0,0,0), v=(0,0,1000), prob=1, time=0)
@@ -311,50 +284,13 @@ class Guide(AbstractComponent):
             w1.append(z)
             w2.append(w)
 
-        h1 = numpy.asarray(h1[:-1], dtype="float64")
-        h2 = numpy.asarray(h2[:-1], dtype="float64")
-        w1 = numpy.asarray(w1[:-1], dtype="float64")
-        w2 = numpy.asarray(w2[:-1], dtype="float64")
+        h1 = np.asarray(h1[:-1], dtype=NP_FLOAT)
+        h2 = np.asarray(h2[:-1], dtype=NP_FLOAT)
+        w1 = np.asarray(w1[:-1], dtype=NP_FLOAT)
+        w2 = np.asarray(w2[:-1], dtype=NP_FLOAT)
 
         file.close()
 
         return h1, h2, w1, w2
 
-    def process(self, neutrons):
-        """
-        Propagate a buffer of particles through this guide.
-        Adjusts the buffer to include only the particles that exit,
-        at the moment of exit.
-
-        Parameters:
-        neutrons: a buffer containing the particles
-        """
-        t1 = time.time()
-        neutron_array = neutrons_as_npyarr(neutrons)
-        neutron_array.shape = -1, ndblsperneutron
-        t2 = time.time()
-        self.call_process(*self._params, neutron_array)
-        t3 = time.time()
-        good = neutron_array[:, -1]>0
-        neutrons.resize(int(good.sum()), neutrons[0])
-        neutrons.from_npyarr(neutron_array[good])
-        t4 = time.time()
-        print("prepare input array: ", t2-t1)
-        print("call_process: ", t3-t2)
-        print("prepare output neutrons: ", t4-t3)
-        return neutrons
-
-    def call_process(self, w1, w2, h1, h2, l_seg, ww, hh,
-                     whalf, hhalf, lwhalf, lhhalf, R0, Qcx,
-                     Qcy, alphax, alphay, mx, my, W, in_neutrons
-    ):
-        N = len(in_neutrons)
-        threadsperblock = 512
-        nblocks = ceil(N / threadsperblock)
-        print(nblocks, threadsperblock)
-        process_kernel[nblocks, threadsperblock](
-            w1, w2, h1, h2, l_seg, ww, hh,
-            whalf, hhalf, lwhalf, lhhalf, R0,
-            Qcx, Qcy, alphax, alphay, mx, my, W, in_neutrons
-        )
-        cuda.synchronize()
+Guide.register_propagate_method(propagate)
