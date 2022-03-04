@@ -71,7 +71,7 @@ def propagate(w1, w2, h1, h2, l_seg, ww, hh,
         x += 0.5 * w1[seg]
         edge = cuda.libdevice.floor(x / w1[seg]) * w1[seg]
         if (x - edge > w1[seg]):
-            x -= 0.5 * w1[seg]
+            in_neutron[-1] = 0
             return
         x -= (edge + 0.5 * w1[seg])
         hadj = edge + (0.5 * w1[seg]) - 0.5 * w1[seg]
@@ -156,25 +156,23 @@ def propagate(w1, w2, h1, h2, l_seg, ww, hh,
             if i <= 2:
                 m = mx
                 if m <= 0.0:
-                    # TODO: check w1[0], rename to option?
                     m = abs(mx * w1[0] / w1[seg])
                 R = calc_reflectivity(q, R0, Qcx, alphax, m, W)
-                if R > 0:
+                if R > 1e-10:
                     prob *= R
                 else:
-                    x += hadj
-                    break
+                    in_neutron[-1] = 0
+                    return
             else:
                 m = my
                 if m <= 0.0:
-                    # TODO: check h1[0], rename to option?
                     m = abs(my * h1[0] / h1[seg])
                 R = calc_reflectivity(q, R0, Qcy, alphay, m, W)
-                if R > 0:
+                if R > 1e-10:
                     prob *= R
                 else:
-                    x += hadj
-                    break
+                    in_neutron[-1] = 0
+                    return
         x += hadj
 
     in_neutron[:6] = x, y, z, vx, vy, vz
@@ -206,6 +204,8 @@ def prep_inputs(w1, w2, h1, h2, l_seg, ww, hh, whalf, hhalf, lwhalf, lhhalf):
     ww, hh, whalf, hhalf, lwhalf, lhhalf are outputs
     """
     ind = cuda.grid(1)
+    if ind > len(w1):
+        return
     w1_ = w1[ind]
     w2_ = w2[ind]
     h1_ = h1[ind]
@@ -311,10 +311,10 @@ class Guide(AbstractComponent):
             w1.append(z)
             w2.append(w)
 
-        h1 = numpy.asarray(h1, dtype="float64")
-        h2 = numpy.asarray(h2, dtype="float64")
-        w1 = numpy.asarray(w1, dtype="float64")
-        w2 = numpy.asarray(w2, dtype="float64")
+        h1 = numpy.asarray(h1[:-1], dtype="float64")
+        h2 = numpy.asarray(h2[:-1], dtype="float64")
+        w1 = numpy.asarray(w1[:-1], dtype="float64")
+        w2 = numpy.asarray(w2[:-1], dtype="float64")
 
         file.close()
 
