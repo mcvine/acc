@@ -1,4 +1,4 @@
-from numba import cuda
+from numba import cuda, void
 from math import tanh
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
@@ -21,3 +21,9 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
         else:
             R = 0
     return R
+
+
+@cuda.jit(void(NB_FLOAT[:]),
+          device=True, inline=True)
+def absorb(neutron):
+    neutron[-1] = -1
