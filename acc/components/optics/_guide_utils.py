@@ -1,5 +1,5 @@
-from numba import cuda, void
-from math import tanh
+from numba import boolean, cuda, void
+from math import isnan, tanh
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
@@ -27,3 +27,10 @@ def calc_reflectivity(Q, R0, Qc, alpha, m, W):
           device=True, inline=True)
 def absorb(neutron):
     neutron[-1] = -1
+
+
+@cuda.jit(boolean(NB_FLOAT[:]),
+          device=True, inline=True)
+def is_absorbed(neutron):
+    prob = neutron[-1]
+    return prob <= 0 and not isnan(prob)
