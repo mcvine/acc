@@ -9,9 +9,10 @@ from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-from ...config import get_numba_floattype, get_numpy_floattype
+from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
-from ._guide_utils import absorb, calc_reflectivity
+from ._guide_utils import calc_reflectivity
+from ...neutron import absorb
 
 max_bounces = 100000
 @cuda.jit(
