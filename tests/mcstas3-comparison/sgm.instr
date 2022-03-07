@@ -28,6 +28,7 @@ COMPONENT guide1 = Guide(
 AT (0, 0, 1) ABSOLUTE
 
 COMPONENT mon = DivPos_monitor(
+    filename="mon.dat",
     xwidth=0.08, yheight=0.08,
     maxdiv=2.0,
     nb=250, ndiv=251,
