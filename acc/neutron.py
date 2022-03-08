@@ -26,3 +26,12 @@ def absorb(neutron):
 def is_absorbed(neutron):
     prob = neutron[-1]
     return prob <= 0 and not isnan(prob)
+
+
+@cuda.jit(device=True, inline=True)
+def prop_z0(neutron):
+    "propagate neutron to z=0, return x,y,t"
+    x,y,z,vx,vy,vz = neutron[:6]
+    t = neutron[-2]
+    dt = -z/vz
+    return x+vx*dt, y+vy*dt, 0.0, t+dt
