@@ -63,6 +63,8 @@ class DivPos_monitor(base):
             errors=self.out_p2.T*scale_factor)
 
 
+from ...neutron import absorb, prop_z0
+
 @cuda.jit(device=True)
 def propagate(
         neutron,
@@ -70,11 +72,13 @@ def propagate(
         npos, ndiv,
         out_N, out_p, out_p2
 ):
-    x,y,z,vx,vy,vz = neutron[:6]
+    z = neutron[2]
+    if z>0:
+        absorb(neutron)
+        return
+    x,y,z, t = prop_z0(neutron)
     p = neutron[-1]
-    t = neutron[-2]
-    # propagate to z=0
-    dt = (0-z)/vz; x+=vx*dt; y+=vy*dt; z=0; t+=dt
+    vx,vy,vz = neutron[3:6]
     #
     if x<=xmin or x>=xmax or y<=ymin or y>=ymax:
         return
