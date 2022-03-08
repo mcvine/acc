@@ -9,9 +9,10 @@ from mcni.utils.conversion import V2K
 
 category = 'optics'
 
-from ...config import get_numba_floattype, get_numpy_floattype
+from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 from ._guide_utils import calc_reflectivity
+from ...neutron import absorb
 
 max_bounces = 100000
 @cuda.jit(
@@ -34,7 +35,7 @@ def propagate(
     x += vx*dt; y += vy*dt; z = 0.; t += dt
     # check opening
     if x <= -hw1 or x >= hw1 or y <= -hh1 or y >= hh1:
-        in_neutron[-1] = 0
+        absorb(in_neutron)
         return
     # bouncing loop
     for nb in range(max_bounces):
