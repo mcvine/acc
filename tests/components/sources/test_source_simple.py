@@ -40,7 +40,7 @@ def test_component_long(ncount = 1e6):
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_component_long_with_monitors(ncount = 1e6):
-    instr = os.path.join(thisdir, "test_instrument.py")
+    instr = os.path.join(thisdir, "src_psdmon.py")
     outdir = 'out.debug-acc_source_simple'
     ncount = int(ncount)
     run_script.run1(
