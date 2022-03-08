@@ -60,7 +60,7 @@ class DivPos_monitor(base):
         return H.histogram(
             'Idiv_x', axes,
             data=self.out_p.T*scale_factor,
-            errors=self.out_p2.T*scale_factor)
+            errors=self.out_p2.T*scale_factor*scale_factor)
 
 
 from ...neutron import absorb, prop_z0
@@ -72,11 +72,10 @@ def propagate(
         npos, ndiv,
         out_N, out_p, out_p2
 ):
-    z = neutron[2]
-    if z>0:
-        absorb(neutron)
-        return
+    t0 = neutron[-2]
     x,y,z, t = prop_z0(neutron)
+    if t0>t:
+        return
     p = neutron[-1]
     vx,vy,vz = neutron[3:6]
     #
