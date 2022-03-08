@@ -7,6 +7,7 @@ import shutil
 import sys
 import time
 import warnings
+import yaml
 
 # ignore the FutureWarnings given from histogram when saving hdf output
 # set the environment variable since these occur in the child process launched
@@ -80,14 +81,25 @@ def main():
         print("Expected an input config file")
         exit(-1)
     filename = sys.argv[1]
-    opts = json.load(open(filename, 'r'))
+
+    if filename.endswith(".json"):
+        opts = json.load(open(filename, 'r'))
+    elif filename.endswith(".yml") or filename.endswith(".yaml"):
+        opts = yaml.safe_load(open(filename, 'r'))
+    else:
+        print("Unrecognized input file type, expected .json, .yml, or .yaml")
+        exit(-1)
 
     if "output_file" not in opts:
         raise RuntimeError("Expected an 'output_file' entry")
     output_file = opts["output_file"]
 
     if "ncounts" in opts:
-        ncounts_tmp = opts["ncounts"].strip("\"").split(",")
+        if isinstance(opts["ncounts"], str):
+            ncounts_tmp = np.fromstring(opts["ncounts"], dtype=np.float,
+                                        sep=',')
+        else:
+            ncounts_tmp = opts["ncounts"]
         ncounts = []
         for n in ncounts_tmp:
             ncounts.append(int(float(n)))
