@@ -1,0 +1,39 @@
+DEFINE INSTRUMENT SGM()
+
+DECLARE
+%{
+%}
+
+INITIALIZE
+%{
+%}
+
+TRACE
+
+COMPONENT Origin=Progress_bar()
+AT (0,0,0) ABSOLUTE
+
+COMPONENT source = Source_simple(
+    radius = 0.0, xwidth = 0.03, yheight = 0.03, dist = 1.0,
+    focus_xw = 0.035, focus_yh = 0.035,
+    lambda0 = 10.0, dlambda = 9.5, E0=0.0, dE=0.0,
+    flux=1, gauss=0
+)
+AT (0, 0, 0) ABSOLUTE
+
+COMPONENT guide1 = Guide(
+    w1=0.035, h1=0.035, w2=0.035, h2=0.035, l=10,
+    R0=0.99, Qc=0.0219, alpha=6.07, m=3, W=0.003
+)
+AT (0, 0, 1) ABSOLUTE
+
+COMPONENT mon = DivPos_monitor(
+    filename="mon.dat",
+    xwidth=0.08, yheight=0.08,
+    maxdiv=2.0,
+    nb=250, ndiv=251,
+    vertical=0
+)
+AT (0, 0, 12) ABSOLUTE
+
+END
