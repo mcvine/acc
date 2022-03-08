@@ -1,0 +1,13 @@
+{
+  "ncounts": "1e5, 1e6",
+  "iterations": 3,
+  "output_file": "./check_speed_output.txt",
+  "scripts": [
+    {
+      "file": "components/optics/tapered_guide_instrument.py",
+      "kwds": {
+        "guide_mod": "mcvine.acc.components.optics.guide_tapering"
+      }
+    }
+  ]
+}
