@@ -35,6 +35,7 @@ Parameters:
 
 * script: path to instrument script. the script must either create an instrument or provide a method to do so
 """
+    script = os.path.abspath(script)
     instrument = loadInstrument(script)
     comps = instrument.components
     modules = []
@@ -149,7 +150,8 @@ def loadInstrument(script, **kwds):
     from mcni.Instrument import Instrument
     if not isinstance(instrument, Instrument):
         assert callable(instrument) # has to be a  method that creates instrument
-        instrument = instrument(**_getRelevantKwds(instrument, kwds))
+        kwds = _getRelevantKwds(instrument, kwds)
+        instrument = instrument(**kwds)
     return instrument
 
 def _saveKwds(kwds):
