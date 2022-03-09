@@ -21,7 +21,7 @@ from mcvine.acc import run_script as run_acc_script
 thisdir = os.path.dirname(__file__)
 
 
-def run(instrument_script, ncount, niters, **kwds):
+def run(instrument_script, ncount, niters, mpi=False, nodes=1, acc_run=False, skip_ncounts=[], **kwds):
     outdir = 'out.debug-check-speed'
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
@@ -32,6 +32,11 @@ def run(instrument_script, ncount, niters, **kwds):
 
     avg_times = []
     for n in ncount:
+        if n in skip_ncounts:
+            # insert element to preserve ordering
+            avg_times.append(np.nan)
+            continue
+
         print(" Running '{}' with n={}".format(instrument_script, n))
 
         times = []
@@ -39,6 +44,8 @@ def run(instrument_script, ncount, niters, **kwds):
         for iter in range(niters + 1):
             sys.stdout = stdout
             buffer_size = int(n) if n > 1e6 else int(1e6)
+            if buffer_size > 1e9:
+                buffer_size = int(1e9)
 
             # get the runtime for the script. Note: this probably isn't the
             # best timing, since it will include the overhead of launching the
@@ -46,11 +53,27 @@ def run(instrument_script, ncount, niters, **kwds):
             # current way to time individual components.
             # TODO: the stdout could be parsed to pull the process timings for acc components
             # TODO: there is still mcvine component output, likely from a subprocess in which this redirection has no effect
-            time_before = time.time_ns()
-            run_script.run1(
-                instrument_script, outdir, buffer_size=buffer_size, ncount=n,
-                overwrite_datafiles=True, **kwds)
-            time_after = time.time_ns()
+            if mpi:
+                # run script in MPI mode
+                # NOTE: with mcvine=0.44, pyyaml 5.3 must be used to avoid yaml load error. This is fixed in newer versions of mcvine.
+                time_before = time.time_ns()
+                run_script.run_mpi(instrument_script, outdir, nodes=nodes, buffer_size=buffer_size, ncount=n,
+                                   overwrite_datafiles=True, **kwds)
+                time_after = time.time_ns()
+            elif acc_run:
+                # use accelerated run script
+                time_before = time.time_ns()
+                run_acc_script.run(
+                    instrument_script, outdir, buffer_size=buffer_size, ncount=n,
+                    overwrite_datafiles=True, **kwds)
+                time_after = time.time_ns()
+            else:
+                # use default run script (mcvine, single node)
+                time_before = time.time_ns()
+                run_script.run1(
+                    instrument_script, outdir, buffer_size=buffer_size, ncount=n,
+                    overwrite_datafiles=True, **kwds)
+                time_after = time.time_ns()
 
             # skip first run
             if iter < 1:
@@ -70,6 +93,17 @@ def run(instrument_script, ncount, niters, **kwds):
     stdout.close()
 
     return avg_times
+
+
+def parse_array_opt(array):
+    tmp = array
+    if isinstance(array, str):
+        tmp = np.fromstring(array, dtype=np.float, sep=',')
+    # convert sci notation number (e.g, 1e5) to int
+    output = []
+    for n in tmp:
+        output.append(int(float(n)))
+    return output
 
 
 def main():
@@ -95,14 +129,7 @@ def main():
     output_file = opts["output_file"]
 
     if "ncounts" in opts:
-        if isinstance(opts["ncounts"], str):
-            ncounts_tmp = np.fromstring(opts["ncounts"], dtype=np.float,
-                                        sep=',')
-        else:
-            ncounts_tmp = opts["ncounts"]
-        ncounts = []
-        for n in ncounts_tmp:
-            ncounts.append(int(float(n)))
+        ncounts = parse_array_opt(opts["ncounts"])
 
     if "iterations" in opts:
         iters = int(opts["iterations"])
@@ -126,7 +153,31 @@ def main():
             # if we already have the same name, append a number to the results
             script_file += "_{}".format(i)
 
-        runs[script_file] = run(script["file"], ncounts, iters, **kwds)
+        mpi = False
+        nodes = 1
+        acc_run = False
+        name = script_file
+        if "mpi" in script:
+            mpi = script["mpi"]
+        if "nodes" in script:
+            nodes = int(script["nodes"])
+            if nodes <= 0:
+                raise RuntimeError("Nodes count must be >= 1")
+        if "acc_run" in script:
+            acc_run = script["acc_run"]
+
+        if mpi and acc_run:
+            raise RuntimeError("Cannot run script in MPI mode and accelerated mode, only one must be enabled.")
+
+        if "name" in script:
+            # use this name for the output instead of the script filename
+            name = script["name"]
+
+        skip = []
+        if "skip_for" in script:
+            skip = parse_array_opt(script["skip_for"])
+
+        runs[name] = run(script["file"], ncounts, iters, mpi, nodes, acc_run, skip, **kwds)
 
     result_file = open(output_file, "w")
     header = "ncount\t"
