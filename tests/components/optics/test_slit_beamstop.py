@@ -144,12 +144,13 @@ def help_test_slit_beamstop(component, passes):
     dys = np.arange(-3, 4)  # 7
     # Try various neutron weights.
     ws = deque(np.arange(0.2, 1.1, 0.2))
-    # Pattern of cutoffs should be irregular against geometry of test data.
+    # Pattern of weights should be irregular against geometry of test data.
     assert gcd(len(ws), prod(map(len, [xs_arrived, ys_arrived, dxs, dys]))) == 1
     # Fill a neutron buffer with a range of neutrons that approach the plane of
     # the component.
     neutrons_start = []
     neutrons_end_expected = []
+    (any_pass, any_fail) = (False, False)
     for x_arrived in xs_arrived:
         for y_arrived in ys_arrived:
             for dx in dxs:
@@ -168,6 +169,10 @@ def help_test_slit_beamstop(component, passes):
                         neutrons_end_expected.append(neutron(
                             r=position_arrived, v=velocity, prob=w,
                             time=distance))
+                        any_pass = True
+                    else:
+                        any_fail = True
+    assert any_pass and any_fail
     neutrons_end_expected = neutron_buffer_from_array(neutrons_end_expected)
 
     # Propagate the neutrons.
