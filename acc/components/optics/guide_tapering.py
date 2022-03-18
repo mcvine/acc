@@ -39,7 +39,7 @@ class Guide(ComponentBase):
         alphay: slope of reflectivity for vertical mirrors
         W: width of supermirror cutoff
         """
-        super().__init__(**kwargs)
+        super().__init__(__class__, **kwargs)
 
         self.name = name
         self.filename = None
@@ -83,9 +83,6 @@ class Guide(ComponentBase):
             self.whalf_d, self.hhalf_d, self.lwhalf_d, self.lhhalf_d, float(R0), float(Qcx),
             float(Qcy), float(alphax), float(alphay), float(mx), float(my), float(W)
         )
-
-        self.propagate = self.register_propagate_method(self.propagate)
-        #print(self.process_kernel)
 
         self.print_kernel_info(self.propagate)
 

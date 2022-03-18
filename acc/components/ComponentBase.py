@@ -22,10 +22,12 @@ from numba.cuda.compiler import Dispatcher, DeviceFunction
 
 class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
 
-    _floattype = None
+    _floattype = "float64"
 
-    def __init__(self, floattype="float64"):
+    def __init__(self, subcls, floattype="float64"):
         self.floattype = str(floattype)
+
+        subcls.propagate = subcls.register_propagate_method(subcls.propagate)
 
     propagate_params = ()
 
@@ -101,6 +103,11 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
 
     @classmethod
     def register_propagate_method(cls, propagate):
+        if not isinstance(propagate, DeviceFunction):
+            raise RuntimeError(
+                "invalid propagate function registered, "
+                "does propagate have a signature defined?")
+
         args = propagate.args
 
         # reconstruct the numba args with the correct floattype
