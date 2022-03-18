@@ -8,22 +8,59 @@ Requirement for a component
   - other args: match comp.propagate_params
 * at the end of the module, register the propagate method
 """
+import abc
 
+import numpy as np
+import numba
 from numba import cuda
 import math
 
 from mcni.AbstractComponent import AbstractComponent
-class ComponentBase(AbstractComponent):
+from numba.core.types import Array, Float
+from numba.cuda.compiler import Dispatcher, DeviceFunction
+
+
+class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
+
+    _floattype = None
+
+    def __init__(self, floattype="float64"):
+        self.floattype = str(floattype)
+
+    propagate_params = ()
+
+    @property
+    def NP_FLOAT(self):
+        return self.get_numpy_floattype()
+
+    @property
+    def NB_FLOAT(self):
+        return self.get_numba_floattype()
+
+    @property
+    def floattype(self):
+        return self.__class__._floattype
+
+    @floattype.setter
+    def floattype(self, value):
+        if value != "float64" and value != "float32":
+            raise ValueError("Component float type must be 'float64' or 'float32'")
+        self.__class__._floattype = value
+
+    def get_numpy_floattype(self):
+        return getattr(np, self.__class__._floattype)
+
+    def get_numba_floattype(self):
+        return getattr(numba, self.__class__._floattype)
 
     def process(self, neutrons):
         from time import time
-        from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
         from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
         t1 = time()
         neutron_array = neutrons_as_npyarr(neutrons)
         neutron_array.shape = -1, ndblsperneutron
         neutron_array_dtype_api = neutron_array.dtype
-        neutron_array_dtype_int = get_numpy_floattype()
+        neutron_array_dtype_int = self.get_numpy_floattype()
         needs_cast = neutron_array_dtype_api != neutron_array_dtype_int
         if needs_cast:
             neutron_array = neutron_array.astype(neutron_array_dtype_int)
@@ -64,8 +101,57 @@ class ComponentBase(AbstractComponent):
 
     @classmethod
     def register_propagate_method(cls, propagate):
-        cls.process_kernel = make_process_kernel(propagate)
-        return
+        args = propagate.args
+
+        # reconstruct the numba args with the correct floattype
+        newargs = []
+        for arg in args:
+            if isinstance(arg, Array):
+                newargs.append(arg.copy(dtype=getattr(numba, cls._floattype)))
+            elif isinstance(arg, Float):
+                newargs.append(Float(name=cls._floattype))
+            else:
+                # copy other args through
+                newargs.append(arg)
+        newargs = tuple(newargs)
+
+        new_propagate = DeviceFunction(pyfunc=propagate.py_func,
+                                       return_type=propagate.return_type,
+                                       args=newargs,
+                                       inline=propagate.inline,
+                                       debug=propagate.debug,
+                                       lineinfo=propagate.lineinfo)
+
+        cls.process_kernel = make_process_kernel(new_propagate)
+        #cls.print_kernel_info(new_propagate)
+        #cls.print_kernel_info(cls.process_kernel)
+        return new_propagate
+
+    @staticmethod
+    @abc.abstractmethod
+    def propagate():
+        pass
+
+    @classmethod
+    def print_kernel_info(cls, kernel):
+        try:
+            print("{} kernel ({}):".format(cls.__name__, type(kernel)))
+            if isinstance(kernel, Dispatcher):
+                print("      specialized? {}".format(kernel.specialized))
+                print("      using {} registers".format(kernel.get_regs_per_thread()))
+                print("      inspect types: '{}'".format(kernel.inspect_types()))
+                print("      nopython sigs: '{}'".format(kernel.nopython_signatures))
+                print("      _func: '{}'".format(kernel.py_func))
+                print("      sigs = '{}'".format(kernel.sigs))
+            elif isinstance(kernel, DeviceFunction):
+                print("      _func: '{}'".format(kernel.py_func))
+                print("      repr = '{}'".format(kernel.__repr__))
+                print("      return type = '{}'".format(kernel.return_type))
+                print("      args = '{}'".format(kernel.args))
+                print("      cres = '{}'".format(kernel.cres))
+        except Exception as e:
+            print(e)
+            return
 
 
 def make_process_kernel(propagate):

@@ -26,11 +26,13 @@ def instrument(
         before_guide = mc.monitors.NeutronToStorage(
             name='before_guide', path='before_tapered_guide.mcv')
         instrument.append(before_guide, position=(0, 0, 6.35))
+    kwds = {}
     if guide_mod:
         import importlib
         mod = importlib.import_module(guide_mod)
         # assume factory name is "Guide" in the given module
         guide_factory = mod.Guide
+        kwds = {'floattype': "float64"}
     elif guide_factory:
         guide_factory = eval(guide_factory)
     if guide11_dat is None:
@@ -38,7 +40,7 @@ def instrument(
     guide = guide_factory(
         name = 'guide',
         option="file={}".format(guide11_dat),
-        l=guide11_len, mx=guide11_mx, my=guide11_my,
+        l=guide11_len, mx=guide11_mx, my=guide11_my, **kwds
     )
     instrument.append(guide, position=(0, 0, 6.35))
     z_guide_end = 6.35+guide11_len
