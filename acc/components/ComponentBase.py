@@ -103,6 +103,14 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
 
     @classmethod
     def register_propagate_method(cls, propagate):
+        new_propagate = cls._adjust_propagate_type(propagate)
+
+        cls.process_kernel = make_process_kernel(new_propagate)
+        # cls.print_kernel_info(cls.process_kernel)
+        return new_propagate
+
+    @classmethod
+    def _adjust_propagate_type(cls, propagate):
         if not isinstance(propagate, DeviceFunction):
             raise RuntimeError(
                 "invalid propagate function registered, "
@@ -113,7 +121,7 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
         # reconstruct the numba args with the correct floattype
         newargs = []
         for arg in args:
-            if isinstance(arg, Array):
+            if isinstance(arg, Array) and isinstance(arg.dtype, Float):
                 newargs.append(arg.copy(dtype=getattr(numba, cls._floattype)))
             elif isinstance(arg, Float):
                 newargs.append(Float(name=cls._floattype))
@@ -128,10 +136,7 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
                                        inline=propagate.inline,
                                        debug=propagate.debug,
                                        lineinfo=propagate.lineinfo)
-
-        cls.process_kernel = make_process_kernel(new_propagate)
         #cls.print_kernel_info(new_propagate)
-        #cls.print_kernel_info(cls.process_kernel)
         return new_propagate
 
     @staticmethod

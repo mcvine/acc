@@ -35,8 +35,9 @@ class StochasticComponentBase(base):
 
     @classmethod
     def register_propagate_method(cls, propagate):
-        cls.process_kernel = make_process_kernel(propagate)
-        return
+        new_propagate = cls._adjust_propagate_type(propagate)
+        cls.process_kernel = make_process_kernel(new_propagate)
+        return new_propagate
 
 
 def make_process_kernel(propagate):
