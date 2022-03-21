@@ -49,6 +49,11 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
             raise ValueError("Component float type must be 'float64' or 'float32'")
         self.__class__._floattype = value
 
+    @classmethod
+    def get_floattype(cls):
+        # TODO: fix this to use a class property metaclass?
+        return cls._floattype
+
     def get_numpy_floattype(self):
         return getattr(np, self.__class__._floattype)
 
