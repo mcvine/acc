@@ -6,6 +6,9 @@ import numpy as np
 import pytest
 import shutil
 
+from mcvine.acc import config
+config.floattype = "float32"
+
 from mcvine import run_script
 from mcvine.acc import test
 from mcvine.acc.config import get_numpy_floattype
@@ -30,7 +33,6 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False):
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
         arm_factory="mcvine.components.optics.Arm",
-        save_neutrons_after_arm=debug,
         overwrite_datafiles=True)
 
     # Run our arm implementation
@@ -41,38 +43,24 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False):
         instr, outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
         arm_mod="mcvine.acc.components.optics.arm",
-        save_neutrons_after_arm=debug,
         overwrite_datafiles=True, )
 
     # Compare output files
     mcvine_Ixy = hh.load(os.path.join(mcvine_outdir, "Ixy.h5"))
-    mcvine_Ixdivx = hh.load(os.path.join(mcvine_outdir, "Ixdivx.h5"))
     Ixy = hh.load(os.path.join(outdir, "Ixy.h5"))
-    Ixdivx = hh.load(os.path.join(outdir, "Ixdivx.h5"))
 
     global interactive
     if interactive:
         from histogram import plot as plotHist
         plotHist(mcvine_Ixy)
-        plotHist(mcvine_Ixdivx)
         plotHist(Ixy)
-        plotHist(Ixdivx)
         plotHist((Ixy-mcvine_Ixy)/mcvine_Ixy)
     assert mcvine_Ixy.shape() == Ixy.shape()
-    assert mcvine_Ixdivx.shape() == Ixdivx.shape()
 
-    tolerance = 1e-7 if get_numpy_floattype() == np.float32 else 1e-8
-    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage(),
-                       atol=tolerance)
-    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage(),
-                       atol=tolerance)
-
-
-def debug():
-    global interactive
-    interactive = True
-    test_compare_mcvine(debug=True, num_neutrons=100)
-    return
+    tolerance = 1e-10 if get_numpy_floattype() == np.float32 else 1e-25
+    assert np.allclose(
+        mcvine_Ixy.data().storage(), Ixy.data().storage(),
+        atol=tolerance)
 
 
 def main():
@@ -84,4 +72,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # debug()
