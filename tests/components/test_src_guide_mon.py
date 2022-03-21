@@ -48,6 +48,12 @@ def call_process_no_buffer(N, src, guide, mon, ntotthreads=int(1e5)):
     cuda.synchronize()
     print(f"processed {counter.sum():g} neutrons")
 
+
+source_propagate = source_simple.Source_simple.propagate
+guide_propagate = guide.Guide.propagate
+monitor_propagate = divpos_monitor.DivPos_monitor.propagate
+
+
 @cuda.jit
 def process_kernel_no_buffer(counter, N, n_neutrons_per_thread, src, guide1, mon, rng_states):
     dist = 1.
@@ -58,11 +64,11 @@ def process_kernel_no_buffer(counter, N, n_neutrons_per_thread, src, guide1, mon
     end_index = min(start_index+n_neutrons_per_thread, N)
     neutron = cuda.local.array(shape=10, dtype=FLOAT)
     for i in range(start_index, end_index):
-        source_simple.propagate(x, rng_states, neutron, *src)
+        source_propagate(x, rng_states, neutron, *src)
         neutron[2] -= dist
-        guide.propagate(neutron, *guide1)
+        guide_propagate(neutron, *guide1)
         neutron[2] -= guide_len + gap
-        divpos_monitor.propagate(neutron, *mon)
+        monitor_propagate(neutron, *mon)
     cuda.atomic.add(counter, 0, max(end_index-start_index, 0))
     return
 
