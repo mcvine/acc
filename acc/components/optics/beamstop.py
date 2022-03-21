@@ -55,7 +55,8 @@ def propagate(
             return
 
     # neutron is not blocked by beamstop
-    neutron[:3] = x, y, 0.
+    neutron[:2] = x, y
+    neutron[2] = 0.
     neutron[-2] = t
 
 
