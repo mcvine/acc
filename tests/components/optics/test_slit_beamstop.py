@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+from mcvine.acc import config
+# config.floattype = "float32"
+
 import os
 import histogram.hdf as hh
 import numpy as np
@@ -69,7 +72,7 @@ def test_compare_mcvine(className, num_neutrons=int(1e7), debug=False):
     assert mcvine_Ixy.shape() == Ixy.shape()
     assert mcvine_Ixdivx.shape() == Ixdivx.shape()
 
-    tolerance = 1e-7 if get_numpy_floattype() == np.float32 else 1e-8
+    tolerance = 1e-7 if get_numpy_floattype() == np.float32 else 1e-25
     assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage(),
                        atol=tolerance)
     assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage(),
@@ -180,7 +183,7 @@ def help_test_slit_beamstop(component, passes):
     component.process(neutrons_buffer)
 
     # Compare the actual neutrons with the expectation.
-    tolerance = 1e-7 if get_numpy_floattype() == np.float32 else 1e-8
+    tolerance = 1e-6 if get_numpy_floattype() == np.float32 else 1e-15
     assert np.allclose(neutrons_as_npyarr(neutrons_buffer),
                        neutrons_as_npyarr(neutrons_end_expected),
                        atol=tolerance)
@@ -206,7 +209,8 @@ def debug():
 def main():
     global interactive
     interactive = True
-    test_compare_mcvine(num_neutrons=int(1e6))
+    className = "Beamstop"
+    test_compare_mcvine(num_neutrons=int(1e6), className=className)
     return
 
 
