@@ -7,7 +7,7 @@ import pytest
 import shutil
 
 from mcvine.acc import config
-config.floattype = "float32"
+# config.floattype = "float32"
 
 from mcvine import run_script
 from mcvine.acc import test
