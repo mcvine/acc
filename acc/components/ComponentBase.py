@@ -16,8 +16,11 @@ from numba import cuda
 import math
 
 from mcni.AbstractComponent import AbstractComponent
+from numba.core import config
 from numba.core.types import Array, Float
-from numba.cuda.compiler import Dispatcher, DeviceFunction
+
+if not config.ENABLE_CUDASIM:
+    from numba.cuda.compiler import Dispatcher, DeviceFunction
 
 
 class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
@@ -116,6 +119,10 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
 
     @classmethod
     def _adjust_propagate_type(cls, propagate):
+        # disable float switching if in cudasim mode
+        if config.ENABLE_CUDASIM:
+            return propagate
+
         if not isinstance(propagate, DeviceFunction):
             raise RuntimeError(
                 "invalid propagate function registered, "
@@ -135,12 +142,20 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
                 newargs.append(arg)
         newargs = tuple(newargs)
 
-        new_propagate = DeviceFunction(pyfunc=propagate.py_func,
-                                       return_type=propagate.return_type,
-                                       args=newargs,
-                                       inline=propagate.inline,
-                                       debug=propagate.debug,
-                                       lineinfo=propagate.lineinfo)
+        # DeviceFunction in Numba < 0.54.1 does not have a lineinfo property
+        if int(numba.__version__.split(".")[1]) < 54:
+            new_propagate = DeviceFunction(pyfunc=propagate.py_func,
+                                           return_type=propagate.return_type,
+                                           args=newargs,
+                                           inline=propagate.inline,
+                                           debug=propagate.debug)
+        else:
+            new_propagate = DeviceFunction(pyfunc=propagate.py_func,
+                                           return_type=propagate.return_type,
+                                           args=newargs,
+                                           inline=propagate.inline,
+                                           debug=propagate.debug,
+                                           lineinfo=propagate.lineinfo)
         #cls.print_kernel_info(new_propagate)
         return new_propagate
 
