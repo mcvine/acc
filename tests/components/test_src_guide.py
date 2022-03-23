@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+This one is slower than test_src_guide_mon because too many threads: nthreads=ncount
+"""
 
 import os, pytest, time
 thisdir = os.path.dirname(__file__)
