@@ -8,8 +8,6 @@ Requirement for a component
   - other args: match comp.propagate_params
 * at the end of the module, register the propagate method
 """
-import abc
-
 import numpy as np
 import numba
 from numba import cuda
@@ -23,14 +21,32 @@ if not config.ENABLE_CUDASIM:
     from numba.cuda.compiler import Dispatcher, DeviceFunction
 
 
-class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
+class Curator(type):
+
+    components = []
+
+    def __new__(cls, name, bases, dct):
+        x = super().__new__(cls, name, bases, dct)
+        if not name.endswith('Base'):
+            if not hasattr(x, 'propagate'):
+                raise TypeError(f"{name} should define `propagate` method")
+            x.propagate = x.register_propagate_method(x.propagate)
+            Curator.components.append(x)
+        return x
+
+def change_floattype(newtype):
+    ComponentBase._floattype = newtype
+    for c in Curator.components:
+        c.change_floattype(newtype)
+
+class ComponentBase(AbstractComponent, metaclass=Curator):
 
     _floattype = "float64"
 
     def __init__(self, subcls, floattype="float64"):
-        self.floattype = str(floattype)
-
-        subcls.propagate = subcls.register_propagate_method(subcls.propagate)
+        # self.floattype = str(floattype)
+        # subcls.propagate = subcls.register_propagate_method(subcls.propagate)
+        return
 
     propagate_params = ()
 
@@ -46,11 +62,17 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
     def floattype(self):
         return self.__class__._floattype
 
+    @classmethod
+    def change_floattype(cls, newtype):
+        cls._floattype = newtype
+        cls.propagate = cls.register_propagate_method(cls.propagate)
+    """
     @floattype.setter
     def floattype(self, value):
         if value != "float64" and value != "float32":
             raise ValueError("Component float type must be 'float64' or 'float32'")
         self.__class__._floattype = value
+    """
 
     @classmethod
     def get_floattype(cls):
@@ -125,8 +147,9 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
 
         if not isinstance(propagate, DeviceFunction):
             raise RuntimeError(
-                "invalid propagate function registered, "
-                "does propagate have a signature defined?")
+                "invalid propagate function ({}, {}) registered, ".format(
+                    propagate, type(propagate))
+                + "does propagate have a signature defined?")
 
         args = propagate.args
 
@@ -158,11 +181,6 @@ class ComponentBase(AbstractComponent, metaclass=abc.ABCMeta):
                                            lineinfo=propagate.lineinfo)
         #cls.print_kernel_info(new_propagate)
         return new_propagate
-
-    @staticmethod
-    @abc.abstractmethod
-    def propagate():
-        pass
 
     @classmethod
     def print_kernel_info(cls, kernel):

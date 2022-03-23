@@ -128,7 +128,7 @@ def process_kernel_no_buffer(
 {propagate_body}
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
-class Instrument(SourceBase):
+class InstrumentBase(SourceBase):
     def __init__(self, instrument):
         offsets, rotmats = calcTransformations(instrument)
         self.propagate_params = tuple(c.propagate_params for c in instrument.components)
@@ -136,11 +136,11 @@ class Instrument(SourceBase):
         return
     def propagate(self):
         pass
-Instrument.process_kernel_no_buffer = process_kernel_no_buffer
+InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
-    Instrument(instrument).process_no_buffer(ncount)
+    InstrumentBase(instrument).process_no_buffer(ncount)
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
 """
 

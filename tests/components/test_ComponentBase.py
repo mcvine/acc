@@ -14,7 +14,8 @@ def test_no_propagate_raises():
         # check creating a component with no propagate method raises error
         class Component(ComponentBase):
             def __init__(self, **kwargs):
-                super().__init__(__class__, **kwargs)
+                # super().__init__(__class__, **kwargs)
+                return
         component = Component()
 
 
@@ -36,13 +37,15 @@ def test_propagate_no_signature_raises():
 def test_set_float():
     class Component(ComponentBase):
         def __init__(self, **kwargs):
-            super().__init__(__class__, **kwargs)
+            # super().__init__(__class__, **kwargs)
+            return
 
         @cuda.jit(void(), device=True)
         def propagate():
             pass
 
-    component = Component(floattype="float32")
+    component = Component()
+    Component.change_floattype("float32")
 
     # Both the instance and class attribute should have changed
     assert component.floattype == "float32"
@@ -55,13 +58,15 @@ def test_propagate_args_changed():
     NB_FLOAT = getattr(numba, "float64")
     class Component(ComponentBase):
         def __init__(self, **kwargs):
-            super().__init__(__class__, **kwargs)
+            #super().__init__(__class__, **kwargs)
+            return
 
         @cuda.jit(void(NB_FLOAT, NB_FLOAT[:]), device=True)
         def propagate(x, y):
             y[0] = x + 1.0
 
-    component = Component(floattype="float32")
+    component = Component()
+    Component.change_floattype("float32")
     assert component.floattype == "float32"
 
     # check that the class wide attributes are changed
