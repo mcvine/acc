@@ -41,7 +41,7 @@ Parameters:
     modules = []
     body = []
     for i, comp in enumerate(comps):
-        modules.append(comp.__module__)
+        modules.append((comp.__module__, comp.__class__.__name__))
         prefix = (
             "thread_index, rng_states, "
             if isinstance(comp, StochasticComponentBase)
@@ -49,10 +49,12 @@ Parameters:
         )
         if i>0:
             body.append("abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(i-1, i-1))
-        body.append("compmod{}.propagate({} neutron, *args{})".format(i, prefix, i))
+        body.append("propagate{}({} neutron, *args{})".format(i, prefix, i))
         continue
-    module_imports = ['import {} as compmod{}'.format(m, i) for i, m in enumerate(modules)]
+    module_imports = ['from {} import {} as comp{}'.format(m, c, i) for i, (m, c) in enumerate(modules)]
     module_imports = '\n'.join(module_imports)
+    propagate_defs = ['propagate{} = comp{}.propagate'.format(i, i) for i in range(len(comps))]
+    propagate_defs = '\n'.join(propagate_defs)
     args = [f'args{i}' for i in range(len(comps))]
     args = ', '.join(args)
     indent = 8*' '
@@ -60,6 +62,7 @@ Parameters:
     text = compiled_script_template.format(
         script = script,
         module_imports = module_imports,
+        propagate_definitions = propagate_defs,
         args=args, propagate_body=body
     )
     if compiled_script is None:
@@ -107,6 +110,8 @@ NB_FLOAT = get_numba_floattype()
 
 {module_imports}
 
+{propagate_definitions}
+
 @cuda.jit
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
@@ -123,17 +128,19 @@ def process_kernel_no_buffer(
 {propagate_body}
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
-class Instrument(SourceBase):
+class InstrumentBase(SourceBase):
     def __init__(self, instrument):
         offsets, rotmats = calcTransformations(instrument)
         self.propagate_params = tuple(c.propagate_params for c in instrument.components)
         self.propagate_params += (offsets, rotmats)
         return
-Instrument.process_kernel_no_buffer = process_kernel_no_buffer
+    def propagate(self):
+        pass
+InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
-    Instrument(instrument).process_no_buffer(ncount)
+    InstrumentBase(instrument).process_no_buffer(ncount)
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
 """
 

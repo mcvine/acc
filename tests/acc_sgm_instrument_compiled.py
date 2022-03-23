@@ -10,9 +10,13 @@ from mcvine.acc.neutron import abs2rel
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
-import mcvine.acc.components.sources.source_simple as compmod0
-import mcvine.acc.components.optics.guide as compmod1
-import mcvine.acc.components.monitors.divpos_monitor as compmod2
+from mcvine.acc.components.sources.source_simple import Source_simple as comp0
+from mcvine.acc.components.optics.guide import Guide as comp1
+from mcvine.acc.components.monitors.divpos_monitor import DivPos_monitor as comp2
+
+propagate0 = comp0.propagate
+propagate1 = comp1.propagate
+propagate2 = comp2.propagate
 
 @cuda.jit
 def process_kernel_no_buffer(
@@ -27,22 +31,24 @@ def process_kernel_no_buffer(
     r = cuda.local.array(3, dtype=NB_FLOAT)
     v = cuda.local.array(3, dtype=NB_FLOAT)
     for i in range(start_index, end_index):
-        compmod0.propagate(thread_index, rng_states,  neutron, *args0)
+        propagate0(thread_index, rng_states,  neutron, *args0)
         abs2rel(neutron[:3], neutron[3:6], rotmats[0], offsets[0], r, v)
-        compmod1.propagate( neutron, *args1)
+        propagate1( neutron, *args1)
         abs2rel(neutron[:3], neutron[3:6], rotmats[1], offsets[1], r, v)
-        compmod2.propagate( neutron, *args2)
+        propagate2( neutron, *args2)
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
-class Instrument(SourceBase):
+class InstrumentBase(SourceBase):
     def __init__(self, instrument):
         offsets, rotmats = calcTransformations(instrument)
         self.propagate_params = tuple(c.propagate_params for c in instrument.components)
         self.propagate_params += (offsets, rotmats)
         return
-Instrument.process_kernel_no_buffer = process_kernel_no_buffer
+    def propagate(self):
+        pass
+InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, **kwds):
     instrument = loadInstrument(script, **kwds)
-    Instrument(instrument).process_no_buffer(ncount)
+    InstrumentBase(instrument).process_no_buffer(ncount)
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)

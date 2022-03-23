@@ -4,10 +4,33 @@
   "output_file": "./check_speed_output.txt",
   "scripts": [
     {
+      "name": "nonacc",
+      "file": "components/optics/tapered_guide_instrument.py",
+      "kwds": {
+        "guide_factory": "mcvine.components.optics.Guide_tapering"
+      },
+      "mpi": false,
+      "acc_run": false,
+      "skip_for": "1e8"
+    },
+    {
+      "name": "acc",
       "file": "components/optics/tapered_guide_instrument.py",
       "kwds": {
         "guide_mod": "mcvine.acc.components.optics.guide_tapering"
-      }
+      },
+      "mpi": false,
+      "acc_run": false
+    },
+    {
+      "name": "MPI-8Cores",
+      "file": "components/optics/tapered_guide_instrument.py",
+      "kwds": {
+        "guide_factory": "mcvine.components.optics.Guide_tapering"
+      },
+      "mpi": true,
+      "nodes": 8,
+      "acc_run": false
     }
   ]
 }

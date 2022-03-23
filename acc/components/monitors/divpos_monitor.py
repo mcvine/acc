@@ -4,10 +4,11 @@
 category = 'monitors'
 
 import math
-from numba import cuda
+from numba import cuda, void, int64
 import numba as nb, numpy as np
 from mcni.utils.conversion import V2K, SE2V, K2V
 from ...config import get_numba_floattype, get_numpy_floattype
+from ...neutron import absorb, prop_z0
 NB_FLOAT = get_numba_floattype()
 RAD2DEG = 180./math.pi
 
@@ -21,6 +22,7 @@ class DivPos_monitor(base):
             maxdiv=2.,
             npos=20., ndiv=20.,
             filename = "divpos.h5",
+            **kwargs
     ):
         """
         Initialize this Source_simple component.
@@ -62,33 +64,32 @@ class DivPos_monitor(base):
             data=self.out_p.T*scale_factor,
             errors=self.out_p2.T*scale_factor*scale_factor)
 
-
-from ...neutron import absorb, prop_z0
-
-@cuda.jit(device=True)
-def propagate(
-        neutron,
-        xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
-        npos, ndiv,
-        out_N, out_p, out_p2
-):
-    t0 = neutron[-2]
-    x,y,z, t = prop_z0(neutron)
-    if t0>t:
+    @cuda.jit(
+        void(NB_FLOAT[:], NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+             NB_FLOAT, NB_FLOAT, int64, int64, NB_FLOAT[:, :], NB_FLOAT[:, :],
+             NB_FLOAT[:, :]), device=True)
+    def propagate(
+            neutron,
+            xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
+            npos, ndiv,
+            out_N, out_p, out_p2
+    ):
+        t0 = neutron[-2]
+        x,y,z, t = prop_z0(neutron)
+        if t0>t:
+            return
+        p = neutron[-1]
+        vx,vy,vz = neutron[3:6]
+        #
+        if x<=xmin or x>=xmax or y<=ymin or y>=ymax:
+            return
+        div = math.atan(vx/vz)*RAD2DEG
+        if div>=maxdiv or div<=-maxdiv:
+            return
+        ix = int(math.floor( (x-xmin)/(xmax-xmin)*npos ))
+        idiv = int(math.floor( (div+maxdiv)/(2*maxdiv)*ndiv ))
+        cuda.atomic.add(out_N, (idiv,ix), 1)
+        cuda.atomic.add(out_p, (idiv,ix), p)
+        cuda.atomic.add(out_p2, (idiv,ix), p*p)
         return
-    p = neutron[-1]
-    vx,vy,vz = neutron[3:6]
-    #
-    if x<=xmin or x>=xmax or y<=ymin or y>=ymax:
-        return
-    div = math.atan(vx/vz)*RAD2DEG
-    if div>=maxdiv or div<=-maxdiv:
-        return
-    ix = int(math.floor( (x-xmin)/(xmax-xmin)*npos ))
-    idiv = int(math.floor( (div+maxdiv)/(2*maxdiv)*ndiv ))
-    cuda.atomic.add(out_N, (idiv,ix), 1)
-    cuda.atomic.add(out_p, (idiv,ix), p)
-    cuda.atomic.add(out_p2, (idiv,ix), p*p)
-    return
 
-DivPos_monitor.register_propagate_method(propagate)

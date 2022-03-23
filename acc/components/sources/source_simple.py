@@ -2,17 +2,45 @@
 #
 
 import math
-from numba import cuda
-import numba as nb
-from numba.cuda.random import xoroshiro128p_uniform_float32, create_xoroshiro128p_states
-import time
+from numba import cuda, void, int64, boolean
+from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
 
 from mcni.utils.conversion import V2K, SE2V, K2V
-from .SourceBase import SourceBase, make_process_kernel
-from ...config import get_numba_floattype, get_numpy_floattype
+from .SourceBase import SourceBase
+from ...config import get_numba_floattype
+from ... import vec3
 NB_FLOAT = get_numba_floattype()
 
 category = 'sources'
+
+# TODO: need to fix float types on this function also
+@cuda.jit(device=True)
+def randvec_target_rect(
+        target, width, height, rand1, rand2,
+        vecout
+):
+    dx = width * (rand1 * 2 - 1) / 2.0
+    dy = height * (rand2 * 2 - 1) / 2.0
+    dist = vec3.length(target)
+    # horiz direction perp to target
+    p1 = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vertical = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vertical[0] = vertical[2] = 0.0
+    vertical[1] = 1.0
+    vec3.cross(target, vertical, p1)
+    vec3.normalize(p1)
+    # another perp unit vec
+    p2 = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vec3.cross(target, p1, p2)
+    vec3.normalize(p2)
+    vec3.scale(p1, dx)
+    vec3.scale(p2, dy)
+    tmp = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    vec3.add(p1, target, tmp)
+    vec3.add(p2, tmp, vecout)
+    dist2 = math.sqrt(dx * dx + dy * dy + dist * dist)
+    return (width * height * dist) / (dist2 * dist2 * dist2)
+
 
 class Source_simple(SourceBase):
 
@@ -21,7 +49,7 @@ class Source_simple(SourceBase):
             radius=0.05, height=0, width=0, dist=10.0,
             xw=0.1, yh=0.1,
             E0=60, dE=10, Lambda0=0, dLambda=0,
-            flux=1, gauss=0, N=1
+            flux=1, gauss=0, N=1, **kwargs
     ):
         """
         Initialize this Source_simple component.
@@ -83,77 +111,52 @@ class Source_simple(SourceBase):
         self.process(neutrons)
 
 
-@cuda.jit(device=True)
-def propagate(
-        threadindex, rng_states,
-        in_neutron,
-        square, width, height, radius,
-        wl_distr, Lambda0, dLambda, E0, dE,
-        xw, yh, dist, pmul
-):
-    r1 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-    r2 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-    r3 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-    r4 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-    r5 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-    if square:
-        x = width * (r1 - 0.5)
-        y = height * (r2 - 0.5)
-    else:
-        chi=2*math.pi*r1
-        r=math.sqrt(r2)*radius
-        x=r*math.cos(chi)
-        y=r*math.sin(chi)
-    in_neutron[:3] = x, y, 0.
-    # choose final vector
-    target = cuda.local.array(shape=3, dtype=NB_FLOAT)
-    target[0] = target[1] = 0.0
-    target[2] = dist
-    vec_f = cuda.local.array(shape=3, dtype=NB_FLOAT)
-    solidangle = randvec_target_rect(target, xw, yh, r3, r4, vec_f)
-    # vector from moderator to final position is
-    # (vec_f[0]-x, vec_f[1]-y, dist)
-    dx = vec_f[0]-x; dy = vec_f[1]-y
-    dist1 = math.sqrt(dx*dx+dy*dy+dist*dist)
-    # velocity scalar
-    if wl_distr:
-        L = Lambda0+dLambda*(r5*2-1)
-        v = K2V*(2*math.pi/L)
-    else:
-        E = E0+dE*(r5*2-1)
-        v = SE2V*math.sqrt(E)
-    in_neutron[3:6] = v*dx/dist1, v*dy/dist1, v*dist/dist1
-    in_neutron[-2] = 0
-    in_neutron[-1] = pmul*solidangle
-    return
-
-
-from ... import vec3
-@cuda.jit(device=True)
-def randvec_target_rect(
-        target, width, height, rand1, rand2,
-        vecout
-):
-    dx = width*(rand1*2-1)/2.0
-    dy = height*(rand2*2-1)/2.0
-    dist = vec3.length(target)
-    # horiz direction perp to target
-    p1 = cuda.local.array(shape=3, dtype=NB_FLOAT)
-    vertical = cuda.local.array(shape=3, dtype=NB_FLOAT)
-    vertical[0] = vertical[2] = 0.0
-    vertical[1] = 1.0
-    vec3.cross(target, vertical, p1)
-    vec3.normalize(p1)
-    # another perp unit vec
-    p2 = cuda.local.array(shape=3, dtype=NB_FLOAT)
-    vec3.cross(target, p1, p2)
-    vec3.normalize(p2)
-    vec3.scale(p1, dx)
-    vec3.scale(p2, dy)
-    tmp = cuda.local.array(shape=3, dtype=NB_FLOAT)
-    vec3.add(p1, target, tmp)
-    vec3.add(p2, tmp, vecout)
-    dist2 = math.sqrt(dx*dx + dy*dy + dist*dist)
-    return (width*height*dist)/(dist2*dist2*dist2)
-
-Source_simple.register_propagate_method(propagate)
+    @cuda.jit(void(
+        int64, xoroshiro128p_type[:],
+        NB_FLOAT[:],
+        boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT
+    ), device=True)
+    def propagate(
+            threadindex, rng_states,
+            in_neutron,
+            square, width, height, radius,
+            wl_distr, Lambda0, dLambda, E0, dE,
+            xw, yh, dist, pmul
+    ):
+        r1 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+        r2 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+        r3 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+        r4 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+        r5 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+        if square:
+            x = width * (r1 - 0.5)
+            y = height * (r2 - 0.5)
+        else:
+            chi=2*math.pi*r1
+            r=math.sqrt(r2)*radius
+            x=r*math.cos(chi)
+            y=r*math.sin(chi)
+        in_neutron[:3] = x, y, 0.
+        # choose final vector
+        target = cuda.local.array(shape=3, dtype=NB_FLOAT)
+        target[0] = target[1] = 0.0
+        target[2] = dist
+        vec_f = cuda.local.array(shape=3, dtype=NB_FLOAT)
+        solidangle = randvec_target_rect(target, xw, yh, r3, r4, vec_f)
+        # vector from moderator to final position is
+        # (vec_f[0]-x, vec_f[1]-y, dist)
+        dx = vec_f[0]-x; dy = vec_f[1]-y
+        dist1 = math.sqrt(dx*dx+dy*dy+dist*dist)
+        # velocity scalar
+        if wl_distr:
+            L = Lambda0+dLambda*(r5*2-1)
+            v = K2V*(2*math.pi/L)
+        else:
+            E = E0+dE*(r5*2-1)
+            v = SE2V*math.sqrt(E)
+        in_neutron[3:6] = v*dx/dist1, v*dy/dist1, v*dist/dist1
+        in_neutron[-2] = 0
+        in_neutron[-1] = pmul*solidangle
+        return

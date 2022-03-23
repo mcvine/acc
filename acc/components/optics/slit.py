@@ -13,64 +13,12 @@ NB_FLOAT = get_numba_floattype()
 category = 'optics'
 
 
-@cuda.jit(
-    void(
-        NB_FLOAT[:],
-        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-    ), device=True
-)
-def propagate(
-        neutron,
-        xmin, xmax, ymin, ymax, radius_squared, cut
-):
-    x, y, z, vx, vy, vz = neutron[:6]
-
-    # check that neutron reaches z==0
-    if z < 0 and vz <= 0 or z > 0 and vz >= 0:
-        # absorb(neutron)
-        return
-
-    t, prob = neutron[-2:]
-
-    # check that neutron weight makes the cut
-    if prob < cut:
-        absorb(neutron)
-        return
-
-    # bring neutron to z==0
-    if z != 0:
-        dt = -z / vz
-        x += vx * dt
-        y += vy * dt
-        t += dt
-
-    # check that neutron penetrates slit
-    if radius_squared != 0:
-        if x * x + y * y > radius_squared:
-            absorb(neutron)
-            return
-    else:
-        if not (xmin <= x <= xmax and ymin <= y <= ymax):
-            absorb(neutron)
-            return
-
-    # neutron penetrates slit
-    neutron[:2] = x, y
-    neutron[2] = 0.
-    neutron[-2] = t
-
-
-@cuda.jit
-def propagate_kernel(slit_nature, neutron):
-    (xmin, xmax, ymin, ymax, radius_squared, cut) = slit_nature
-    propagate(neutron, xmin, xmax, ymin, ymax, radius_squared, cut)
-
-
 class Slit(ComponentBase):
 
     def __init__(
             self, name,
-            xmin=0, xmax=0, ymin=0, ymax=0, radius=0, cut=0, width=0, height=0):
+            xmin=0, xmax=0, ymin=0, ymax=0, radius=0, cut=0, width=0, height=0,
+            **kwargs):
         """
         Initialize this Slit component.
         The slit is at z==0.
@@ -89,6 +37,8 @@ class Slit(ComponentBase):
         width (m): sets xmin and xmax to a width centered on x==0
         height (m): sets ymin and ymax to a width centered on y==0
         """
+        super().__init__(__class__, **kwargs)
+
         self.name = name
 
         # Check and process the arguments.
@@ -118,5 +68,49 @@ class Slit(ComponentBase):
             r=(x_edge * 2, 0, -1), v=(0, 0, 1), prob=1, time=0)
         self.process(neutrons)
 
+    @cuda.jit(
+        void(
+            NB_FLOAT[:],
+            NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        ), device=True
+    )
+    def propagate(
+            neutron,
+            xmin, xmax, ymin, ymax, radius_squared, cut
+    ):
+        x, y, z, vx, vy, vz = neutron[:6]
 
-Slit.register_propagate_method(propagate)
+        # check that neutron reaches z==0
+        if z < 0 and vz <= 0 or z > 0 and vz >= 0:
+            # absorb(neutron)
+            return
+
+        t, prob = neutron[-2:]
+
+        # check that neutron weight makes the cut
+        if prob < cut:
+            absorb(neutron)
+            return
+
+        # bring neutron to z==0
+        if z != 0:
+            dt = -z / vz
+            x += vx * dt
+            y += vy * dt
+            t += dt
+
+        # check that neutron penetrates slit
+        if radius_squared != 0:
+            if x * x + y * y > radius_squared:
+                absorb(neutron)
+                return
+        else:
+            if not (xmin <= x <= xmax and ymin <= y <= ymax):
+                absorb(neutron)
+                return
+
+        # neutron penetrates slit
+        neutron[:2] = x, y
+        neutron[2] = 0.
+        neutron[-2] = t
+

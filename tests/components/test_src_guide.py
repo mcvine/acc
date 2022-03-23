@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+This one is slower than test_src_guide_mon because too many threads: nthreads=ncount
+"""
 
 import os, pytest, time
 thisdir = os.path.dirname(__file__)
@@ -52,6 +55,11 @@ def call_process_no_buffer(
     )
     cuda.synchronize()
 
+
+source_propagate = source_simple.Source_simple.propagate
+guide_propagate = guide.Guide.propagate
+
+
 @cuda.jit
 def process_kernel_no_buffer(
         N,
@@ -65,7 +73,7 @@ def process_kernel_no_buffer(
     x = cuda.grid(1)
     if x < N:
         neutron = cuda.local.array(shape=10, dtype=FLOAT)
-        source_simple.propagate(
+        source_propagate(
             x, rng_states,
             neutron,
             square, width, height, radius,
@@ -73,7 +81,7 @@ def process_kernel_no_buffer(
             xw, yh, dist, pmul
         )
         neutron[2] -= dist
-        guide.propagate(
+        guide_propagate(
             neutron,
             ww, hh, hw1, hh1, l,
             R0, Qc, alpha, m, W,
