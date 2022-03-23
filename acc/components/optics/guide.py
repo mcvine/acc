@@ -41,8 +41,6 @@ class Guide(ComponentBase):
         m: m-value of material (0 is complete absorption)
         W: width of supermirror cutoff
         """
-        super().__init__(__class__, **kwargs)
-
         self.name = name
         ww = .5*(w2-w1); hh = .5*(h2 - h1)
         hw1 = 0.5*w1; hh1 = 0.5*h1

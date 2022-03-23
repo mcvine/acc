@@ -82,8 +82,6 @@ class Source_simple(SourceBase):
         gauss : bool
             Gaussian (True) or Flat (False) energy/wavelength distribution
         """
-        super().__init__(__class__, **kwargs)
-
         self.name = name
         # Determine source area:
         if (radius != 0 and height == 0 and width == 0) :

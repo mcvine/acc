@@ -22,8 +22,6 @@ class Wavelength_monitor(base):
             filename = "IL.h5",
             **kwargs
     ):
-        super().__init__(__class__, **kwargs)
-
         self.name = name
         self.filename = filename
         if xwidth > 0:

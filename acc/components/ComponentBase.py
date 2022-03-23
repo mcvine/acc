@@ -6,7 +6,6 @@ Requirement for a component
 * `propagate` method
   - first argument: `neutron`
   - other args: match comp.propagate_params
-* at the end of the module, register the propagate method
 """
 import numpy as np
 import numba
@@ -35,6 +34,8 @@ class Curator(type):
         return x
 
 def change_floattype(newtype):
+    # do we really need each component type to have individual floattype
+    # or one floattype for the base class is enough?
     ComponentBase._floattype = newtype
     for c in Curator.components:
         c.change_floattype(newtype)
@@ -42,11 +43,6 @@ def change_floattype(newtype):
 class ComponentBase(AbstractComponent, metaclass=Curator):
 
     _floattype = "float64"
-
-    def __init__(self, subcls, floattype="float64"):
-        # self.floattype = str(floattype)
-        # subcls.propagate = subcls.register_propagate_method(subcls.propagate)
-        return
 
     propagate_params = ()
 
@@ -66,13 +62,6 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
     def change_floattype(cls, newtype):
         cls._floattype = newtype
         cls.propagate = cls.register_propagate_method(cls.propagate)
-    """
-    @floattype.setter
-    def floattype(self, value):
-        if value != "float64" and value != "float32":
-            raise ValueError("Component float type must be 'float64' or 'float32'")
-        self.__class__._floattype = value
-    """
 
     @classmethod
     def get_floattype(cls):

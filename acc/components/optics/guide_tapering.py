@@ -39,8 +39,6 @@ class Guide(ComponentBase):
         alphay: slope of reflectivity for vertical mirrors
         W: width of supermirror cutoff
         """
-        super().__init__(__class__, **kwargs)
-
         self.name = name
         self.filename = None
 

@@ -35,8 +35,6 @@ class DivPos_monitor(base):
         yheight : float
             Width in meter
         """
-        super().__init__(__class__, **kwargs)
-        
         self.name = name
         self.filename = filename
         if xwidth > 0:
