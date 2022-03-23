@@ -129,6 +129,55 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
         return new_propagate
 
     @classmethod
+    def _change_kernel_floattype(cls, kernel_func):
+        '''
+        Changes the floattype of kernel_func based on the Component floattype
+        kernel_func should be a DeviceFunction object returned by cuda.jit
+        Returns a new DeviceFunction
+        '''
+        # disable float switching if in cudasim mode
+        if config.ENABLE_CUDASIM:
+            return kernel_func
+
+        if not isinstance(kernel_func, DeviceFunction):
+            raise RuntimeError(
+                "invalid kernel function ({}, {}), ".format(
+                    kernel_func, type(kernel_func))
+                + "does the function have a signature defined?")
+
+        args = kernel_func.args
+
+        # reconstruct the numba args with the correct floattype
+        newargs = []
+        for arg in args:
+            if isinstance(arg, Array) and isinstance(arg.dtype, Float):
+                newargs.append(
+                    arg.copy(dtype=getattr(numba, cls._floattype)))
+            elif isinstance(arg, Float):
+                newargs.append(Float(name=cls._floattype))
+            else:
+                # copy other args through
+                newargs.append(arg)
+        newargs = tuple(newargs)
+
+        # DeviceFunction in Numba < 0.54.1 does not have a lineinfo property
+        if int(numba.__version__.split(".")[1]) < 54:
+            new_func = DeviceFunction(pyfunc=kernel_func.py_func,
+                                      return_type=kernel_func.return_type,
+                                      args=newargs,
+                                      inline=kernel_func.inline,
+                                      debug=kernel_func.debug)
+        else:
+            new_func = DeviceFunction(pyfunc=kernel_func.py_func,
+                                      return_type=kernel_func.return_type,
+                                      args=newargs,
+                                      inline=kernel_func.inline,
+                                      debug=kernel_func.debug,
+                                      lineinfo=kernel_func.lineinfo)
+
+        return new_func
+
+    @classmethod
     def _adjust_propagate_type(cls, propagate):
         # disable float switching if in cudasim mode
         if config.ENABLE_CUDASIM:
@@ -140,35 +189,15 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
                     propagate, type(propagate))
                 + "does propagate have a signature defined?")
 
-        args = propagate.args
+        # adjust float types of any device function that propagate calls
+        for func in propagate.py_func.__globals__:
+            if isinstance(propagate.py_func.__globals__[func], DeviceFunction):
+                propagate.py_func.__globals__[func] = \
+                    cls._change_kernel_floattype(
+                        propagate.py_func.__globals__[func])
 
-        # reconstruct the numba args with the correct floattype
-        newargs = []
-        for arg in args:
-            if isinstance(arg, Array) and isinstance(arg.dtype, Float):
-                newargs.append(arg.copy(dtype=getattr(numba, cls._floattype)))
-            elif isinstance(arg, Float):
-                newargs.append(Float(name=cls._floattype))
-            else:
-                # copy other args through
-                newargs.append(arg)
-        newargs = tuple(newargs)
+        new_propagate = cls._change_kernel_floattype(propagate)
 
-        # DeviceFunction in Numba < 0.54.1 does not have a lineinfo property
-        if int(numba.__version__.split(".")[1]) < 54:
-            new_propagate = DeviceFunction(pyfunc=propagate.py_func,
-                                           return_type=propagate.return_type,
-                                           args=newargs,
-                                           inline=propagate.inline,
-                                           debug=propagate.debug)
-        else:
-            new_propagate = DeviceFunction(pyfunc=propagate.py_func,
-                                           return_type=propagate.return_type,
-                                           args=newargs,
-                                           inline=propagate.inline,
-                                           debug=propagate.debug,
-                                           lineinfo=propagate.lineinfo)
-        #cls.print_kernel_info(new_propagate)
         return new_propagate
 
     @classmethod
