@@ -2,7 +2,7 @@
 # Jiao Lin <jiao.lin@gmail.com>
 #
 
-import os, sys, yaml, warnings, imp
+import os, sys, yaml, warnings, imp, hashlib
 from mcni import run_ppsd, run_ppsd_in_parallel
 from .components.StochasticComponentBase import StochasticComponentBase
 
@@ -67,7 +67,9 @@ Parameters:
     )
     if compiled_script is None:
         f, ext = os.path.splitext(script)
-        compiled_script = f + "_compiled" + ext
+        kwds_str = str(kwds)
+        uid = hashlib.sha224(kwds_str.encode("UTF-8")).hexdigest()[:8]
+        compiled_script = f + "_compiled_" + uid + ext
     with open(compiled_script, 'wt') as stream:
         stream.write(text)
     return compiled_script
