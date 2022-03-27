@@ -22,7 +22,6 @@ class DivPos_monitor(base):
             maxdiv=2.,
             npos=20., ndiv=20.,
             filename = "divpos.h5",
-            **kwargs
     ):
         """
         Initialize this Source_simple component.
