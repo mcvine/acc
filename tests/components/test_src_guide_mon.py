@@ -10,7 +10,7 @@ from numba.cuda.random import xoroshiro128p_uniform_float32, create_xoroshiro128
 from mcni import neutron_buffer, neutron
 from mcvine.acc.components.sources import source_simple
 from mcvine.acc.components.optics import guide
-from mcvine.acc.components.monitors import divpos_monitor
+from mcvine.acc.components.monitors import posdiv_monitor
 FLOAT = nb.float64
 
 src1 = source_simple.Source_simple(
@@ -25,7 +25,7 @@ guide1 = guide.Guide(
     w1=0.035, h1=0.035, w2=0.035, h2=0.035, l=10,
     R0=0.99, Qc=0.0219, alpha=6.07, m=3, W=0.003,
 )
-mon1 = divpos_monitor.DivPos_monitor(
+mon1 = posdiv_monitor.PosDiv_monitor(
     'mon',
     xwidth=0.08, yheight=0.08,
     maxdiv=2.,
@@ -51,7 +51,7 @@ def call_process_no_buffer(N, src, guide, mon, ntotthreads=int(1e5)):
 
 source_propagate = source_simple.Source_simple.propagate
 guide_propagate = guide.Guide.propagate
-monitor_propagate = divpos_monitor.DivPos_monitor.propagate
+monitor_propagate = posdiv_monitor.PosDiv_monitor.propagate
 
 
 @cuda.jit

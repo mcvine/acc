@@ -3,7 +3,7 @@
 import mcvine
 from mcvine.acc.components.sources.source_simple import Source_simple
 from mcvine.acc.components.optics.guide import Guide
-from mcvine.acc.components.monitors.divpos_monitor import DivPos_monitor
+from mcvine.acc.components.monitors.posdiv_monitor import PosDiv_monitor
 
 def instrument():
     instrument = mcvine.instrument()
@@ -23,7 +23,7 @@ def instrument():
     )
     instrument.append(guide1, position=(0,0,1.))
 
-    mon = DivPos_monitor(
+    mon = PosDiv_monitor(
         'mon',
         xwidth=0.08, yheight=0.08,
         maxdiv=2.,
