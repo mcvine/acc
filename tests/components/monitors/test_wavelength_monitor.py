@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+interactive = False
+
 import os, pytest
 thisdir = os.path.dirname(__file__)
 from mcvine.acc import test
@@ -25,9 +27,16 @@ def test_component_long(ncount = 1e6):
     outdir = 'out.wavelength_monitor'
     ncount = int(ncount)
     run_script.run(instr, outdir, ncount=ncount, monitor_factory=wavelength_monitor)
+    if interactive:
+        import histogram.hdf as hh
+        hist = hh.load(os.path.join(outdir, "IL.h5"))
+        from histogram import plot as plotHist
+        plotHist(hist)
     return
 
 def main():
+    global interactive
+    interactive = True
     test_component_long(1e7)
     return
 
