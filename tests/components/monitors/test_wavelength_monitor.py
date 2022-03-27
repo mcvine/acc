@@ -12,7 +12,7 @@ thisdir = os.path.dirname(__file__)
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_component_long(ncount = 1e6):
-    instr = os.path.join(thisdir, "sourcesimple_wavelengthmon.py")
+    instr = os.path.join(thisdir, "src_mon_instrument.py")
     outdir = 'out.wavelength_monitor'
     ncount = int(ncount)
     run_script.run(instr, outdir, ncount=ncount)
