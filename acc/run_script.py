@@ -17,7 +17,7 @@ Parameters:
 
 """
     curdir = os.path.abspath(os.curdir)
-    compiled_script = compile(script)
+    compiled_script = compile(script, **kwds)
     m = imp.load_source('mcvinesim', compiled_script)
     if not os.path.exists(workdir):
         os.makedirs(workdir)
@@ -28,7 +28,7 @@ Parameters:
         os.chdir(curdir)
     return
 
-def compile(script, compiled_script=None):
+def compile(script, compiled_script=None, **kwds):
     """compile a mcvine.acc simulation script. The script must define the instrument.
 
 Parameters:
@@ -36,7 +36,7 @@ Parameters:
 * script: path to instrument script. the script must either create an instrument or provide a method to do so
 """
     script = os.path.abspath(script)
-    instrument = loadInstrument(script)
+    instrument = loadInstrument(script, **kwds)
     comps = instrument.components
     modules = []
     body = []
