@@ -17,10 +17,11 @@ Parameters:
 
 """
     curdir = os.path.abspath(os.curdir)
-    compiled_script = compile(script, **kwds)
-    m = imp.load_source('mcvinesim', compiled_script)
     if not os.path.exists(workdir):
         os.makedirs(workdir)
+    compiled_script_path = os.path.join(workdir, 'compiled_mcvine_acc_instrument.py')
+    compiled_script = compile(script, compiled_script=compiled_script_path, **kwds)
+    m = imp.load_source('mcvinesim', compiled_script)
     os.chdir(workdir)
     try:
         m.run(ncount, **kwds)
