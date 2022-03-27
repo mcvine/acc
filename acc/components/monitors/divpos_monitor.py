@@ -33,7 +33,7 @@ class DivPos_monitor(base):
         xwidth : float
             Width in meter
         yheight : float
-            Width in meter
+            Height in meter
         """
         self.name = name
         self.filename = filename
@@ -65,9 +65,11 @@ class DivPos_monitor(base):
             errors=self.out_p2.T*scale_factor*scale_factor)
 
     @cuda.jit(
-        void(NB_FLOAT[:], NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-             NB_FLOAT, NB_FLOAT, int64, int64, NB_FLOAT[:, :], NB_FLOAT[:, :],
-             NB_FLOAT[:, :]), device=True)
+        void(NB_FLOAT[:],
+             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+             int64, int64,
+             NB_FLOAT[:, :], NB_FLOAT[:, :], NB_FLOAT[:, :]),
+        device=True)
     def propagate(
             neutron,
             xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
