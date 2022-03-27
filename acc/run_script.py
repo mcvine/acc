@@ -6,7 +6,7 @@ import os, sys, yaml, warnings, imp, hashlib
 from mcni import run_ppsd, run_ppsd_in_parallel
 from .components.StochasticComponentBase import StochasticComponentBase
 
-def run(script, workdir, ncount, **kwds):
+def run(script, workdir, ncount, overwrite_datafiles=True, **kwds):
     """run a mcvine.acc simulation script on one node. The script must define the instrument.
 
 Parameters:
@@ -16,9 +16,10 @@ Parameters:
 * ncount: neutron count
 
 """
+    from mcvine.run_script import _check_workdir
+    _check_workdir(workdir, overwrite_datafiles)
+    os.makedirs(workdir)
     curdir = os.path.abspath(os.curdir)
-    if not os.path.exists(workdir):
-        os.makedirs(workdir)
     compiled_script_path = os.path.join(workdir, 'compiled_mcvine_acc_instrument.py')
     compiled_script = compile(script, compiled_script=compiled_script_path, **kwds)
     m = imp.load_source('mcvinesim', compiled_script)
