@@ -13,7 +13,7 @@ NB_FLOAT = get_numba_floattype()
 RAD2DEG = 180./math.pi
 
 from .MonitorBase import MonitorBase as base
-class DivPos_monitor(base):
+class PosDiv_monitor(base):
 
     def __init__(
             self, name,
@@ -21,8 +21,7 @@ class DivPos_monitor(base):
             xwidth=0., yheight=0.,
             maxdiv=2.,
             npos=20., ndiv=20.,
-            filename = "divpos.h5",
-            **kwargs
+            filename = "posdiv.h5",
     ):
         """
         Initialize this Source_simple component.
@@ -33,7 +32,7 @@ class DivPos_monitor(base):
         xwidth : float
             Width in meter
         yheight : float
-            Width in meter
+            Height in meter
         """
         self.name = name
         self.filename = filename
@@ -47,7 +46,7 @@ class DivPos_monitor(base):
         self.x_centers = np.arange(xmin+dx/2, xmax, dx)
         ddiv = 2*maxdiv/ndiv
         self.div_centers = np.arange(-maxdiv+ddiv/2, maxdiv, ddiv)
-        shape = ndiv, npos
+        shape = npos, ndiv
         self.out_N = np.zeros(shape)
         self.out_p = np.zeros(shape)
         self.out_p2 = np.zeros(shape)
@@ -61,13 +60,15 @@ class DivPos_monitor(base):
         axes = [('x', self.x_centers, 'm'), ('div', self.div_centers, 'deg')]
         return H.histogram(
             'Idiv_x', axes,
-            data=self.out_p.T*scale_factor,
-            errors=self.out_p2.T*scale_factor*scale_factor)
+            data=self.out_p*scale_factor,
+            errors=self.out_p2*scale_factor*scale_factor)
 
     @cuda.jit(
-        void(NB_FLOAT[:], NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-             NB_FLOAT, NB_FLOAT, int64, int64, NB_FLOAT[:, :], NB_FLOAT[:, :],
-             NB_FLOAT[:, :]), device=True)
+        void(NB_FLOAT[:],
+             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+             int64, int64,
+             NB_FLOAT[:, :], NB_FLOAT[:, :], NB_FLOAT[:, :]),
+        device=True)
     def propagate(
             neutron,
             xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
@@ -88,8 +89,8 @@ class DivPos_monitor(base):
             return
         ix = int(math.floor( (x-xmin)/(xmax-xmin)*npos ))
         idiv = int(math.floor( (div+maxdiv)/(2*maxdiv)*ndiv ))
-        cuda.atomic.add(out_N, (idiv,ix), 1)
-        cuda.atomic.add(out_p, (idiv,ix), p)
-        cuda.atomic.add(out_p2, (idiv,ix), p*p)
+        cuda.atomic.add(out_N, (ix, idiv), 1)
+        cuda.atomic.add(out_p, (ix, idiv), p)
+        cuda.atomic.add(out_p2, (ix, idiv), p*p)
         return
 

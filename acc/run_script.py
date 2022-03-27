@@ -2,11 +2,11 @@
 # Jiao Lin <jiao.lin@gmail.com>
 #
 
-import os, sys, yaml, warnings, imp
+import os, sys, yaml, warnings, imp, hashlib
 from mcni import run_ppsd, run_ppsd_in_parallel
 from .components.StochasticComponentBase import StochasticComponentBase
 
-def run(script, workdir, ncount, **kwds):
+def run(script, workdir, ncount, overwrite_datafiles=True, **kwds):
     """run a mcvine.acc simulation script on one node. The script must define the instrument.
 
 Parameters:
@@ -16,11 +16,13 @@ Parameters:
 * ncount: neutron count
 
 """
+    from mcvine.run_script import _check_workdir
+    _check_workdir(workdir, overwrite_datafiles)
+    os.makedirs(workdir)
     curdir = os.path.abspath(os.curdir)
-    compiled_script = compile(script)
+    compiled_script_path = os.path.join(workdir, 'compiled_mcvine_acc_instrument.py')
+    compiled_script = compile(script, compiled_script=compiled_script_path, **kwds)
     m = imp.load_source('mcvinesim', compiled_script)
-    if not os.path.exists(workdir):
-        os.makedirs(workdir)
     os.chdir(workdir)
     try:
         m.run(ncount, **kwds)
@@ -28,7 +30,7 @@ Parameters:
         os.chdir(curdir)
     return
 
-def compile(script, compiled_script=None):
+def compile(script, compiled_script=None, **kwds):
     """compile a mcvine.acc simulation script. The script must define the instrument.
 
 Parameters:
@@ -36,7 +38,7 @@ Parameters:
 * script: path to instrument script. the script must either create an instrument or provide a method to do so
 """
     script = os.path.abspath(script)
-    instrument = loadInstrument(script)
+    instrument = loadInstrument(script, **kwds)
     comps = instrument.components
     modules = []
     body = []
@@ -67,7 +69,9 @@ Parameters:
     )
     if compiled_script is None:
         f, ext = os.path.splitext(script)
-        compiled_script = f + "_compiled" + ext
+        kwds_str = str(kwds)
+        uid = hashlib.sha224(kwds_str.encode("UTF-8")).hexdigest()[:8]
+        compiled_script = f + "_compiled_" + uid + ext
     with open(compiled_script, 'wt') as stream:
         stream.write(text)
     return compiled_script

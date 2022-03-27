@@ -12,24 +12,24 @@ from mcvine.acc import run_script
 
 thisdir = os.path.dirname(__file__)
 
-def wavelength_monitor():
-    from mcvine.acc.components.monitors.wavelength_monitor import Wavelength_monitor
-    return Wavelength_monitor(
+def psd_monitor():
+    from mcvine.acc.components.monitors.psd_monitor import PSD_monitor
+    return PSD_monitor(
         "mon",
-        xwidth=0.03, yheight=0.03,
-        Lmin=0, Lmax=10., nchan=200,
-        filename = "IL.h5"
+        xwidth=0.08, yheight=0.08,
+        nx=100, ny=110,
+        filename = "psd.h5",
     )
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_component_long(ncount = 1e6):
     instr = os.path.join(thisdir, "src_mon_instrument.py")
-    outdir = 'out.wavelength_monitor'
+    outdir = 'out.psd_monitor'
     ncount = int(ncount)
-    run_script.run(instr, outdir, ncount=ncount, monitor_factory=wavelength_monitor)
+    run_script.run(instr, outdir, ncount=ncount, monitor_factory=psd_monitor)
     if interactive:
         import histogram.hdf as hh
-        hist = hh.load(os.path.join(outdir, "IL.h5"))
+        hist = hh.load(os.path.join(outdir, "psd.h5"))
         from histogram import plot as plotHist
         plotHist(hist)
     return
