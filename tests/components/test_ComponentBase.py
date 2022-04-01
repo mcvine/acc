@@ -3,10 +3,21 @@
 import pytest
 
 import numba
-from numba import cuda, void, float32
+from numba import cuda, void, float32, float64
 from numba.core.types import Array, Float
 from mcvine.acc.components.ComponentBase import ComponentBase
+#from mcvine.acc.neutron import absorb
 from mcvine.acc import test
+
+
+@cuda.jit(float64(float64), device=True)
+def global_kernel(x):
+    return x
+
+@cuda.jit(float64(float64), device=True)
+def nested_global_kernel(x):
+    y = 1.0 + global_kernel(x)
+    return y
 
 
 def test_no_propagate_raises():
@@ -80,3 +91,111 @@ def test_propagate_args_changed():
     assert isinstance(args[1], Array)
     assert args[1].dtype == float32
 
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_propagate_global_function_changed():
+    # check that propagate arguments are changed from float64 -> float32
+    NB_FLOAT = getattr(numba, "float64")
+    class Component(ComponentBase):
+        def __init__(self, **kwargs):
+            return
+
+        @cuda.jit(void(NB_FLOAT, NB_FLOAT[:]), device=True)
+        def propagate(x, y):
+            y[0] = global_kernel(x)
+
+    component = Component()
+    Component.change_floattype("float32")
+    assert component.floattype == "float32"
+
+    # check that the class wide attributes are changed
+    assert Component.get_floattype() == "float32"
+    assert Component.process_kernel is not None
+    args = Component.propagate.args
+    assert len(args) == 2
+
+    assert isinstance(args[0], Float)
+    assert args[0].bitwidth == 32
+    assert isinstance(args[1], Array)
+    assert args[1].dtype == float32
+
+    # check that the global kernel function args are changed
+    args = global_kernel.args
+    assert len(args) == 1
+
+    assert isinstance(args[0], Float)
+    assert args[0].bitwidth == 32
+
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_propagate_nested_global_function_changed():
+    # check that propagate arguments are changed from float64 -> float32
+    NB_FLOAT = getattr(numba, "float64")
+    class Component(ComponentBase):
+        def __init__(self, **kwargs):
+            return
+
+        @cuda.jit(void(NB_FLOAT, NB_FLOAT[:]), device=True)
+        def propagate(x, y):
+            y[0] = nested_global_kernel(x)
+
+    component = Component()
+    Component.change_floattype("float32")
+    assert component.floattype == "float32"
+
+    # check that the class wide attributes are changed
+    assert Component.get_floattype() == "float32"
+    assert Component.process_kernel is not None
+    args = Component.propagate.args
+    assert len(args) == 2
+
+    assert isinstance(args[0], Float)
+    assert args[0].bitwidth == 32
+    assert isinstance(args[1], Array)
+    assert args[1].dtype == float32
+
+    # check that the nested kernel function args are changed
+    args = nested_global_kernel.args
+    assert len(args) == 1
+
+    assert isinstance(args[0], Float)
+    assert args[0].bitwidth == 32
+
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_propagate_local_function_changed():
+    # check that propagate arguments are changed from float64 -> float32
+    NB_FLOAT = getattr(numba, "float64")
+    @cuda.jit(NB_FLOAT(NB_FLOAT, NB_FLOAT), device=True)
+    def helper_kernel(x, y):
+        return x * y
+
+    class Component(ComponentBase):
+        def __init__(self, **kwargs):
+            return
+
+        @cuda.jit(void(NB_FLOAT, NB_FLOAT[:]), device=True)
+        def propagate(x, y):
+            y[0] = helper_kernel(x, x)
+
+    component = Component()
+    Component.change_floattype("float32")
+    assert component.floattype == "float32"
+
+    # check that the class wide attributes are changed
+    assert Component.get_floattype() == "float32"
+    assert Component.process_kernel is not None
+    args = Component.propagate.args
+    assert len(args) == 2
+
+    assert isinstance(args[0], Float)
+    assert args[0].bitwidth == 32
+    assert isinstance(args[1], Array)
+    assert args[1].dtype == float32
+
+    # check that the local kernel function args are changed
+    args = helper_kernel.args
+    assert len(args) == 2
+    for arg in args:
+        assert isinstance(arg, Float)
+        assert arg.bitwidth == 32
