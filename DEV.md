@@ -29,7 +29,6 @@ class NewComponent(ComponentBase):
     # for any stochastic component, two extra arguments are needed
     @cuda.jit(void(int32, xoroshiro128p_type[:], NB_FLOAT[:], param1_type, param2_type, ...), device=True)
     def propagate(threadindex, rng_states, neutron, param1, param2, ...)
-
 ```
 
 ## Run acc instrument
@@ -56,3 +55,6 @@ import pytest
 from mcvine.acc.test import USE_CUDASIM
 @pytest.mark.skipif(not USE_CUDASIM, reason='no CUDASIM')
 ```
+
+## Debugging
+For numba compilation problem, run `export NUMBA_ENABLE_CUDASIM=1` and then run the failed test script.
