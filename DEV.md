@@ -2,12 +2,6 @@
 
 ## Implement a new component
 ```
-# define a propagate method. first argument must be neutron
-# other paramters must match that defined in the component
-# __init__ method
-@cuda.jit()
-def propagate(neutron, param1, param2, ...):
-
 # must inherint from an appropriate base class
 # Normally it is
 #   mcvine.acc.components.ComponentBase.ComponentBase
@@ -23,9 +17,19 @@ class NewComponent(ComponentBase):
 
     def __init__(self, name, *args):
         self.propagate_params = [param1_value, param2_value, ...]
-#
-# after class definition, register the propagate method
-NewComponent.register_propagate_method(propagate)
+        
+    # define a propagate method. 
+    # for any deterministic component, first argument must be neutron
+    # other paramters must match that defined in the component
+    # __init__ method.
+    # types of all parameters must be declared in the jit method.
+    @cuda.jit(NB_FLOAT[:], param1_type, param2_type, ...)
+    def propagate(neutron, param1, param2, ...):
+
+    # for any stochastic component, two extra arguments are needed
+    @cuda.jit(void(int32, xoroshiro128p_type[:], NB_FLOAT[:], param1_type, param2_type, ...), device=True)
+    def propagate(threadindex, rng_states, neutron, param1, param2, ...)
+
 ```
 
 ## Run acc instrument
