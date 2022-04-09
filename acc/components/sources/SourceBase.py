@@ -19,10 +19,12 @@ from ...config import rng_seed
 from ..StochasticComponentBase import StochasticComponentBase as base, make_process_kernel
 class SourceBase(base):
 
-    def process_no_buffer(self, N):
+    def process_no_buffer(self, N, threads_per_block=None, ntotalthreads=None):
         import time
         t1 = time.time()
-        from ...config import ntotalthreads, threads_per_block
+        from ... import config
+        threads_per_block = threads_per_block or config.threads_per_block
+        ntotalthreads = ntotalthreads or config.ntotalthreads
         self.call_process_no_buffer(
             self.__class__.process_kernel_no_buffer, N,
             ntotalthreads, threads_per_block
