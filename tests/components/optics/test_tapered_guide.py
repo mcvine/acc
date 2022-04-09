@@ -21,7 +21,7 @@ def test_compare_mcvine():
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
-    num_neutrons = 100000
+    num_neutrons = int(1e6)
     # Run the mcvine instrument first
     instr = os.path.join(thisdir, "tapered_guide_instrument.py")
     cpu_outdir = 'out.debug-tapered_guide_cpu_instrument'
@@ -55,8 +55,8 @@ def test_compare_mcvine():
         plotHist(Ixdivx)
     assert cpu_Ixy.shape() == Ixy.shape()
     assert cpu_Ixdivx.shape() == Ixdivx.shape()
-    assert np.allclose(cpu_Ixy.data().storage(), Ixy.data().storage())
-    assert np.allclose(cpu_Ixdivx.data().storage(), Ixdivx.data().storage())
+    assert np.allclose(cpu_Ixy.I, Ixy.I)
+    assert np.allclose(cpu_Ixdivx.I, Ixdivx.I)
     return
 
 
