@@ -123,7 +123,7 @@ class Guide(ComponentBase):
         ww, hh, whalf, hhalf, lwhalf, lhhalf are outputs
         """
         ind = cuda.grid(1)
-        if ind > len(w1):
+        if ind >= len(w1):
             return
         w1_ = w1[ind]
         w2_ = w2[ind]
@@ -146,7 +146,7 @@ class Guide(ComponentBase):
         ww, hh, whalf, hhalf, lwhalf, lhhalf are outputs
         """
         ind = cuda.grid(1)
-        if ind > nsegs:
+        if ind >= nsegs:
             return
         w1_ = data[0, ind]
         w2_ = data[1, ind]
