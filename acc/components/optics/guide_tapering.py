@@ -4,7 +4,7 @@
 
 from math import sqrt, ceil
 
-from numba import cuda, void
+from numba import cuda, void, int32
 import numpy as np
 from mcni.utils.conversion import V2K
 
@@ -54,33 +54,25 @@ class Guide(ComponentBase):
 
         print("l = {}, num seg = {}, l seg = {}".format(l, self.nseg, self.l_seg))
 
-        # copy segment data to GPU
-        self.h1_d = cuda.to_device(self.h1)
-        self.h2_d = cuda.to_device(self.h2)
-        self.w1_d = cuda.to_device(self.w1)
-        self.w2_d = cuda.to_device(self.w2)
-
-        # prepare temporary arrays on GPU
-        self.ww_d = cuda.device_array(self.nseg, dtype=self.NP_FLOAT)
-        self.hh_d = cuda.device_array(self.nseg, dtype=self.NP_FLOAT)
-        self.whalf_d = cuda.device_array(self.nseg, dtype=self.NP_FLOAT)
-        self.hhalf_d = cuda.device_array(self.nseg, dtype=self.NP_FLOAT)
-        self.lwhalf_d = cuda.device_array(self.nseg, dtype=self.NP_FLOAT)
-        self.lhhalf_d = cuda.device_array(self.nseg, dtype=self.NP_FLOAT)
+        # create data block
+        data = np.zeros((10, self.nseg), dtype=self.NP_FLOAT)
+        data[0] = self.w1
+        data[1] = self.w2
+        data[2] = self.h1
+        data[3] = self.h2
+        self.data = cuda.to_device(data)
 
         threadsperblock = 512
         nblocks = ceil(self.nseg / threadsperblock)
         print(nblocks, threadsperblock)
         prep_inputs = cuda.jit(self.prep_inputs_kernel)
-        prep_inputs[nblocks, threadsperblock](self.w1_d, self.w2_d, self.h1_d, self.h2_d, self.l_seg, self.ww_d,
-                                              self.hh_d, self.whalf_d, self.hhalf_d, self.lwhalf_d, self.lhhalf_d)
+        prep_inputs[nblocks, threadsperblock](self.l_seg, self.nseg, self.data)
         cuda.synchronize()
 
-        self.propagate_params = (
-            self.w1_d, self.w2_d, self.h1_d, self.h2_d, float(self.l_seg), self.ww_d, self.hh_d,
-            self.whalf_d, self.hhalf_d, self.lwhalf_d, self.lhhalf_d, float(R0), float(Qcx),
-            float(Qcy), float(alphax), float(alphay), float(mx), float(my), float(W)
-        )
+        scalars = np.array(
+            [self.l_seg, R0, Qcx,Qcy, alphax,alphay, mx,my, W],
+            dtype=self.NP_FLOAT)
+        self.propagate_params = (self.nseg, scalars, self.data)
 
         self.print_kernel_info(self.propagate)
 
@@ -123,7 +115,7 @@ class Guide(ComponentBase):
         return h1, h2, w1, w2
 
     @classmethod
-    def prep_inputs_kernel(cls, w1, w2, h1, h2, l_seg, ww, hh, whalf, hhalf, lwhalf,
+    def prep_inputs_kernel_0(cls, w1, w2, h1, h2, l_seg, ww, hh, whalf, hhalf, lwhalf,
                     lhhalf):
         """
         Helper kernel to pre-compute different values for each segment on the device
@@ -145,18 +137,45 @@ class Guide(ComponentBase):
         lwhalf[ind] = l_seg * (0.5 * w1_)
         lhhalf[ind] = l_seg * (0.5 * h1_)
 
-    @cuda.jit(void(
-        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
-        NB_FLOAT,
-        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
-        NB_FLOAT[:],
-        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        NB_FLOAT
-    ), device=True)
-    def propagate(in_neutron, w1, w2, h1, h2, l_seg, ww, hh,
-                  whalf, hhalf, lwhalf, lhhalf,
-                  R0, Qcx, Qcy, alphax, alphay,
-                  mx, my, W):
+    @classmethod
+    def prep_inputs_kernel(cls, l_seg, nsegs, data):
+        """
+        data: (10, seg) w1, w2, h1, h2, ww, hh, whalf, hhalf, lwhalf, lhhalf
+        Helper kernel to pre-compute different values for each segment on the device
+        w1, w2, h1, h2, l_seg are inputs
+        ww, hh, whalf, hhalf, lwhalf, lhhalf are outputs
+        """
+        ind = cuda.grid(1)
+        if ind > nsegs:
+            return
+        w1_ = data[0, ind]
+        w2_ = data[1, ind]
+        h1_ = data[2, ind]
+        h2_ = data[3, ind]
+
+        data[4, ind] = 0.5 * (w2_ - w1_)
+        data[5, ind] = 0.5 * (h2_ - h1_)
+        data[6, ind] = 0.5 * w1_
+        data[7, ind] = 0.5 * h1_
+        data[8, ind] = l_seg * (0.5 * w1_)
+        data[9, ind] = l_seg * (0.5 * h1_)
+
+    @cuda.jit(void(NB_FLOAT[:], int32, NB_FLOAT[:], NB_FLOAT[:, :]), device=True)
+    def propagate(in_neutron, nsegments, scalars, dataarray):
+        """
+        w1, w2, h1, h2, ww, hh, whalf, hhalf, lwhalf, lhhalf,
+        """
+        w1 = dataarray[0]
+        w2 = dataarray[1]
+        h1 = dataarray[2]
+        h2 = dataarray[3]
+        ww = dataarray[4]
+        hh = dataarray[5]
+        whalf = dataarray[6]
+        hhalf = dataarray[7]
+        lwhalf = dataarray[8]
+        lhhalf = dataarray[9]
+        l_seg, R0, Qcx,Qcy, alphax,alphay, mx,my, W = scalars
         x, y, z, vx, vy, vz = in_neutron[:6]
         t = in_neutron[-2]
         prob = in_neutron[-1]
@@ -166,9 +185,6 @@ class Guide(ComponentBase):
         y += vy * dt;
         z = 0.0;
         t += dt
-
-        # TODO: change this to a parameter possibly, impact of len() on perf?
-        nsegments = len(w1)
 
         for seg in range(nsegments):
             zr = seg * l_seg
