@@ -46,13 +46,14 @@ class PosDiv_monitor(base):
         self.x_centers = np.arange(xmin+dx/2, xmax, dx)
         ddiv = 2*maxdiv/ndiv
         self.div_centers = np.arange(-maxdiv+ddiv/2, maxdiv, ddiv)
-        shape = npos, ndiv
-        self.out_N = np.zeros(shape)
-        self.out_p = np.zeros(shape)
-        self.out_p2 = np.zeros(shape)
+        shape = 3, npos, ndiv
+        self.out = np.zeros(shape)
+        self.out_N = self.out[0]
+        self.out_p = self.out[1]
+        self.out_p2 = self.out[2]
         self.propagate_params = (
-            xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
-            npos, ndiv, self.out_N, self.out_p, self.out_p2
+            np.array([xmin, xmax, ymin, ymax, maxdiv]),
+            npos, ndiv, self.out
         )
 
     def getHistogram(self, scale_factor=1.):
@@ -64,17 +65,10 @@ class PosDiv_monitor(base):
             errors=self.out_p2*scale_factor*scale_factor)
 
     @cuda.jit(
-        void(NB_FLOAT[:],
-             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-             int64, int64,
-             NB_FLOAT[:, :], NB_FLOAT[:, :], NB_FLOAT[:, :]),
+        void(NB_FLOAT[:], NB_FLOAT[:], int64, int64, NB_FLOAT[:, :, :]),
         device=True)
-    def propagate(
-            neutron,
-            xmin, xmax, ymin, ymax, xwidth, yheight, maxdiv,
-            npos, ndiv,
-            out_N, out_p, out_p2
-    ):
+    def propagate(neutron, limits, npos, ndiv, out):
+        xmin, xmax, ymin, ymax, maxdiv = limits
         t0 = neutron[-2]
         x,y,z, t = prop_z0(neutron)
         if t0>t:
@@ -89,8 +83,8 @@ class PosDiv_monitor(base):
             return
         ix = int(math.floor( (x-xmin)/(xmax-xmin)*npos ))
         idiv = int(math.floor( (div+maxdiv)/(2*maxdiv)*ndiv ))
-        cuda.atomic.add(out_N, (ix, idiv), 1)
-        cuda.atomic.add(out_p, (ix, idiv), p)
-        cuda.atomic.add(out_p2, (ix, idiv), p*p)
+        cuda.atomic.add(out, (0, ix, idiv), 1)
+        cuda.atomic.add(out, (1, ix, idiv), p)
+        cuda.atomic.add(out, (2, ix, idiv), p*p)
         return
 

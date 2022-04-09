@@ -32,13 +32,13 @@ class Wavelength_monitor(base):
         assert ymin < ymax
         dL = (Lmax-Lmin)/nchan
         self.L_centers = np.arange(Lmin+dL/2, Lmax, dL)
-        self.out_N = np.zeros(nchan)
-        self.out_p = np.zeros(nchan)
-        self.out_p2 = np.zeros(nchan)
+        self.out = np.zeros((3,nchan))
+        self.out_N = self.out[0]
+        self.out_p = self.out[1]
+        self.out_p2 = self.out[2]
         self.propagate_params = (
-            xmin, xmax, ymin, ymax,
-            Lmin, Lmax, nchan,
-            self.out_N, self.out_p, self.out_p2
+            np.array([xmin, xmax, ymin, ymax, Lmin, Lmax]),
+            nchan, self.out
         )
 
     def getHistogram(self, scale_factor=1.):
@@ -50,15 +50,10 @@ class Wavelength_monitor(base):
             errors=self.out_p2*scale_factor*scale_factor)
 
     @cuda.jit(
-        void(NB_FLOAT[:], NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-             NB_FLOAT, int64, NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:]),
+        void(NB_FLOAT[:], NB_FLOAT[:], int64, NB_FLOAT[:, :]),
         device=True)
-    def propagate(
-            neutron,
-            xmin, xmax, ymin, ymax,
-            Lmin, Lmax, nchan,
-            out_N, out_p, out_p2
-    ):
+    def propagate(neutron, limits, nchan, out):
+        xmin, xmax, ymin, ymax, Lmin, Lmax = limits
         t0 = neutron[-2]
         x,y,z, t = prop_z0(neutron)
         if t0>t:
@@ -73,7 +68,7 @@ class Wavelength_monitor(base):
         if L<=Lmin or L>=Lmax:
             return
         iL = int(math.floor( (L-Lmin)/(Lmax-Lmin)*nchan ))
-        cuda.atomic.add(out_N, iL, 1)
-        cuda.atomic.add(out_p, iL, p)
-        cuda.atomic.add(out_p2, iL, p*p)
+        cuda.atomic.add(out, ( 0, iL ), 1)
+        cuda.atomic.add(out, ( 1, iL ), p)
+        cuda.atomic.add(out, ( 2, iL ), p*p)
         return
