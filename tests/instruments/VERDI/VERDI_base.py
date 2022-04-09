@@ -108,7 +108,7 @@ def instrument(
 
     ModeratorSpectrumL = Wavelength_monitor(
         name='ModeratorSpectrumL', Lmax=20, Lmin=0,
-        filename="moderator_L.dat", nchan=100,
+        filename="moderator_L.h5", nchan=100,
         # restore_neutron=1,
 	    xwidth = source_width*1.1, yheight=source_height*1.1,
         #xwidth=sample_width, yheight=sample_height,
@@ -118,7 +118,7 @@ def instrument(
         relativeTo=moderator)
 
     ModeratorDivergence_xpos = PosDiv_monitor(
-        name='ModeratorDivergence_xpos', filename="moderator_divXpos.dat",
+        name='ModeratorDivergence_xpos', filename="moderator_divXpos.h5",
         maxdiv=xDivergence, ndiv=1000, npos=100,
 	    xwidth = source_width*1.1, yheight=source_height*1.1,
         #xwidth=sample_width, yheight=sample_height,
@@ -129,7 +129,7 @@ def instrument(
         relativeTo=moderator)
 
     ModeratorDivergence_ypos = PosDiv_monitor(
-        name='ModeratorDivergence_ypos', filename="moderator_divYpos.dat",
+        name='ModeratorDivergence_ypos', filename="moderator_divYpos.h5",
         maxdiv=yDivergence, ndiv=1000, npos=100,
 	    xwidth = source_width*1.1, yheight=source_height*1.1,
         #xwidth=sample_width, yheight=sample_height,
@@ -172,7 +172,7 @@ def instrument(
         relativeTo=origin)
 
     secsrc_divxpos = PosDiv_monitor(
-        name='secsrc_divxpos', filename="secsrc_divXpos.dat",
+        name='secsrc_divxpos', filename="secsrc_divXpos.h5",
         maxdiv=xDivergence, ndiv=1000, npos=100,
         xwidth=0.15, yheight=0.15)
     instrument.append(
@@ -180,7 +180,7 @@ def instrument(
         relativeTo=SecSource)
 
     secsrc_divypos = PosDiv_monitor(
-        name='secsrc_divypos', filename="secsrc_divYpos.dat",
+        name='secsrc_divypos', filename="secsrc_divYpos.h5",
         maxdiv=yDivergence, ndiv=1000, npos=100,
         xwidth=0.15, yheight=0.15)
     instrument.append(
@@ -195,7 +195,7 @@ def instrument(
         relativeTo=SecSource)
 
     secsrc_IL = Wavelength_monitor(
-        name='secsrc_IL', Lmax=20, Lmin=0, filename="secsrc_L",
+        name='secsrc_IL', Lmax=20, Lmin=0, filename="secsrc_L.h5",
         nchan=100,
         # restore_neutron=1,
         xwidth=0.026, yheight=0.026)
@@ -235,7 +235,7 @@ def instrument(
         relativeTo=origin)
 
     sample0_IL = Wavelength_monitor(
-        name='sample0_IL', Lmax=20, Lmin=0, filename="sample0_L",
+        name='sample0_IL', Lmax=20, Lmin=0, filename="sample0_L.h5",
         nchan=100,
         # restore_neutron=1,
         xwidth=sample_width, yheight=sample_height)
@@ -255,7 +255,7 @@ def instrument(
         relativeTo=brilliancePack)
 
     imagePlate = PSD_monitor(
-        name='imagePlate', filename="sample_xy",
+        name='imagePlate', filename="sample_xy.h5",
         nx=500, ny=500,
         # restore_neutron=1,
         xwidth=3*sample_width,
@@ -265,7 +265,7 @@ def instrument(
         relativeTo=brilliancePack)
 
     sampleSpectrumL = Wavelength_monitor(
-        name='sampleSpectrumL', Lmax=20, Lmin=0, filename="sample_L",
+        name='sampleSpectrumL', Lmax=20, Lmin=0, filename="sample_L.h5",
         nchan=100,
         # restore_neutron=1,
         xwidth=sample_width, yheight=sample_height)
@@ -274,7 +274,7 @@ def instrument(
         relativeTo=brilliancePack)
 
     Divergence_xpos = PosDiv_monitor(
-        name='Divergence_xpos', filename="sample_divXpos.dat",
+        name='Divergence_xpos', filename="sample_divXpos.h5",
         maxdiv=xDivergence, ndiv=1000, npos=100,
         xwidth=sample_width, yheight=sample_height)
     instrument.append(
@@ -282,7 +282,7 @@ def instrument(
         relativeTo=brilliancePack)
 
     Divergence_ypos = PosDiv_monitor(
-        name='Divergence_ypos', filename="sample_divYpos.dat",
+        name='Divergence_ypos', filename="sample_divYpos.h5",
         maxdiv=yDivergence, ndiv=1000, npos=100,
         xwidth=sample_width, yheight=sample_height)
     instrument.append(
