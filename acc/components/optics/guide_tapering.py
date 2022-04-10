@@ -115,34 +115,12 @@ class Guide(ComponentBase):
         return h1, h2, w1, w2
 
     @classmethod
-    def prep_inputs_kernel_0(cls, w1, w2, h1, h2, l_seg, ww, hh, whalf, hhalf, lwhalf,
-                    lhhalf):
-        """
-        Helper kernel to pre-compute different values for each segment on the device
-        w1, w2, h1, h2, l_seg are inputs
-        ww, hh, whalf, hhalf, lwhalf, lhhalf are outputs
-        """
-        ind = cuda.grid(1)
-        if ind >= len(w1):
-            return
-        w1_ = w1[ind]
-        w2_ = w2[ind]
-        h1_ = h1[ind]
-        h2_ = h2[ind]
-
-        ww[ind] = 0.5 * (w2_ - w1_)
-        hh[ind] = 0.5 * (h2_ - h1_)
-        whalf[ind] = 0.5 * w1_
-        hhalf[ind] = 0.5 * h1_
-        lwhalf[ind] = l_seg * (0.5 * w1_)
-        lhhalf[ind] = l_seg * (0.5 * h1_)
-
-    @classmethod
     def prep_inputs_kernel(cls, l_seg, nsegs, data):
         """
-        data: (10, seg) w1, w2, h1, h2, ww, hh, whalf, hhalf, lwhalf, lhhalf
         Helper kernel to pre-compute different values for each segment on the device
-        w1, w2, h1, h2, l_seg are inputs
+        data: (10, seg) w1, w2, h1, h2, ww, hh, whalf, hhalf, lwhalf, lhhalf
+        It is later used by propagate method.
+        w1, w2, h1, h2, are inputs
         ww, hh, whalf, hhalf, lwhalf, lhhalf are outputs
         """
         ind = cuda.grid(1)
@@ -153,12 +131,12 @@ class Guide(ComponentBase):
         h1_ = data[2, ind]
         h2_ = data[3, ind]
 
-        data[4, ind] = 0.5 * (w2_ - w1_)
-        data[5, ind] = 0.5 * (h2_ - h1_)
-        data[6, ind] = 0.5 * w1_
-        data[7, ind] = 0.5 * h1_
-        data[8, ind] = l_seg * (0.5 * w1_)
-        data[9, ind] = l_seg * (0.5 * h1_)
+        data[4, ind] = 0.5 * (w2_ - w1_)     # ww
+        data[5, ind] = 0.5 * (h2_ - h1_)     # hh
+        data[6, ind] = 0.5 * w1_             # whalf
+        data[7, ind] = 0.5 * h1_             # hhalf
+        data[8, ind] = l_seg * (0.5 * w1_)   # lwhalf
+        data[9, ind] = l_seg * (0.5 * h1_)   # lhhalf
 
     @cuda.jit(void(NB_FLOAT[:], int32, NB_FLOAT[:], NB_FLOAT[:, :]), device=True)
     def propagate(in_neutron, nsegments, scalars, dataarray):
