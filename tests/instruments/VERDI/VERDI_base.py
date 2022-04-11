@@ -1,6 +1,6 @@
 import os, sys
 thisdir = os.path.dirname(__file__)
-import mcvine
+import mcvine, mcvine.components as mcomps
 from ellipse import create_guide_tapering_data, SingleWall, ellipse_x
 from mcvine.acc.components.optics.arm import Arm
 from mcvine.acc.components.optics.slit import Slit
@@ -28,6 +28,7 @@ def instrument(
         guide21_dat = '_autogen_guide21.dat', guide22_dat = '_autogen_guide22.dat',
         guide_n_segments = 500,
         Emin = 0.1, Emax = 1000.,
+        use_gpu = True,
 ):
     # calc shield position
     # 1st mirror
@@ -92,11 +93,14 @@ def instrument(
 
     instrument = mcvine.instrument()
 
-    origin = Arm(name='origin')
+    arm_factory = Arm if use_gpu else mcomps.optics.Arm
+    origin = arm_factory(name='origin')
     instrument.append(origin, position=(0.0, 0.0, 0.0), orientation=(0, 0, 0))
 
-    moderator = SNS_source(
-        'moderator', moderator_datafile,
+    src_factory = SNS_source if use_gpu else mcomps.sources.SNS_source_2020
+    moderator = src_factory(
+        'moderator',
+        filename = moderator_datafile,
         Anorm=0.0009,
         Emin=Emin, Emax=Emax,
         dist=moderator_focusdistance,
@@ -106,7 +110,8 @@ def instrument(
         moderator, position=(0.0, 0.0, 0.0), orientation=(0, 0, 0),
         relativeTo=origin)
 
-    ModeratorSpectrumL = Wavelength_monitor(
+    L_mon_factory = Wavelength_monitor if use_gpu else mcomps.monitors.L_monitor
+    ModeratorSpectrumL = L_mon_factory(
         name='ModeratorSpectrumL', Lmax=20, Lmin=0,
         filename="moderator_L.h5", nchan=100,
         # restore_neutron=1,
@@ -117,7 +122,8 @@ def instrument(
         ModeratorSpectrumL, position=(0.0, 0.0, 1e-05), orientation=(0, 0, 0),
         relativeTo=moderator)
 
-    ModeratorDivergence_xpos = PosDiv_monitor(
+    PosDiv_mon_factory = PosDiv_monitor if use_gpu else mcomps.monitors.DivPos_monitor
+    ModeratorDivergence_xpos = PosDiv_mon_factory(
         name='ModeratorDivergence_xpos', filename="moderator_divXpos.h5",
         maxdiv=xDivergence, ndiv=1000, npos=100,
 	    xwidth = source_width*1.1, yheight=source_height*1.1,
@@ -128,7 +134,7 @@ def instrument(
         position=(0.0, 0.0, 2e-05), orientation=(0, 0, 0),
         relativeTo=moderator)
 
-    ModeratorDivergence_ypos = PosDiv_monitor(
+    ModeratorDivergence_ypos = PosDiv_mon_factory(
         name='ModeratorDivergence_ypos', filename="moderator_divYpos.h5",
         maxdiv=yDivergence, ndiv=1000, npos=100,
 	    xwidth = source_width*1.1, yheight=source_height*1.1,
@@ -139,7 +145,8 @@ def instrument(
         position=(0.0, 0.0, 3e-05), orientation=(0.0, 0.0, 90.0),
         relativeTo=moderator)
 
-    Guide1_1 = Guide_tapering(
+    tapered_guide_factory = Guide_tapering if use_gpu else mcomps.optics.Guide_tapering
+    Guide1_1 = tapered_guide_factory(
         name='Guide1_1',
         option="file={}".format(guide11_dat),
         l=guide11_len, mx=guide_mvalue, my=guide_mvalue)
@@ -147,31 +154,32 @@ def instrument(
         Guide1_1, position=(0.0, 0.0, guide11_start), orientation=(0, 0, 0),
         relativeTo=moderator)
 
-    Shield1_1 = Beamstop(
+    beamstop_factory = Beamstop if use_gpu else mcomps.optics.Beamstop
+    Shield1_1 = beamstop_factory(
         name='Shield1_1', xmax=shield1_x, xmin=-0.5, ymax=0.5, ymin=-0.5)
     instrument.append(
         Shield1_1, position=(0.0, 0.0, guide11_len+0.000001), orientation=(0, 0, 0),
         relativeTo=Guide1_1)
 
-    Shield1_2 = Beamstop(
+    Shield1_2 = beamstop_factory(
         name='Shield1_2', xmax=0.5, xmin=-0.5, ymax=shield1_x, ymin=-0.5)
     instrument.append(
         Shield1_2, position=(0.0, 0.0, guide11_len+0.000002), orientation=(0, 0, 0),
         relativeTo=Guide1_1)
 
-    Guide1_2 = Guide_tapering(
+    Guide1_2 = tapered_guide_factory(
 	    option="file={}".format(guide12_dat),
         name='Guide1_2', l=guide12_len, mx=guide_mvalue, my=guide_mvalue)
     instrument.append(
         Guide1_2, position=(0.0, 0.0, guide11_len+4e-6), orientation=(0, 0, 0),
         relativeTo=Guide1_1)
 
-    SecSource = Arm(name='SecSource')
+    SecSource = arm_factory(name='SecSource')
     instrument.append(
         SecSource, position=(0.0, 0.0, ellipse1_major_axis_len), orientation=(0, 0, 0),
         relativeTo=origin)
 
-    secsrc_divxpos = PosDiv_monitor(
+    secsrc_divxpos = PosDiv_mon_factory(
         name='secsrc_divxpos', filename="secsrc_divXpos.h5",
         maxdiv=xDivergence, ndiv=1000, npos=100,
         xwidth=0.15, yheight=0.15)
@@ -179,7 +187,7 @@ def instrument(
         secsrc_divxpos, position=(0.0, 0.0, 1e-07), orientation=(0, 0, 0),
         relativeTo=SecSource)
 
-    secsrc_divypos = PosDiv_monitor(
+    secsrc_divypos = PosDiv_mon_factory(
         name='secsrc_divypos', filename="secsrc_divYpos.h5",
         maxdiv=yDivergence, ndiv=1000, npos=100,
         xwidth=0.15, yheight=0.15)
@@ -188,13 +196,14 @@ def instrument(
         position=(0.0, 0.0, 2e-07), orientation=(0.0, 0.0, 90.0),
         relativeTo=SecSource)
 
-    SecSourceSlit = Slit(
+    slit_factory = Slit if use_gpu else mcomps.optics.Slit
+    SecSourceSlit = slit_factory(
         name='SecSourceSlit', xmax=0.013, xmin=-0.01, ymax=0.013, ymin=-0.01)
     instrument.append(
         SecSourceSlit, position=(0.0, 0.0, 1e-05), orientation=(0, 0, 0),
         relativeTo=SecSource)
 
-    secsrc_IL = Wavelength_monitor(
+    secsrc_IL = L_mon_factory(
         name='secsrc_IL', Lmax=20, Lmin=0, filename="secsrc_L.h5",
         nchan=100,
         # restore_neutron=1,
@@ -203,38 +212,38 @@ def instrument(
         secsrc_IL, position=(0.0, 0.0, 1e-6), orientation=(0, 0, 0),
         relativeTo=SecSourceSlit)
 
-    Guide2_1 = Guide_tapering(
+    Guide2_1 = tapered_guide_factory(
 	    option="file={}".format(guide21_dat),
         name='Guide2_1', l=guide21_len, mx=guide_mvalue, my=guide_mvalue)
     instrument.append(
         Guide2_1, position=(0.0016, 0.0016, guide21_start), orientation=(0, 0, 0),
         relativeTo=moderator)
 
-    Shield2_1 = Beamstop(
+    Shield2_1 = beamstop_factory(
         name='Shield2_1', xmax=0.5, xmin=-shield2_x, ymax=0.5, ymin=-0.5)
     instrument.append(
         Shield2_1, position=(0.0, 0.0, guide21_len + 1e-6), orientation=(0, 0, 0),
         relativeTo=Guide2_1)
 
-    Shield2_2 = Beamstop(
+    Shield2_2 = beamstop_factory(
         name='Shield2_2', xmax=0.5, xmin=-0.5, ymax=0.5, ymin=-shield2_x)
     instrument.append(
         Shield2_2, position=(0.0, 0.0, guide21_len + 2e-6), orientation=(0, 0, 0),
         relativeTo=Guide2_1)
 
-    Guide2_2 = Guide_tapering(
+    Guide2_2 = tapered_guide_factory(
 	    option="file={}".format(guide22_dat),
         name='Guide2_2', l=guide22_len, mx=guide_mvalue, my=guide_mvalue)
     instrument.append(
         Guide2_2, position=(0.0, 0.0, guide21_len+4e-6), orientation=(0, 0, 0),
         relativeTo=Guide2_1)
 
-    sampleMantid = Arm(name='sampleMantid')
+    sampleMantid = arm_factory(name='sampleMantid')
     instrument.append(
         sampleMantid, position=(0.001, 0.001, 40.0), orientation=(0, 0, 0),
         relativeTo=origin)
 
-    sample0_IL = Wavelength_monitor(
+    sample0_IL = L_mon_factory(
         name='sample0_IL', Lmax=20, Lmin=0, filename="sample0_L.h5",
         nchan=100,
         # restore_neutron=1,
@@ -243,18 +252,19 @@ def instrument(
         sample0_IL, position=(0.0, 0.0, 0.), orientation=(0, 0, 0),
         relativeTo=sampleMantid)
 
-    brilliancePack = Arm(name='brilliancePack')
+    brilliancePack = arm_factory(name='brilliancePack')
     instrument.append(
         brilliancePack, position=(0.0, 0.0, 0.0), orientation=(0, 0, 0),
         relativeTo=sampleMantid)
 
-    Mask = Slit(
+    Mask = slit_factory(
         name='Mask', width=sample_width, height=sample_height)
     instrument.append(
         Mask, position=(0.0, 0.0, 0.0), orientation=(0, 0, 0),
         relativeTo=brilliancePack)
 
-    imagePlate = PSD_monitor(
+    psd_mon_factory = PSD_monitor if use_gpu else mcomps.monitors.PSD_monitor
+    imagePlate = psd_mon_factory(
         name='imagePlate', filename="sample_xy.h5",
         nx=500, ny=500,
         # restore_neutron=1,
@@ -264,7 +274,7 @@ def instrument(
         imagePlate, position=(0.0, 0.0, 1e-05), orientation=(0, 0, 0),
         relativeTo=brilliancePack)
 
-    sampleSpectrumL = Wavelength_monitor(
+    sampleSpectrumL = L_mon_factory(
         name='sampleSpectrumL', Lmax=20, Lmin=0, filename="sample_L.h5",
         nchan=100,
         # restore_neutron=1,
@@ -273,7 +283,7 @@ def instrument(
         sampleSpectrumL, position=(0.0, 0.0, 2e-05), orientation=(0, 0, 0),
         relativeTo=brilliancePack)
 
-    Divergence_xpos = PosDiv_monitor(
+    Divergence_xpos = PosDiv_mon_factory(
         name='Divergence_xpos', filename="sample_divXpos.h5",
         maxdiv=xDivergence, ndiv=1000, npos=100,
         xwidth=sample_width, yheight=sample_height)
@@ -281,7 +291,7 @@ def instrument(
         Divergence_xpos, position=(0.0, 0.0, 3e-05), orientation=(0, 0, 0),
         relativeTo=brilliancePack)
 
-    Divergence_ypos = PosDiv_monitor(
+    Divergence_ypos = PosDiv_mon_factory(
         name='Divergence_ypos', filename="sample_divYpos.h5",
         maxdiv=yDivergence, ndiv=1000, npos=100,
         xwidth=sample_width, yheight=sample_height)
