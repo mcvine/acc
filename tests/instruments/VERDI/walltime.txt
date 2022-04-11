@@ -1,0 +1,10 @@
+# wall time @ stssim1
+ncount  nonacc   acc                         MPI 25cores
+1e7     188      39                          
+1e8     1820     124(1e6/512*128,128)        125
+1e8              123(1e6,64)                
+1e8              124(1e6/512*64,64)               
+1e8              207(1e6/512*16,16) 
+1e9     XXXX     971(1e6/512*128,128)        1087
+
+# acc (ntotalthreads, threas_per_block)
