@@ -25,8 +25,8 @@ def test_run_mpi():
     return
 
 def main():
-    # test_run1()
-    test_run_mpi()
+    test_run1()
+    # test_run_mpi()
     return
 
 if __name__ == '__main__': main()
