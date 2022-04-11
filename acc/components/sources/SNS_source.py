@@ -108,7 +108,7 @@ def zero_find(vecx, vecy, yval, xmin, xmax, tol):
 class SNS_source(SourceBase):
 
     def __init__(
-            self, name, datapath, Emin, Emax, xwidth, yheight,
+            self, name, filename, Emin, Emax, xwidth, yheight,
             dist, focus_xw, focus_yh,
             Anorm = 0.01,
             radius=-1.0
@@ -117,7 +117,7 @@ class SNS_source(SourceBase):
         self.Emin, self.Emax = Emin, Emax
         from ._SNS_source_utils import init
         self.INorm2, Es, Pvec, ts, Ptmat, EPmin, EPmax, Eidx_range, tidx_range = init(
-            Emin, Emax, datapath)
+            Emin, Emax, filename)
         assert len(ts) < Pt_tmp_arr_size
         Eidx_start, Eidx_stop = Eidx_range
         tidx_start, tidx_stop = tidx_range
