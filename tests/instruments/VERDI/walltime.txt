@@ -7,4 +7,4 @@ ncount  nonacc   acc                         MPI 25cores
 1e8              207(1e6/512*16,16) 
 1e9     XXXX     971(1e6/512*128,128)        1087
 
-# acc (ntotalthreads, threas_per_block)
+# acc (ntotalthreads, threads_per_block)
