@@ -10,7 +10,7 @@ class SingleWall:
             z_src, src_size,
             z_guide_start, z_guide_end,
             z_target, target_size):
-        """Single wall elliptical supper mirror. 2D
+        """Single wall elliptical super mirror. 2D
 
         Parameters
         ----------
