@@ -17,6 +17,7 @@ def test_run1():
         use_gpu=False, overwrite_datafiles=True)
     return
 
+@pytest.mark.skip(reason="need new mcvine release to solve the yaml.load problem. skip for now")
 def test_run_mpi():
     run_script.run_mpi(
         script, workdir=workdir,
@@ -25,8 +26,8 @@ def test_run_mpi():
     return
 
 def main():
-    test_run1()
-    # test_run_mpi()
+    # test_run1()
+    test_run_mpi()
     return
 
 if __name__ == '__main__': main()
