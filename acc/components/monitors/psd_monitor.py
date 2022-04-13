@@ -45,13 +45,14 @@ class PSD_monitor(base):
         dy = (ymax-ymin)/ny
         self.x_centers = np.arange(xmin+dx/2, xmax, dx)
         self.y_centers = np.arange(ymin+dy/2, ymax, dy)
-        shape = nx, ny
-        self.out_N = np.zeros(shape)
-        self.out_p = np.zeros(shape)
-        self.out_p2 = np.zeros(shape)
+        shape = 3, nx, ny
+        self.out = np.zeros(shape)
+        self.out_N = self.out[0]
+        self.out_p = self.out[1]
+        self.out_p2 = self.out[2]
         self.propagate_params = (
-            xmin, xmax, ymin, ymax,
-            nx, ny, self.out_N, self.out_p, self.out_p2
+            np.array([xmin, xmax, ymin, ymax]),
+            nx, ny, self.out
         )
 
     def getHistogram(self, scale_factor=1.):
@@ -63,17 +64,10 @@ class PSD_monitor(base):
             errors=self.out_p2*scale_factor*scale_factor)
 
     @cuda.jit(
-        void(NB_FLOAT[:],
-             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-             int64, int64,
-             NB_FLOAT[:, :], NB_FLOAT[:, :], NB_FLOAT[:, :]),
+        void(NB_FLOAT[:], NB_FLOAT[:], int64, int64, NB_FLOAT[:, :, :]),
         device=True)
-    def propagate(
-            neutron,
-            xmin, xmax, ymin, ymax,
-            nx, ny,
-            out_N, out_p, out_p2
-    ):
+    def propagate(neutron, limits, nx, ny, out):
+        xmin, xmax, ymin, ymax = limits
         t0 = neutron[-2]
         x,y,z, t = prop_z0(neutron)
         if t0>t:
@@ -83,8 +77,8 @@ class PSD_monitor(base):
             return
         ix = int(math.floor( (x-xmin)/(xmax-xmin)*nx ))
         iy = int(math.floor( (y-ymin)/(ymax-ymin)*ny ))
-        cuda.atomic.add(out_N, (ix,iy), 1)
-        cuda.atomic.add(out_p, (ix,iy), p)
-        cuda.atomic.add(out_p2, (ix,iy), p*p)
+        cuda.atomic.add(out, (0,ix,iy), 1)
+        cuda.atomic.add(out, (1,ix,iy), p)
+        cuda.atomic.add(out, (2,ix,iy), p*p)
         return
 

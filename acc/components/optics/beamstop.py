@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2021-2022 by UT-Battelle, LLC.
 
+import numpy as np
 from numba import cuda, void
 
 from ..ComponentBase import ComponentBase
@@ -56,10 +57,9 @@ class Beamstop(ComponentBase):
             raise ValueError("a beamstop must have some extent")
 
         # Note the configuration of the beamstop.
-        self.propagate_params = (
-            float(xmin), float(xmax), float(ymin), float(ymax),
-            float(radius * radius), float(cut)
-        )
+        self.propagate_params = (np.array([
+            xmin, xmax, ymin, ymax, radius * radius, cut
+        ]),)
 
         # Aim neutrons toward the beamstop to cause JIT compilation.
         import mcni
@@ -72,16 +72,9 @@ class Beamstop(ComponentBase):
             r=(x_edge * 2, 0, -1), v=(0, 0, 1), prob=1, time=0)
         self.process(neutrons)
 
-    @cuda.jit(
-        void(
-            NB_FLOAT[:],
-            NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        ), device=True
-    )
-    def propagate(
-            neutron,
-            xmin, xmax, ymin, ymax, radius_squared, cut
-    ):
+    @cuda.jit(void(NB_FLOAT[:], NB_FLOAT[:]), device=True)
+    def propagate(neutron, param_arr):
+        xmin, xmax, ymin, ymax, radius_squared, cut = param_arr
         x, y, z, vx, vy, vz = neutron[:6]
 
         # check that neutron reaches z==0
@@ -117,4 +110,3 @@ class Beamstop(ComponentBase):
         neutron[:2] = x, y
         neutron[2] = 0.
         neutron[-2] = t
-

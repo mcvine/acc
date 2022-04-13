@@ -6,7 +6,10 @@ import os, sys, yaml, warnings, imp, hashlib
 from mcni import run_ppsd, run_ppsd_in_parallel
 from .components.StochasticComponentBase import StochasticComponentBase
 
-def run(script, workdir, ncount, overwrite_datafiles=True, **kwds):
+def run(script, workdir, ncount,
+        overwrite_datafiles=True,
+        ntotalthreads=None, threads_per_block=None,
+        **kwds):
     """run a mcvine.acc simulation script on one node. The script must define the instrument.
 
 Parameters:
@@ -25,7 +28,7 @@ Parameters:
     m = imp.load_source('mcvinesim', compiled_script)
     os.chdir(workdir)
     try:
-        m.run(ncount, **kwds)
+        m.run(ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block, **kwds)
     finally:
         os.chdir(curdir)
     return
@@ -142,9 +145,10 @@ class InstrumentBase(SourceBase):
         pass
 InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
 
-def run(ncount, **kwds):
+def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
     instrument = loadInstrument(script, **kwds)
-    InstrumentBase(instrument).process_no_buffer(ncount)
+    InstrumentBase(instrument).process_no_buffer(
+        ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
 """
 

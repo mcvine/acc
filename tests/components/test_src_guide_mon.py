@@ -29,7 +29,7 @@ mon1 = posdiv_monitor.PosDiv_monitor(
     'mon',
     xwidth=0.08, yheight=0.08,
     maxdiv=2.,
-    npos=250, ndiv=250
+    npos=250, ndiv=251
 )
 
 
@@ -87,7 +87,8 @@ def main():
     N = 1e8
     test_component_no_buffer(N=N, ntotthreads=int(1e6))
     from matplotlib import pyplot as plt
-    plt.pcolormesh(mon1.x_centers, mon1.div_centers, mon1.out_p/N)
+    hist = mon1.getHistogram(1./N)
+    plt.pcolormesh(hist.x, hist.div, hist.I.T)
     plt.colorbar()
     plt.clim(0, 1e-6)
     plt.show()
