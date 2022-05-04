@@ -12,10 +12,9 @@ from mcvine.acc import test
 from mcvine.acc.config import floattype
 
 thisdir = os.path.dirname(__file__)
-interactive = False
 
 
-def compare_mcvine(className, monitors, tolerances, num_neutrons, debug):
+def compare_mcvine(className, monitors, tolerances, num_neutrons, debug, interactive=False):
     """
     Tests the acc cpu implementation of an instrument against mcvine.
 
@@ -57,7 +56,6 @@ def compare_mcvine(className, monitors, tolerances, num_neutrons, debug):
 
     # Compare output files
     tolerance = tolerances[floattype]
-    global interactive
     for monitor in monitors:
         mcvine = hh.load(os.path.join(mcvine_outdir, monitor + ".h5"))
         mcvine_acc = hh.load(os.path.join(outdir, monitor + ".h5"))
