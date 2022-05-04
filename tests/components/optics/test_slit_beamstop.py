@@ -1,16 +1,10 @@
 #!/usr/bin/env python
 
-from mcvine.acc import config
-# config.floattype = "float32"
-
 import os
-import histogram.hdf as hh
 import numpy as np
 import pytest
-import shutil
 from collections import deque
 from math import gcd, pow, prod, sqrt
-from mcvine import run_script
 from mcvine.acc import test
 from mcvine.acc.config import get_numpy_floattype
 from mcvine.acc.components.optics.beamstop import Beamstop
@@ -19,64 +13,19 @@ from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr
 
 thisdir = os.path.dirname(__file__)
-interactive = False
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 @pytest.mark.parametrize("className", ["Slit", "Beamstop"])
-def test_compare_mcvine(className, num_neutrons=int(1e7), debug=False):
+def test_compare_mcvine(className, num_neutrons=int(1e7), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of a slit or beamstop against mcvine
     """
-    if debug:
-        assert num_neutrons < 1001
-    classname = className.lower()
-
-    # Run the mcvine instrument first
-    instr = os.path.join(thisdir, f"{classname}_instrument.py")
-    mcvine_outdir = f"out.debug-mcvine_{classname}_cpu_instrument"
-    if os.path.exists(mcvine_outdir):
-        shutil.rmtree(mcvine_outdir)
-    run_script.run1(
-        instr, mcvine_outdir,
-        ncount=num_neutrons, buffer_size=num_neutrons,
-        factory=f"mcvine.components.optics.{className}",
-        save_neutrons_after=debug,
-        overwrite_datafiles=True)
-
-    # Run our accelerated implementation
-    outdir = f"out.debug-{classname}_gpu_instrument"
-    if os.path.exists(outdir):
-        shutil.rmtree(outdir)
-    run_script.run1(
-        instr, outdir,
-        ncount=num_neutrons, buffer_size=num_neutrons,
-        module=f"mcvine.acc.components.optics.{classname}",
-        save_neutrons_after=debug,
-        overwrite_datafiles=True)
-
-    # Compare output files
-    mcvine_Ixy = hh.load(os.path.join(mcvine_outdir, "Ixy.h5"))
-    mcvine_Ixdivx = hh.load(os.path.join(mcvine_outdir, "Ixdivx.h5"))
-    Ixy = hh.load(os.path.join(outdir, "Ixy.h5"))
-    Ixdivx = hh.load(os.path.join(outdir, "Ixdivx.h5"))
-
-    global interactive
-    if interactive:
-        from histogram import plot as plotHist
-        plotHist(mcvine_Ixy)
-        plotHist(mcvine_Ixdivx)
-        plotHist(Ixy)
-        plotHist(Ixdivx)
-        plotHist((Ixy-mcvine_Ixy)/mcvine_Ixy)
-    assert mcvine_Ixy.shape() == Ixy.shape()
-    assert mcvine_Ixdivx.shape() == Ixdivx.shape()
-
-    tolerance = 1e-7 if get_numpy_floattype() == np.float32 else 1e-25
-    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage(),
-                       atol=tolerance)
-    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage(),
-                       atol=tolerance)
+    import test_helper
+    test_helper.compare_mcvine(className,
+                               ["Ixy", "Ixdivx", "Ixdivy"],
+                               {"float32": 1e-7, "float64": 1e-25},
+                               num_neutrons, debug, interactive=interactive)
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
@@ -200,17 +149,13 @@ def neutron_buffer_from_array(neutrons):
 
 
 def debug():
-    global interactive
-    interactive = True
-    test_compare_mcvine(debug=True, num_neutrons=100)
+    test_compare_mcvine(debug=True, num_neutrons=100, interactive=True)
     return
 
 
 def main():
-    global interactive
-    interactive = True
     className = "Beamstop"
-    test_compare_mcvine(num_neutrons=int(1e6), className=className)
+    test_compare_mcvine(num_neutrons=int(1e6), className=className, interactive=True)
     return
 
 
