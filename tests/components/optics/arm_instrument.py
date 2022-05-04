@@ -11,7 +11,5 @@ def instrument(is_acc):
         import mcvine.components
         factory = mcvine.components.optics.Arm
 
-    target = factory(
-        name='arm'
-    )
+    target = factory(name='arm')
     return construct(target, 0.)

@@ -3,8 +3,7 @@
 from instrument_factory import construct
 
 
-def instrument(
-        guide_mod=None, guide_factory=None, is_acc=False):
+def instrument(guide_mod=None, guide_factory=None, is_acc=False):
     if guide_factory:
         import mcvine.components
         factory = eval(guide_factory)

@@ -11,8 +11,5 @@ def instrument(is_acc):
         import mcvine.components
         factory = mcvine.components.optics.Beamstop
 
-    target = factory(
-        name='beamstop',
-        radius=0.015
-    )
+    target = factory(name='beamstop', radius=0.015)
     return construct(target, 0.)
