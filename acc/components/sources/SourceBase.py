@@ -37,7 +37,7 @@ class SourceBase(base):
             self, process_kernel_no_buffer, N,
             ntotthreads=int(1e6), threads_per_block=512,
     ):
-        ntotthreads = min(N, ntotthreads)
+        ntotthreads = min(N, int(ntotthreads))
         nblocks = math.ceil(ntotthreads / threads_per_block)
         actual_nthreads = threads_per_block * nblocks
         n_neutrons_per_thread = math.ceil(N / actual_nthreads)

@@ -159,7 +159,7 @@ def main():
         name = script_file
         if "mpi" in script:
             mpi = script["mpi"]
-        if "nodes" in script:
+        if mpi and "nodes" in script:
             nodes = int(script["nodes"])
             if nodes <= 0:
                 raise RuntimeError("Nodes count must be >= 1")
@@ -177,7 +177,12 @@ def main():
         if "skip_for" in script:
             skip = parse_array_opt(script["skip_for"])
 
-        runs[name] = run(script["file"], ncounts, iters, mpi, nodes, acc_run, skip, **kwds)
+        try:
+            runs[name] = run(script["file"], ncounts, iters, mpi, nodes, acc_run, skip, **kwds)
+        except Exception as e:
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            print("Error running {}-'{}': {}: {}".format(name, script["file"], type(e), e))
 
     result_file = open(output_file, "w")
     header = "ncount\t"
