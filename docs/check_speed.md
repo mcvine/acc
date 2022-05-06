@@ -85,3 +85,5 @@ scripts:
     acc_run: false
     skip_for: [ ]
 ```
+
+Here `use_gpu` is an option for the `VERDI_base.py` instrument script.
