@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import os, shutil
 import pytest
 from mcvine.acc import test
 from mcvine import run_script
@@ -12,12 +12,14 @@ thisdir = os.path.dirname(__file__)
 def test1():
     instr = os.path.join(thisdir, "isotropic_box_instrument.py")
     outdir = 'out.isotropic_box'
+    if os.path.exists(outdir): shutil.rmtree(outdir)
     run_script.run1(
         instr, outdir,
         ncount=1e5, buffer_size=int(1e5),
     )
     return
 
+'''
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     """
@@ -29,7 +31,7 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
         ["Ixy", "Ixdivx", "Ixdivy"],
         {"float32": 1e-7, "float64": 1e-8},
         num_neutrons, debug, interactive=interactive)
-
+'''
 
 def main():
     # test_compare_mcvine(num_neutrons=int(1e6), interactive=True)

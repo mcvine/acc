@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from instrument_factory import construct
+from test_sample_instrument_factory import construct
 
 
 def instrument():
