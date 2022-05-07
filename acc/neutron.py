@@ -29,8 +29,24 @@ def is_absorbed(neutron):
 
 
 @cuda.jit(device=True, inline=True)
+def prop_dt_inplace(neutron, dt):
+    "propagate neutron by dt"
+    x,y,z,vx,vy,vz = neutron[:6]
+    t = neutron[-2]
+    neutron[:3] = x+vx*dt, y+vy*dt, z+vz*dt
+    neutron[-2] = t+dt
+    return
+
+@cuda.jit(device=True, inline=True)
+def prop_dt(neutron, dt):
+    "propagate neutron by dt; return x,y,z,t"
+    x,y,z,vx,vy,vz = neutron[:6]
+    t = neutron[-2]
+    return x+vx*dt, y+vy*dt, z+vz*dt, t+dt
+
+@cuda.jit(device=True, inline=True)
 def prop_z0(neutron):
-    "propagate neutron to z=0, return x,y,t"
+    "propagate neutron to z=0; return x,y,t"
     x,y,z,vx,vy,vz = neutron[:6]
     t = neutron[-2]
     dt = -z/vz
