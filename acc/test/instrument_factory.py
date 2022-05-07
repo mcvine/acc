@@ -54,7 +54,6 @@ class InstrumentBuilder:
         """
         return getattr(mc.monitors, subtype)(
             name=name, filename=name+".dat",
-            xwidth=0.1, yheight=0.1,
             restore_neutron=True,
             **kwargs
         )

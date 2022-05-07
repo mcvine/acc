@@ -13,13 +13,19 @@ from mcvine.acc.test.instrument_factory import InstrumentBuilder as base
 
 class Builder(base):
     def addIxyMonitor(self):
-        mon = self.get_monitor("PSD_monitor", "Ixy", nx=250, ny=250)
+        mon = self.get_monitor(
+            "PSD_monitor", "Ixy", nx=250, ny=250,
+            xwidth=0.1, yheight=0.1)
         self.add(mon)
     def addIxdivxMonitor(self):
-        mon = self.get_monitor("DivPos_monitor", "Ixdivx", npos=250, ndiv=250)
+        mon = self.get_monitor(
+            "DivPos_monitor", "Ixdivx", npos=250, ndiv=250,
+            xwidth=0.1, yheight=0.1)
         self.add(mon)
     def addIxdivyMonitor(self):
-        mon = self.get_monitor("DivPos_monitor", "Ixdivy", npos=250, ndiv=250)
+        mon = self.get_monitor(
+            "DivPos_monitor", "Ixdivy", npos=250, ndiv=250,
+            xwidth=0.1, yheight=0.1)
         self.add(mon, is_rotated=True)
 
 
