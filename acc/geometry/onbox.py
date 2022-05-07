@@ -20,6 +20,7 @@ def cu_device_intersect_rectangle(rx, ry, rz, vx, vy, vz, X, Y):
 @cuda.jit(device=True, inline=True)
 def cu_device_update_intersections(t1, t2, t):
     """update intersections. t1, t2 are the intersections to update and return
+    return a new tuple of (t1,t2). t1<t2 if both are finite
     """
     # t is nan
     if not math.isfinite(t): return t1, t2
