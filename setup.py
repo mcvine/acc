@@ -14,6 +14,7 @@ setup(
     # version = version_ns['__version__'],
     packages = [
         'mcvine.acc',
+        'mcvine.acc.test',
         'mcvine.acc.geometry',
         'mcvine.acc.components',
         'mcvine.acc.components.sources',
@@ -22,6 +23,7 @@ setup(
     ],
     package_dir = {
         'mcvine.acc': "acc",
+        'mcvine.acc.test': "acc/test",
         'mcvine.acc.geometry': "acc/geometry",
         'mcvine.acc.components': "acc/components",
         'mcvine.acc.components.sources': "acc/components/sources",

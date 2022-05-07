@@ -2,6 +2,17 @@
 
 # Copyright (c) 2021-2022 by UT-Battelle, LLC.
 
+
+"""
+specialized instrument builder for testing individual component.
+
+It consists of
+
+* source
+* component to test
+* multiple monitors
+"""
+
 import mcvine.components
 mc = mcvine.components
 
@@ -61,10 +72,11 @@ class InstrumentBuilder:
                                orientation=(0., 0., 90. if is_rotated else 0.))
         self.z += gap
 
-
-def construct(component, size, gap=1.,
-              monitors=["Ixy", "Ixdivx", "Ixdivy"],
-              save_neutrons_before=False, save_neutrons_after=False):
+def construct(
+        component, size, gap=1., monitors=[],
+        save_neutrons_before=False, save_neutrons_after=False,
+        builder = None,
+):
     """
     Construct an instrument.
 
@@ -76,7 +88,7 @@ def construct(component, size, gap=1.,
     save_neutrons_before (bool): if to save neutrons before the given optics
     save_neutrons_after (bool): if to save neutrons after the given optics
     """
-    builder = InstrumentBuilder()
+    builder = InstrumentBuilder() if builder is None else builder
 
     # source
     builder.add(builder.get_source(), gap=gap)
@@ -97,14 +109,9 @@ def construct(component, size, gap=1.,
         builder.add(component, gap=size+gap)
 
     # monitors
-    if "Ixy" in monitors:
-        builder.add(builder.get_monitor("PSD_monitor", "Ixy",
-                                  nx=250, ny=250))
-    if "Ixdivx" in monitors:
-        builder.add(builder.get_monitor("DivPos_monitor", "Ixdivx",
-                                  npos=250, ndiv=250))
-    if "Ixdivy" in monitors:
-        builder.add(builder.get_monitor("DivPos_monitor", "Ixdivy",
-                                  npos=250, ndiv=250), is_rotated=True)
+
+    for mon in monitors:
+        method = getattr(builder, f'add{mon}Monitor')
+        method()
 
     return builder.instrument
