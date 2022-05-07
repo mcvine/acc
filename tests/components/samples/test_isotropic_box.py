@@ -1,0 +1,40 @@
+#!/usr/bin/env python
+
+import os
+import pytest
+from mcvine.acc import test
+from mcvine import run_script
+
+thisdir = os.path.dirname(__file__)
+
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test1():
+    instr = os.path.join(thisdir, "isotropic_box_instrument.py")
+    outdir = 'out.isotropic_box'
+    run_script.run1(
+        instr, outdir,
+        ncount=1e5, buffer_size=int(1e5),
+    )
+    return
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
+    """
+    Tests the acc cpu implementation of a straight guide against mcvine
+    """
+    import test_helper
+    test_helper.compare_mcvine(
+        "Guide",
+        ["Ixy", "Ixdivx", "Ixdivy"],
+        {"float32": 1e-7, "float64": 1e-8},
+        num_neutrons, debug, interactive=interactive)
+
+
+def main():
+    # test_compare_mcvine(num_neutrons=int(1e6), interactive=True)
+    test1()
+    return
+
+
+if __name__ == '__main__': main()
