@@ -19,23 +19,25 @@ def test1():
     )
     return
 
-'''
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
-    import test_helper
-    test_helper.compare_mcvine(
-        "Guide",
-        ["Ixy", "Ixdivx", "Ixdivy"],
+    instr = os.path.join(thisdir, "isotropic_box_instrument.py")
+    from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
+    compare_acc_nonacc(
+        "isotropic_box",
+        ["psd_4pi"],
         {"float32": 1e-7, "float64": 1e-8},
-        num_neutrons, debug, interactive=interactive)
-'''
+        num_neutrons, debug,
+        instr = instr,
+        interactive=interactive)
+
 
 def main():
-    # test_compare_mcvine(num_neutrons=int(1e6), interactive=True)
-    test1()
+    test_compare_mcvine(num_neutrons=int(1e6), interactive=True)
+    # test1()
     return
 
 
