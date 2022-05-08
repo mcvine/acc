@@ -29,7 +29,7 @@ class Builder(base):
     def addPSD_4PIMonitor(self):
         mon = self.get_monitor(
             subtype="PSD_monitor_4PI", name = "psd_4pi",
-            nx=180, ny=360, radius=3)
+            nx=90, ny=90, radius=3)
         self.add(mon)
 
 
