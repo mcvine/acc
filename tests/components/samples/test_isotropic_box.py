@@ -29,7 +29,7 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     compare_acc_nonacc(
         "isotropic_box",
         ["psd_4pi"],
-        {"float32": 1e-7, "float64": 1e-8},
+        {"float32": 1e-7, "float64": 1e-9},
         num_neutrons, debug,
         instr = instr,
         interactive=interactive)
