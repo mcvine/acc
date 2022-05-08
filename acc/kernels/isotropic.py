@@ -21,7 +21,7 @@ def scatter(threadindex, rng_states, neutron):
 
 
 @cuda.jit(device=True)
-def scatter(threadindex, rng_states, neutron):
+def scatter2(threadindex, rng_states, neutron):
     # randomly pick direction
     theta = xoroshiro128p_uniform_float32(rng_states, threadindex)*pi
     phi = xoroshiro128p_uniform_float32(rng_states, threadindex)*(2*pi)
