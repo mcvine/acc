@@ -69,12 +69,13 @@ class IsotropicBox(SampleBase):
                 # starting from current position
                 t1 = 0
         else:
-            # no interception
+            # NaN. no interception
             return
         if t1>0:
             # propagate to surface
             prop_dt_inplace(neutron, t1)
             t2 = t2-t1
+        # t2 is now the time to get to the exiting surface
         dt = xoroshiro128p_uniform_float32(rng_states, threadindex)*(t2)
         v = sqrt(vx*vx+vy*vy+vz*vz)
         dist = v*dt
@@ -83,6 +84,7 @@ class IsotropicBox(SampleBase):
         prob = sigma * fulllen * atten
         # prob *= sum_of_weights/m_weights.scattering;
         neutron[-1] *= prob
+        # neutron is now at the location for scattering
         prop_dt_inplace( neutron, dt )
         # kernel
         scatter(threadindex, rng_states, neutron)
