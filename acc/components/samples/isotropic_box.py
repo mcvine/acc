@@ -79,7 +79,7 @@ class IsotropicBox(SampleBase):
         v = sqrt(vx*vx+vy*vy+vz*vz)
         dist = v*dt
         fulllen = v*t2
-        atten = exp( -(mu+sigma) * dist )
+        atten = exp( -(mu/v*2200+sigma) * dist )
         prob = sigma * fulllen * atten
         # prob *= sum_of_weights/m_weights.scattering;
         neutron[-1] *= prob
@@ -90,6 +90,9 @@ class IsotropicBox(SampleBase):
         if neutron[-1] <=0:
             absorb(neutron)
             return
-        atten2 = exp( -(mu+sigma) * v * (t2-dt) )
+        # find exiting time
+        x, y, z, vx, vy, vz = neutron[:6]
+        t1, t2 = cu_device_intersect_box(x,y,z, vx,vy,vz, xwidth, yheight, zthickness)
+        atten2 = exp( -(mu/v*2200+sigma) * v * t2 )
         neutron[-1] *= atten2
         return
