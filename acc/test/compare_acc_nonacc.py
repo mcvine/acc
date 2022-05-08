@@ -11,12 +11,9 @@ from mcvine import run_script
 from mcvine.acc import test
 from mcvine.acc.config import floattype
 
-thisdir = os.path.dirname(__file__)
-
-
-def compare_mcvine(
+def compare_acc_nonacc(
         className, monitors, tolerances, num_neutrons, debug,
-        interactive=False):
+        workdir=None, instr=None, interactive=False):
     """
     Tests the acc cpu implementation of an instrument against mcvine.
 
@@ -32,7 +29,7 @@ def compare_mcvine(
     classname = className.lower()
 
     # Run the mcvine instrument first
-    instr = os.path.join(thisdir, f"{classname}_instrument.py")
+    instr = instr or os.path.join(workdir, f"{classname}_instrument.py")
     mcvine_outdir = f"out.debug-mcvine_{classname}_cpu_instrument"
     if os.path.exists(mcvine_outdir):
         shutil.rmtree(mcvine_outdir)
