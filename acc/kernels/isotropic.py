@@ -34,6 +34,6 @@ def scatter(threadindex, rng_states, neutron):
     vy = vi*sin_t*sin_p
     vz = vi*cos_t
     neutron[3:6] = vx,vy,vz
-    neutron[-1] *= sin_t
+    neutron[-1] *= sin_t*(pi/2)
     return
 
