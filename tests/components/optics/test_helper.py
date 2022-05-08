@@ -14,7 +14,9 @@ from mcvine.acc.config import floattype
 thisdir = os.path.dirname(__file__)
 
 
-def compare_mcvine(className, monitors, tolerances, num_neutrons, debug, interactive=False):
+def compare_mcvine(
+        className, monitors, tolerances, num_neutrons, debug,
+        interactive=False):
     """
     Tests the acc cpu implementation of an instrument against mcvine.
 
@@ -34,6 +36,13 @@ def compare_mcvine(className, monitors, tolerances, num_neutrons, debug, interac
     mcvine_outdir = f"out.debug-mcvine_{classname}_cpu_instrument"
     if os.path.exists(mcvine_outdir):
         shutil.rmtree(mcvine_outdir)
+    # there is inconsistency in the simulation instrument implementations.
+    # for example, tests/components/optics/guide_instrument.py
+    # implements "is_acc", "factory" and "module" kwargs,
+    # but tests/components/optics/slit_instrument.py
+    # only implements "is_acc".
+    # The implementation here works, but we just need to make sure
+    # the {classname}_instrument.py implements "is_acc" kwd correctly.
     run_script.run1(
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
