@@ -13,7 +13,9 @@ from mcvine.acc.config import floattype
 
 def compare_acc_nonacc(
         className, monitors, tolerances, num_neutrons, debug,
-        workdir=None, instr=None, interactive=False):
+        workdir=None, instr=None, interactive=False,
+        acc_component_spec = None, nonacc_component_spec = None,
+):
     """
     Tests the acc cpu implementation of an instrument against mcvine.
 
@@ -40,25 +42,33 @@ def compare_acc_nonacc(
     # only implements "is_acc".
     # The implementation here works, but we just need to make sure
     # the {classname}_instrument.py implements "is_acc" kwd correctly.
+    nonacc_component_spec = nonacc_component_spec or dict(
+        factory=f"mcvine.components.optics.{className}",
+        is_acc = False,
+    )
     run_script.run1(
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
-        factory=f"mcvine.components.optics.{className}",
         save_neutrons_after=debug,
         overwrite_datafiles=True,
-        is_acc=False)
+        **nonacc_component_spec
+    )
 
     # Run our accelerated implementation
     outdir = f"out.debug-{classname}_gpu_instrument"
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
+    acc_component_spec = acc_component_spec or dict(
+        module=f"mcvine.acc.components.optics.{classname}",
+        is_acc = True,
+    )
     run_script.run1(
         instr, outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
-        module=f"mcvine.acc.components.optics.{classname}",
         save_neutrons_after=debug,
         overwrite_datafiles=True,
-        is_acc=True)
+        **acc_component_spec
+    )
 
     # Compare output files
     tolerance = tolerances[floattype]
