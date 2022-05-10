@@ -21,12 +21,14 @@ def test_compare_mcvine(className, num_neutrons=int(1e7), debug=False, interacti
     """
     Tests the acc cpu implementation of a slit or beamstop against mcvine
     """
-    import test_helper
-    test_helper.compare_mcvine(className,
-                               ["Ixy", "Ixdivx", "Ixdivy"],
-                               {"float32": 1e-7, "float64": 1e-25},
-                               num_neutrons, debug, interactive=interactive)
-
+    from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
+    compare_acc_nonacc(
+        className,
+        ["Ixy", "Ixdivx", "Ixdivy"],
+        {"float32": 1e-7, "float64": 1e-25},
+        num_neutrons, debug,
+        interactive=interactive, workdir = thisdir,
+    )
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 @pytest.mark.parametrize("invert", [False, True])

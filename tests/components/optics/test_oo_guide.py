@@ -14,7 +14,6 @@ from mcvine.acc.geometry.plane import Plane
 
 
 thisdir = os.path.dirname(__file__)
-interactive = False
 
 
 class TestReflectivity:
@@ -63,48 +62,25 @@ class TestReflectivity:
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_compare_mcvine():
+def test_compare_mcvine(num_neutrons=int(1e6), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
-    num_neutrons = 100000
-    # Run the mcvine instrument first
     mcvine_instr = os.path.join(thisdir, "guide_instrument.py")
-    mcvine_outdir = 'out.debug-mcvine_guide_cpu_instrument'
-    if os.path.exists(mcvine_outdir):
-        shutil.rmtree(mcvine_outdir)
-    run_script.run1(
-        mcvine_instr, mcvine_outdir, ncount=num_neutrons,
-        guide_factory = "mcvine.components.optics.Guide",
-        overwrite_datafiles=True)
-
-    # Run our guide implementation
-    instr = os.path.join(thisdir, "guide_instrument.py")
-    outdir = 'out.debug-guide_gpu_instrument'
-    if os.path.exists(outdir):
-        shutil.rmtree(outdir)
-    run_script.run1(
-        instr, outdir, ncount=num_neutrons,
-        guide_mod = "mcvine.acc.components.optics.oo_guide",
-        overwrite_datafiles=True)
-
-    # Compare output files
-    mcvine_Ixy = hh.load(os.path.join(mcvine_outdir, "Ixy.h5"))
-    mcvine_Ixdivx = hh.load(os.path.join(mcvine_outdir, "Ixdivx.h5"))
-    Ixy = hh.load(os.path.join(outdir, "Ixy.h5"))
-    Ixdivx = hh.load(os.path.join(outdir, "Ixdivx.h5"))
-
-    global interactive
-    if interactive:
-        from histogram import plot as plotHist
-        plotHist(mcvine_Ixy)
-        plotHist(mcvine_Ixdivx)
-        plotHist(Ixy)
-        plotHist(Ixdivx)
-    assert mcvine_Ixy.shape() == Ixy.shape()
-    assert mcvine_Ixdivx.shape() == Ixdivx.shape()
-    assert np.allclose(mcvine_Ixy.data().storage(), Ixy.data().storage())
-    assert np.allclose(mcvine_Ixdivx.data().storage(), Ixdivx.data().storage())
+    from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
+    compare_acc_nonacc(
+        "oo_guide",
+        ["Ixy", "Ixdivx"],
+        {"float32": 1e-7, "float64": 1e-8},
+        num_neutrons, debug,
+        interactive=interactive, instr=mcvine_instr,
+        nonacc_component_spec=dict(
+            guide_factory = "mcvine.components.optics.Guide",
+        ),
+        acc_component_spec=dict(
+            guide_mod = "mcvine.acc.components.optics.oo_guide",
+        ),
+    )
     return
 
 
@@ -341,9 +317,7 @@ def test_pass_through_guide():
 
 
 def main():
-    global interactive
-    interactive = True
-    test_compare_mcvine()
+    test_compare_mcvine(interactive=True)
     return
 
 

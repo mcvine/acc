@@ -11,10 +11,11 @@ from mcvine import run_script
 from mcvine.acc import test
 from mcvine.acc.config import floattype
 
-thisdir = os.path.dirname(__file__)
-
-
-def compare_mcvine(className, monitors, tolerances, num_neutrons, debug, interactive=False):
+def compare_acc_nonacc(
+        className, monitors, tolerances, num_neutrons, debug,
+        workdir=None, instr=None, interactive=False,
+        acc_component_spec = None, nonacc_component_spec = None,
+):
     """
     Tests the acc cpu implementation of an instrument against mcvine.
 
@@ -30,29 +31,44 @@ def compare_mcvine(className, monitors, tolerances, num_neutrons, debug, interac
     classname = className.lower()
 
     # Run the mcvine instrument first
-    instr = os.path.join(thisdir, f"{classname}_instrument.py")
+    instr = instr or os.path.join(workdir, f"{classname}_instrument.py")
     mcvine_outdir = f"out.debug-mcvine_{classname}_cpu_instrument"
     if os.path.exists(mcvine_outdir):
         shutil.rmtree(mcvine_outdir)
+    # there is inconsistency in the simulation instrument implementations.
+    # for example, tests/components/optics/guide_instrument.py
+    # implements "is_acc", "factory" and "module" kwargs,
+    # but tests/components/optics/slit_instrument.py
+    # only implements "is_acc".
+    # The implementation here works, but we just need to make sure
+    # the {classname}_instrument.py implements "is_acc" kwd correctly.
+    nonacc_component_spec = nonacc_component_spec or dict(
+        factory=f"mcvine.components.optics.{className}",
+        is_acc = False,
+    )
     run_script.run1(
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
-        factory=f"mcvine.components.optics.{className}",
         save_neutrons_after=debug,
         overwrite_datafiles=True,
-        is_acc=False)
+        **nonacc_component_spec
+    )
 
     # Run our accelerated implementation
     outdir = f"out.debug-{classname}_gpu_instrument"
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
+    acc_component_spec = acc_component_spec or dict(
+        module=f"mcvine.acc.components.optics.{classname}",
+        is_acc = True,
+    )
     run_script.run1(
         instr, outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
-        module=f"mcvine.acc.components.optics.{classname}",
         save_neutrons_after=debug,
         overwrite_datafiles=True,
-        is_acc=True)
+        **acc_component_spec
+    )
 
     # Compare output files
     tolerance = tolerances[floattype]

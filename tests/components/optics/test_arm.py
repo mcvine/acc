@@ -13,12 +13,14 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of an arm against mcvine
     """
-    import test_helper
-    test_helper.compare_mcvine(
+    from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
+    compare_acc_nonacc(
         "Arm",
         ["Ixy", "Ixdivx", "Ixdivy"],
         {"float32": 1e-10, "float64": 1e-25},
-        num_neutrons, debug, interactive=interactive)
+        num_neutrons, debug,
+        interactive=interactive, workdir = thisdir,
+    )
 
 
 def main():
