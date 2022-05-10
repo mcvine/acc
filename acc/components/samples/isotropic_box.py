@@ -37,8 +37,6 @@ class IsotropicBox(SampleBase):
         sigma (1/m): inverse scattering length
         """
         self.name = name
-
-        # Note the configuration of the slit.
         self.propagate_params = (
             np.array([xwidth, yheight, zthickness, mu, sigma]),
         )
