@@ -16,14 +16,23 @@ def test_compile():
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_compile_buffered():
+    run_script.compile_buffered(script)
+    return
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_run():
     run_script.run(script, workdir, ncount=ncount)
     return
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_run_buffered():
+    run_script.run(script, workdir, ncount=int(1e6), use_buffer=True)
+    return
 
 def main():
     test_run()
-    os.system("plothist --min=0 --max=1e-6 {}/divpos.h5".format(workdir))
+    os.system("plothist --min=0 --max=1e-6 {}/posdiv.h5".format(workdir))
     return
 
 if __name__ == '__main__': main()
