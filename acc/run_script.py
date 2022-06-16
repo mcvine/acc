@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Jiao Lin <jiao.lin@gmail.com>
 #
@@ -10,6 +11,7 @@ def run(script, workdir, ncount,
         overwrite_datafiles=True,
         ntotalthreads=int(1e6), threads_per_block=512,
         use_buffer=False,
+        buffer_size=int(1e8),
         **kwds):
     """run a mcvine.acc simulation script on one node. The script must define the instrument.
 
@@ -35,7 +37,7 @@ Parameters:
     m = imp.load_source('mcvinesim', compiled_script)
     os.chdir(workdir)
     try:
-        m.run(ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block, **kwds)
+        m.run(ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block, buffer_size=buffer_size, **kwds)
     finally:
         os.chdir(curdir)
     return
@@ -110,7 +112,7 @@ def compile_buffered(script, compiled_script=None, **kwds):
     propagate_defs = '\n'.join(propagate_defs)
     args = [f'args{i}' for i in range(len(comps))]
     args = ', '.join(args)
-    indent = 4*' '
+    indent = 8*' '
     body = '\n'.join([indent+line for line in body])
     text = compiled_script_template_buffered.format(
         script = script,
@@ -236,20 +238,38 @@ def transform_kernel(neutrons, n_neutrons_per_thread, rotmat, offset):
         abs2rel(neutron[:3], neutron[3:6], rotmat, offset, r, v)
 
 
-def instrument_kernel(rng_states, N, n_neutrons_per_thread, nblocks, tpb, args):
+def instrument_kernel(rng_states, N, n_neutrons_per_thread, nblocks, tpb, buffer_size, args):
     '''
     Driver function to run all kernels needed for the instrument
     '''
 
     {args}, offsets, rotmats = args
 
-    # Create neutron device buffer
-    neutrons = np.zeros((N, 10), dtype=np.float64)
-    neutrons_d = cuda.to_device(neutrons)
+    buffer_size = int(buffer_size)
+
+    iters = math.ceil(N / buffer_size)
+    max_blocks = math.floor( buffer_size / (n_neutrons_per_thread * tpb))
+    print(" Total N split into %s iterations of buffer size %s" % (iters, buffer_size))
+
+    blocks_left = nblocks
+
+    i = 0
+    while blocks_left > 0:
+
+        # Create neutron device buffer
+        neutrons = np.zeros((buffer_size, 10), dtype=np.float64)
+        neutrons_d = cuda.to_device(neutrons)
+
+        # adjust launch config for this iter
+        nblocks = min(blocks_left, max_blocks)
+        print("   iter %s - nblocks = %s" % (i+1, nblocks))
 
 {instrument_body}
 
-    cuda.synchronize()
+        cuda.synchronize()
+
+        blocks_left -= nblocks
+        i += 1
 
     #neutrons = neutrons_d.copy_to_host()
 
@@ -265,7 +285,7 @@ class InstrumentBase(SourceBase):
         pass
 InstrumentBase.process_kernel_no_buffer = instrument_kernel
 
-def run(ncount, ntotalthreads=int(1e6), threads_per_block=512, **kwds):
+def run(ncount, ntotalthreads=int(1e6), threads_per_block=512, buffer_size=int(1e6), **kwds):
     instrument = loadInstrument(script, **kwds)
 
     ntotthreads = min(ncount, int(ntotalthreads))
@@ -277,7 +297,7 @@ def run(ncount, ntotalthreads=int(1e6), threads_per_block=512, **kwds):
 
     base = InstrumentBase(instrument)
 
-    instrument_kernel(rng_states, ncount, n_neutrons_per_thread, nblocks, threads_per_block, base.propagate_params)
+    instrument_kernel(rng_states, ncount, n_neutrons_per_thread, nblocks, threads_per_block, buffer_size, base.propagate_params)
     cuda.synchronize()
 
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
