@@ -245,7 +245,9 @@ def instrument_kernel(rng_states, N, n_neutrons_per_thread, nblocks, tpb, buffer
 
     {args}, offsets, rotmats = args
 
-    buffer_size = int(buffer_size)
+    # buffer size should be a power of 2, so get closest one
+    assert buffer_size > tpb
+    buffer_size = int(2**math.ceil(math.log2(buffer_size)))
 
     iters = math.ceil(N / buffer_size)
     max_blocks = math.floor( buffer_size / (n_neutrons_per_thread * tpb))
