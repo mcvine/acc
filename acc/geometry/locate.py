@@ -1,6 +1,6 @@
 from numba import cuda
 from mcni import units
-from . import location
+from . import epsilon, location
 inside = location.inside
 outside = location.outside
 onborder = location.onborder
@@ -31,11 +31,10 @@ class LocateFuncFactory:
         return locateWrtUnion
 
     def onSphere(self, s):
-        from . import onsphere
         R = s.radius/units.length.meter
         @cuda.jit(device=True, inline=True)
         def locateWrtSphere(x, y, z):
-            return onsphere.cu_device_locate_wrt_sphere(x,y,z, R)
+            return cu_device_locate_wrt_sphere(x,y,z, R)
         return locateWrtSphere
 
     def onCylinder(self, cyl):
@@ -46,3 +45,11 @@ class LocateFuncFactory:
         def locateWrtCylinder(x, y, z):
             return oncylinder.cu_device_locate_wrt_cylinder(x,y,z, R, H)
         return locateWrtCylinder
+
+# device functions for solid shapes
+@cuda.jit(device=True, inline=True)
+def cu_device_locate_wrt_sphere(x,y,z, R):
+    dist2 = x*x+y*y+z*z
+    if dist2>(R+epsilon)*(R+epsilon): return outside
+    elif dist2<(R-epsilon)*(R-epsilon): return inside
+    return onborder
