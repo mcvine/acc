@@ -1,6 +1,9 @@
 from numba import cuda
 from mcni import units
 from . import location
+inside = location.inside
+outside = location.outside
+onborder = location.onborder
 
 class LocateFuncFactory:
 
@@ -15,16 +18,16 @@ class LocateFuncFactory:
         def locateWrtUnion(x, y, z):
             isoutside = True
             l = f1(x,y,z)
-            if l == location.inside:
-                return location.inside
-            isoutside = isoutside and l == location.outside
+            if l == inside:
+                return inside
+            isoutside = isoutside and l == outside
             l = f2(x,y,z)
-            if l == location.inside:
-                return location.inside
-            isoutside = isoutside and l == location.outside
+            if l == inside:
+                return inside
+            isoutside = isoutside and l == outside
             if isoutside:
-                return location.outside
-            return location.onborder
+                return outside
+            return onborder
         return locateWrtUnion
 
     def onSphere(self, s):
