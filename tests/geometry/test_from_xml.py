@@ -7,7 +7,7 @@ from numba import cuda
 from math import ceil
 
 from mcvine.acc import test
-from mcvine.acc.geometry import locate, location
+from mcvine.acc.geometry import locate, location, arrow_intersect
 
 thisdir = os.path.dirname(__file__)
 
@@ -17,15 +17,20 @@ def test_union_example1():
     parsed = parse_file(os.path.join(thisdir, 'union_example1.xml'))
     union1 = parsed[0]
     f = locate.LocateFuncFactory()
-    cudadevfunc = f.render(union1)
-    assert cudadevfunc(0,0,0) == location.inside
-    assert cudadevfunc(0,0,0.03) == location.inside
-    assert cudadevfunc(0,0,0.049999) == location.inside
-    assert cudadevfunc(0,0,0.05) == location.onborder
-    assert cudadevfunc(0,0,0.050001) == location.outside
-    assert cudadevfunc(0,0.0249999, 0) == location.inside
-    assert cudadevfunc(0,0.025, 0) == location.onborder
-    assert cudadevfunc(0,0.0250001, 0) == location.outside
+    devf_locate = f.render(union1)
+    assert devf_locate(0,0,0) == location.inside
+    assert devf_locate(0,0,0.03) == location.inside
+    assert devf_locate(0,0,0.049999) == location.inside
+    assert devf_locate(0,0,0.05) == location.onborder
+    assert devf_locate(0,0,0.050001) == location.outside
+    assert devf_locate(0,0.0249999, 0) == location.inside
+    assert devf_locate(0,0.025, 0) == location.onborder
+    assert devf_locate(0,0.0250001, 0) == location.outside
+    f = arrow_intersect.ArrowIntersectFuncFactory()
+    devf_arrow_intersect = f.render(union1)
+    ts = np.zeros(10)
+    devf_arrow_intersect(0,0,0, 0,0,1., ts, 0)
+    print(ts)
     return
 
 
@@ -35,13 +40,13 @@ def test_union_example1_kernel():
     parsed = parse_file(os.path.join(thisdir, 'union_example1.xml'))
     union1 = parsed[0]
     f = locate.LocateFuncFactory()
-    cudadevfunc = f.render(union1)
+    devf_locate = f.render(union1)
     @cuda.jit
-    def kernel(points, locations):
+    def locate_kernel(points, locations):
         idx = cuda.grid(1)
         if idx < len(points):
             x,y,z = points[idx]
-            locations[idx] = cudadevfunc(x,y,z)
+            locations[idx] = devf_locate(x,y,z)
     points = np.array([
         (0,0,0) ,
         (0,0,0.03) ,
@@ -66,8 +71,32 @@ def test_union_example1_kernel():
     locations = np.zeros(N, dtype=int)
     threadsperblock = 2
     nblocks = ceil(N/threadsperblock)
-    kernel[nblocks, threadsperblock](points, locations)
+    locate_kernel[nblocks, threadsperblock](points, locations)
     np.testing.assert_array_equal(locations, expected)
+    # intersect
+    f = arrow_intersect.ArrowIntersectFuncFactory()
+    devf_intersect = f.render(union1)
+    @cuda.jit
+    def intersect_kernel(points, velocities, intersections, nintersections):
+        idx = cuda.grid(1)
+        if idx < len(points):
+            x,y,z = points[idx]
+            vx,vy,vz = velocities[idx]
+            n = devf_intersect(x,y,z, vx,vy,vz, intersections[idx], 0)
+            nintersections[idx] = n
+    points = np.array([
+        (0.,0.,0.)
+    ])
+    velocities = np.array([
+        (0.,0.,1.)
+    ])
+    npts = len(points)
+    intersections = np.zeros((npts, 20), dtype=float)
+    nintersections = np.zeros(npts, dtype=int)
+    intersect_kernel[nblocks, threadsperblock](
+        points, velocities, intersections, nintersections)
+    for i in range(npts):
+        print(intersections[i, :nintersections[i]])
     return
 
 def main():

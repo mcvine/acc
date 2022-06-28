@@ -11,32 +11,104 @@ onborder = location.onborder
 
 class ArrowIntersectFuncFactory:
 
+    def __init__(self, max_intersections=20):
+        from . import locate
+        self.locate_func_factory = locate.LocateFuncFactory()
+        # XXX hack XXX
+        # limit number of intersections
+        # should alert users if the shape is too complex
+        # and number of intersections larger than this value
+        self.max_intersections = max_intersections
+        return
+
     def render(self, shape):
         return shape.identify(self)
 
     def onUnion(self, u):
+        locate1 = self.locate_func_factory.onUnion(u)
         s1, s2 = u.shapes
         f1 = s1.identify(self)
         f2 = s2.identify(self)
         @cuda.jit(device=True, inline=True)
-        def intersectUnion(x, y, z):
-            return
+        def intersectUnion(x,y,z, vx,vy,vz, ts, N):
+            # XXX this should work for all other composition types
+            """
+            def isgood(t):
+                return locate1(x+vx*t, y+vy*t, z+vz*t)==onborder
+            """
+            N = f1(x,y,z, vx,vy,vz, ts, N)
+            N = f2(x,y,z, vx,vy,vz, ts, N)
+            i = 0
+            while i < N:
+                t = ts[i]
+                if locate1(x+vx*t, y+vy*t, z+vz*t)!=onborder:
+                    N = remove_item(i, ts, N)
+                else:
+                    i += 1
+            return N
         return intersectUnion
 
     def onSphere(self, s):
         R = s.radius/units.length.meter
         @cuda.jit(device=True, inline=True)
-        def intersectSphere(x, y, z):
-            return cu_device_intersect_sphere(x,y,z, R)
+        def intersectSphere(x,y,z, vx,vy,vz, ts, N):
+            t1, t2 = cu_device_intersect_sphere(x,y,z, vx,vy,vz, R)
+            if math.isnan(t1):
+                return 0
+            N = insert_into_sorted_list(t1, ts, N)
+            N = insert_into_sorted_list(t2, ts, N)
+            return N
         return intersectSphere
 
     def onCylinder(self, cyl):
         R = cyl.radius/units.length.meter
         H = cyl.height/units.length.meter
         @cuda.jit(device=True, inline=True)
-        def intersectCylinder(x, y, z):
-            return cu_device_intersect_cylinder(x,y,z, R, H)
+        def intersectCylinder(x,y,z, vx,vy,vz, ts, N):
+            t1, t2 = cu_device_intersect_cylinder(x,y,z, vx,vy,vz, R, H)
+            if math.isnan(t1):
+                return 0
+            N = insert_into_sorted_list(t1, ts, N)
+            N = insert_into_sorted_list(t2, ts, N)
+            return N
         return intersectCylinder
+
+@cuda.jit(device=True)
+def remove_item(idx, l, N):
+    if idx>=N: return
+    for i in range(idx, N-1):
+        l[i] = l[i+1]
+    return N-1
+
+@cuda.jit(device=True)
+def insert_into_sorted_list(d, l, N):
+    'insert data "d" into existing sorted array (low to high) of length N'
+    if N>=len(l): return N
+    if N==0:
+        l[0] = d
+        return 1
+    minidx = 0
+    maxidx = N-1
+    idx = minidx
+    while minidx < maxidx-1:
+        mididx = (minidx+maxidx)//2
+        mid = l[mididx]
+        if d>mid:
+            minidx = mididx
+        else:
+            maxidx = mididx
+    if minidx == maxidx:
+        idx = minidx
+        if d>l[idx]: idx = idx+1
+    else: # minidx == maxidx-1
+        if d>=l[maxidx]: idx = maxidx+1
+        elif d<=l[minidx]: idx = minidx
+        else: idx = minidx+1
+    # shift
+    for i in range(N, idx, -1):
+        l[i] = l[i-1]
+    l[idx] = d
+    return N+1
 
 # device functions for solid shapes
 @cuda.jit(device=True, inline=True)
