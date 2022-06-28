@@ -85,18 +85,25 @@ def test_union_example1_kernel():
             n = devf_intersect(x,y,z, vx,vy,vz, intersections[idx], 0)
             nintersections[idx] = n
     points = np.array([
-        (0.,0.,0.)
+        (0.,0.,0.),
+        (0.,0.,0.),
     ])
     velocities = np.array([
-        (0.,0.,1.)
+        (0.,0.,1.),
+        (1.,0.,0.),
+    ])
+    expected = np.array([
+        (-0.05, 0.05),
+        (-0.025, 0.025),
     ])
     npts = len(points)
-    intersections = np.zeros((npts, 20), dtype=float)
+    intersections = np.zeros((npts, 10), dtype=float)
     nintersections = np.zeros(npts, dtype=int)
     intersect_kernel[nblocks, threadsperblock](
         points, velocities, intersections, nintersections)
-    for i in range(npts):
-        print(intersections[i, :nintersections[i]])
+    # for i in range(npts):
+    #     print(intersections[i, :nintersections[i]])
+    np.testing.assert_array_equal(intersections[:, :2], expected)
     return
 
 def main():

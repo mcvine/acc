@@ -58,6 +58,7 @@ class ArrowIntersectFuncFactory:
 def intersectComposite(x,y,z, vx,vy,vz, ts, N, f1, f2, locate1):
     N = f1(x,y,z, vx,vy,vz, ts, N)
     N = f2(x,y,z, vx,vy,vz, ts, N)
+    # remove points not on border
     N1 = 0
     for i in range(N):
         t = ts[i]
