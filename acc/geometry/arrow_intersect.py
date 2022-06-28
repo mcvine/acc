@@ -9,12 +9,6 @@ inside = location.inside
 outside = location.outside
 onborder = location.onborder
 
-# XXX hack XXX
-# limit number of intersections
-# should alert users if the shape is too complex
-# and number of intersections larger than this value
-max_intersections = 20
-
 class ArrowIntersectFuncFactory:
 
     def __init__(self):
@@ -64,14 +58,13 @@ class ArrowIntersectFuncFactory:
 def intersectComposite(x,y,z, vx,vy,vz, ts, N, f1, f2, locate1):
     N = f1(x,y,z, vx,vy,vz, ts, N)
     N = f2(x,y,z, vx,vy,vz, ts, N)
-    i = 0
-    while i < N:
+    N1 = 0
+    for i in range(N):
         t = ts[i]
-        if locate1(x+vx*t, y+vy*t, z+vz*t)!=onborder:
-            N = remove_item(i, ts, N)
-        else:
-            i += 1
-    return N
+        if locate1(x+vx*t, y+vy*t, z+vz*t)==onborder:
+            ts[N1] = t
+            N1 += 1
+    return N1
 
 @cuda.jit(device=True)
 def remove_item(idx, l, N):
