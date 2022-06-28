@@ -16,18 +16,7 @@ class LocateFuncFactory:
         f2 = s2.identify(self)
         @cuda.jit(device=True, inline=True)
         def locateWrtUnion(x, y, z):
-            isoutside = True
-            l = f1(x,y,z)
-            if l == inside:
-                return inside
-            isoutside = isoutside and l == outside
-            l = f2(x,y,z)
-            if l == inside:
-                return inside
-            isoutside = isoutside and l == outside
-            if isoutside:
-                return outside
-            return onborder
+            return cu_device_locate_wrt_union(x,y,z, f1,f2)
         return locateWrtUnion
 
     def onSphere(self, s):
@@ -44,6 +33,23 @@ class LocateFuncFactory:
         def locateWrtCylinder(x, y, z):
             return cu_device_locate_wrt_cylinder(x,y,z, R, H)
         return locateWrtCylinder
+
+# device functions for operations
+@cuda.jit(device=True)
+def cu_device_locate_wrt_union(x, y, z, f1, f2):
+    "f1 and f2 are locate methods of elements in the union"
+    isoutside = True
+    l = f1(x,y,z)
+    if l == inside:
+        return inside
+    isoutside = isoutside and l == outside
+    l = f2(x,y,z)
+    if l == inside:
+        return inside
+    isoutside = isoutside and l == outside
+    if isoutside:
+        return outside
+    return onborder
 
 # device functions for solid shapes
 @cuda.jit(device=True, inline=True)
