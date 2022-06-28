@@ -1,4 +1,4 @@
-import numpy as np, math
+import numpy as np, math, numba
 from numba import cuda
 from mcni import units
 from math import sqrt
@@ -9,16 +9,17 @@ inside = location.inside
 outside = location.outside
 onborder = location.onborder
 
+# XXX hack XXX
+# limit number of intersections
+# should alert users if the shape is too complex
+# and number of intersections larger than this value
+max_intersections = 20
+
 class ArrowIntersectFuncFactory:
 
-    def __init__(self, max_intersections=20):
+    def __init__(self):
         from . import locate
         self.locate_func_factory = locate.LocateFuncFactory()
-        # XXX hack XXX
-        # limit number of intersections
-        # should alert users if the shape is too complex
-        # and number of intersections larger than this value
-        self.max_intersections = max_intersections
         return
 
     def render(self, shape):
@@ -31,21 +32,7 @@ class ArrowIntersectFuncFactory:
         f2 = s2.identify(self)
         @cuda.jit(device=True, inline=True)
         def intersectUnion(x,y,z, vx,vy,vz, ts, N):
-            # XXX this should work for all other composition types
-            """
-            def isgood(t):
-                return locate1(x+vx*t, y+vy*t, z+vz*t)==onborder
-            """
-            N = f1(x,y,z, vx,vy,vz, ts, N)
-            N = f2(x,y,z, vx,vy,vz, ts, N)
-            i = 0
-            while i < N:
-                t = ts[i]
-                if locate1(x+vx*t, y+vy*t, z+vz*t)!=onborder:
-                    N = remove_item(i, ts, N)
-                else:
-                    i += 1
-            return N
+            return intersectComposite(x,y,z, vx,vy,vz, ts, N, f1,f2,locate1)
         return intersectUnion
 
     def onSphere(self, s):
@@ -72,6 +59,19 @@ class ArrowIntersectFuncFactory:
             N = insert_into_sorted_list(t2, ts, N)
             return N
         return intersectCylinder
+
+@cuda.jit(device=True)
+def intersectComposite(x,y,z, vx,vy,vz, ts, N, f1, f2, locate1):
+    N = f1(x,y,z, vx,vy,vz, ts, N)
+    N = f2(x,y,z, vx,vy,vz, ts, N)
+    i = 0
+    while i < N:
+        t = ts[i]
+        if locate1(x+vx*t, y+vy*t, z+vz*t)!=onborder:
+            N = remove_item(i, ts, N)
+        else:
+            i += 1
+    return N
 
 @cuda.jit(device=True)
 def remove_item(idx, l, N):
