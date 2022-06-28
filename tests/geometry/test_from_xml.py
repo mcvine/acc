@@ -2,7 +2,7 @@
 
 import pytest, os
 
-import os, numpy as np, time
+import os, numpy as np, math, time
 from numba import cuda
 from math import ceil
 
@@ -86,15 +86,33 @@ def test_union_example1_kernel():
             nintersections[idx] = n
     points = np.array([
         (0.,0.,0.),
+        (0.001,0.001,0.),
+        (0.005,0.005,0.),
+        (-0.005,0.005,0.),
+        (0.,0.,-5.),
+        (0.,0.,0.),
+        (0.,0.,0.),
         (0.,0.,0.),
     ])
     velocities = np.array([
         (0.,0.,1.),
+        (0.,0.,1.),
+        (0.,0.,1.),
+        (0.,0.,1.),
+        (0.,0.,1.),
         (1.,0.,0.),
+        (0.,1.,0.),
+        (math.sqrt(2),math.sqrt(2),0.),
     ])
     expected = np.array([
         (-0.05, 0.05),
+        (-0.05, 0.05),
+        (-0.05, 0.05),
+        (-0.05, 0.05),
+        (5-0.05, 5+0.05),
         (-0.025, 0.025),
+        (-0.025, 0.025),
+        (-0.0125, 0.0125),
     ])
     npts = len(points)
     intersections = np.zeros((npts, 10), dtype=float)
@@ -103,7 +121,7 @@ def test_union_example1_kernel():
         points, velocities, intersections, nintersections)
     # for i in range(npts):
     #     print(intersections[i, :nintersections[i]])
-    np.testing.assert_array_equal(intersections[:, :2], expected)
+    np.testing.assert_allclose(intersections[:, :2], expected)
     return
 
 def main():
