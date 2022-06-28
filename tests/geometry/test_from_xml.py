@@ -29,8 +29,9 @@ def test_union_example1():
     f = arrow_intersect.ArrowIntersectFuncFactory()
     devf_arrow_intersect = f.render(union1)
     ts = np.zeros(10)
-    devf_arrow_intersect(0,0,0, 0,0,1., ts, 0)
-    print(ts)
+    N = devf_arrow_intersect(0,0,0, 0,0,1., ts, 0)
+    # print(ts[:N])
+    np.testing.assert_allclose(ts[:N], [-0.05, 0.05])
     return
 
 
