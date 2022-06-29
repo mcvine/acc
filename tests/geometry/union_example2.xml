@@ -1,0 +1,13 @@
+<!DOCTYPE geometry>
+
+<geometry>
+
+    <union>
+      <cylinder height="20.*cm" radius="4.*mm"/>
+      <union>
+        <sphere radius="2.5*cm"/>
+        <cylinder height="10.*cm" radius="1.*cm"/>
+      </union>
+    </union>
+
+</geometry>
