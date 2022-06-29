@@ -5,15 +5,16 @@ import pytest, os
 import os, numpy as np, math, time
 from numba import cuda
 from math import ceil
+from instrument.nixml import parse_file
 
 from mcvine.acc import test
 from mcvine.acc.geometry import locate, location, arrow_intersect
 
 thisdir = os.path.dirname(__file__)
+threadsperblock = 2
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_union_example1():
-    from instrument.nixml import parse_file
     parsed = parse_file(os.path.join(thisdir, 'union_example1.xml'))
     union1 = parsed[0]
     f = locate.LocateFuncFactory()
@@ -37,7 +38,6 @@ def test_union_example1():
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_union_example1_kernel():
-    from instrument.nixml import parse_file
     parsed = parse_file(os.path.join(thisdir, 'union_example1.xml'))
     union1 = parsed[0]
     f = locate.LocateFuncFactory()
@@ -70,7 +70,6 @@ def test_union_example1_kernel():
     ])
     N = len(points)
     locations = np.zeros(N, dtype=int)
-    threadsperblock = 2
     nblocks = ceil(N/threadsperblock)
     locate_kernel[nblocks, threadsperblock](points, locations)
     np.testing.assert_array_equal(locations, expected)
@@ -118,6 +117,59 @@ def test_union_example1_kernel():
     npts = len(points)
     intersections = np.zeros((npts, 10), dtype=float)
     nintersections = np.zeros(npts, dtype=int)
+    nblocks = ceil(npts/threadsperblock)
+    intersect_kernel[nblocks, threadsperblock](
+        points, velocities, intersections, nintersections)
+    # for i in range(npts):
+    #     print(intersections[i, :nintersections[i]])
+    np.testing.assert_allclose(intersections[:, :2], expected)
+    return
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_union_example2():
+    parsed = parse_file(os.path.join(thisdir, 'union_example2.xml'))
+    union1 = parsed[0]
+    f = locate.LocateFuncFactory()
+    devf_locate = f.render(union1)
+    assert devf_locate(0,0,0) == location.inside
+    assert devf_locate(0,0,0.1) == location.onborder
+    assert devf_locate(0,0,-0.1) == location.onborder
+    f = arrow_intersect.ArrowIntersectFuncFactory()
+    devf_arrow_intersect = f.render(union1)
+    ts = np.zeros(10)
+    N = devf_arrow_intersect(0,0,0, 0,0,1., ts, 0)
+    print(ts[:N])
+    # np.testing.assert_allclose(ts[:N], [-0.05, 0.05])
+    return
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_union_example2_kernel():
+    parsed = parse_file(os.path.join(thisdir, 'union_example2.xml'))
+    union1 = parsed[0]
+    # intersect
+    f = arrow_intersect.ArrowIntersectFuncFactory()
+    devf_intersect = f.render(union1)
+    @cuda.jit
+    def intersect_kernel(points, velocities, intersections, nintersections):
+        idx = cuda.grid(1)
+        if idx < len(points):
+            x,y,z = points[idx]
+            vx,vy,vz = velocities[idx]
+            n = devf_intersect(x,y,z, vx,vy,vz, intersections[idx], 0)
+            nintersections[idx] = n
+    points = np.array([
+        (0.,0.,0.),
+    ])
+    velocities = np.array([
+        (0.,0.,1.),
+    ])
+    expected = np.array([
+        (-0.1, 0.1),
+    ])
+    npts = len(points)
+    intersections = np.zeros((npts, 10), dtype=float)
+    nintersections = np.zeros(npts, dtype=int)
+    nblocks = ceil(npts/threadsperblock)
     intersect_kernel[nblocks, threadsperblock](
         points, velocities, intersections, nintersections)
     # for i in range(npts):
@@ -126,8 +178,7 @@ def test_union_example1_kernel():
     return
 
 def main():
-    test_union_example1()
-    test_union_example1_kernel()
+    test_union_example2()
     return
 
 if __name__ == '__main__': main()

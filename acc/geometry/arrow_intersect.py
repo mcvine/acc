@@ -3,6 +3,7 @@ from numba import cuda
 from mcni import units
 from math import sqrt
 from ..vec3 import dot
+from .. import test
 
 from . import epsilon, location
 inside = location.inside
@@ -14,6 +15,7 @@ class ArrowIntersectFuncFactory:
     def __init__(self):
         from . import locate
         self.locate_func_factory = locate.LocateFuncFactory()
+        self.max_intersections = 10
         return
 
     def render(self, shape):
@@ -24,9 +26,19 @@ class ArrowIntersectFuncFactory:
         s1, s2 = u.shapes
         f1 = s1.identify(self)
         f2 = s2.identify(self)
-        @cuda.jit(device=True, inline=True)
-        def intersectUnion(x,y,z, vx,vy,vz, ts, N):
-            return intersectComposite(x,y,z, vx,vy,vz, ts, N, f1,f2,locate1)
+        max_intersections = self.max_intersections
+        if test.USE_CUDASIM:
+            @cuda.jit(device=True, inline=True)
+            def intersectUnion(x,y,z, vx,vy,vz, ts, N):
+                ts1 = np.zeros(max_intersections, dtype=float)
+                ts2 = np.zeros(max_intersections, dtype=float)
+                return intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1,f2,locate1)
+        else:
+            @cuda.jit(device=True, inline=True)
+            def intersectUnion(x,y,z, vx,vy,vz, ts, N):
+                ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
+                ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
+                return intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1,f2,locate1)
         return intersectUnion
 
     def onSphere(self, s):
@@ -36,7 +48,7 @@ class ArrowIntersectFuncFactory:
             t1, t2 = cu_device_intersect_sphere(x,y,z, vx,vy,vz, R)
             if math.isnan(t1):
                 return 0
-            N = insert_into_sorted_list(t1, ts, N)
+            N = insert_into_sorted_list(t1, ts, 0)
             N = insert_into_sorted_list(t2, ts, N)
             return N
         return intersectSphere
@@ -49,23 +61,28 @@ class ArrowIntersectFuncFactory:
             t1, t2 = cu_device_intersect_cylinder(x,y,z, vx,vy,vz, R, H)
             if math.isnan(t1):
                 return 0
-            N = insert_into_sorted_list(t1, ts, N)
+            N = insert_into_sorted_list(t1, ts, 0)
             N = insert_into_sorted_list(t2, ts, N)
             return N
         return intersectCylinder
 
 @cuda.jit(device=True)
-def intersectComposite(x,y,z, vx,vy,vz, ts, N, f1, f2, locate1):
-    N = f1(x,y,z, vx,vy,vz, ts, N)
-    N = f2(x,y,z, vx,vy,vz, ts, N)
+def intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1, f2, locate1):
+    N1 = f1(x,y,z, vx,vy,vz, ts1, 0)
+    N2 = f2(x,y,z, vx,vy,vz, ts2, 0)
     # remove points not on border
-    N1 = 0
-    for i in range(N):
-        t = ts[i]
+    N = 0
+    for i in range(N1):
+        t = ts1[i]
         if locate1(x+vx*t, y+vy*t, z+vz*t)==onborder:
-            ts[N1] = t
-            N1 += 1
-    return N1
+            ts[N] = t
+            N += 1
+    for i in range(N2):
+        t = ts2[i]
+        if locate1(x+vx*t, y+vy*t, z+vz*t)==onborder:
+            ts[N] = t
+            N += 1
+    return N
 
 @cuda.jit(device=True)
 def remove_item(idx, l, N):
