@@ -48,9 +48,9 @@ class ArrowIntersectFuncFactory:
             t1, t2 = cu_device_intersect_sphere(x,y,z, vx,vy,vz, R)
             if math.isnan(t1):
                 return 0
-            N = insert_into_sorted_list(t1, ts, 0)
-            N = insert_into_sorted_list(t2, ts, N)
-            return N
+            ts[0] = t1
+            ts[1] = t2
+            return 2
         return intersectSphere
 
     def onCylinder(self, cyl):
@@ -61,9 +61,9 @@ class ArrowIntersectFuncFactory:
             t1, t2 = cu_device_intersect_cylinder(x,y,z, vx,vy,vz, R, H)
             if math.isnan(t1):
                 return 0
-            N = insert_into_sorted_list(t1, ts, 0)
-            N = insert_into_sorted_list(t2, ts, N)
-            return N
+            ts[0] = t1
+            ts[1] = t2
+            return 2
         return intersectCylinder
 
 @cuda.jit(device=True)
