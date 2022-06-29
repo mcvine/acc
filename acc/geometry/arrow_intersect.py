@@ -81,7 +81,7 @@ def intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1, f2, locate1):
         t = ts2[i]
         if locate1(x+vx*t, y+vy*t, z+vz*t)==onborder:
             ts[N] = t
-            N += 1
+            N = insert_into_sorted_list(t, ts, N)
     return N
 
 @cuda.jit(device=True)
