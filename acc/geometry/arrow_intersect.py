@@ -10,12 +10,13 @@ inside = location.inside
 outside = location.outside
 onborder = location.onborder
 
+max_intersections = 10
+
 class ArrowIntersectFuncFactory:
 
     def __init__(self):
         from . import locate
         self.locate_func_factory = locate.LocateFuncFactory()
-        self.max_intersections = 10
         return
 
     def render(self, shape):
@@ -26,7 +27,6 @@ class ArrowIntersectFuncFactory:
         s1, s2 = u.shapes
         f1 = s1.identify(self)
         f2 = s2.identify(self)
-        max_intersections = self.max_intersections
         if test.USE_CUDASIM:
             @cuda.jit(device=True, inline=True)
             def intersectUnion(x,y,z, vx,vy,vz, ts, N):
@@ -236,3 +236,6 @@ def cu_device_intersect_cylinder(x,y,z, vx,vy,vz, R, H):
     else: # n=4
         return min(t1, t3), max(t2, t4)
     return
+
+arrow_intersect_func_factory = ArrowIntersectFuncFactory()
+locate_func_factory = arrow_intersect_func_factory.locate_func_factory
