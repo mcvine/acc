@@ -18,10 +18,10 @@ def test_total_time_in_shape():
     assert time_to_enter(ts, 4) == 0
     assert total_time_in_shape(ts, 2)==1
     assert time_to_enter(ts, 2) == 0
-    assert calc_time_to_point_of_scattering(ts, 4, 0.49) == 0.49*2
-    assert calc_time_to_point_of_scattering(ts, 4, 0.51) == 0.51*2 + 1.0
-    assert calc_time_to_point_of_scattering(ts, 4, 0.25) == 0.5
-    assert calc_time_to_point_of_scattering(ts, 4, 0.75) == 2.5
+    assert calc_time_to_point_of_scattering(ts, 4, 0.49) == ( 2.0, 0.49*2, 0.49*2 )
+    assert calc_time_to_point_of_scattering(ts, 4, 0.51) == ( 2.0, 0.51*2 + 1.0, 0.51*2 )
+    assert calc_time_to_point_of_scattering(ts, 4, 0.25) == ( 2.0, 0.5, 0.5)
+    assert calc_time_to_point_of_scattering(ts, 4, 0.75) == ( 2.0, 2.5, 1.5)
     ts = np.array([1, 2])
     assert total_time_in_shape(ts, 2)==1
     assert time_to_enter(ts, 2) == 1
