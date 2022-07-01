@@ -49,7 +49,7 @@ def test_run():
 
 def main():
     test_compile()
-    # test_run()
+    test_run()
     return
 
 if __name__ == '__main__': main()

@@ -23,53 +23,56 @@ NB_FLOAT = get_numba_floattype()
 
 category = 'samples'
 
-from ...geometry import arrow_intersect
-# intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
-# locate = arrow_intersect.locate_func_factory.render(shape)
+def factory(shape, kernel):
+    """
+    Usage:
+    * create a new python module with code to define a new scatterer class
+      that inherits from a base class created using this factory method.
+      see tests/components/samples/HSS_isotropic_sphere.py for an example
+      - ...load shape and kernel...
+      - HSSbase = factory(shape = shape, kernel = None)
+      - class HSS(HSSbase): pass
+    """
+    from ...geometry import arrow_intersect
+    intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
+    locate = arrow_intersect.locate_func_factory.render(shape)
 
-class HomogeneousSingleScatterer(SampleBase):
+    class HomogeneousSingleScatterer(SampleBase):
 
-    def __init__(self, name):
-        """
-        Initialize the isotropicbox component.
+        def __init__(self, name):
+            """
+            Initialize the isotropicbox component.
 
-        Parameters:
-        name (str): the name of this component
-        """
-        self.name = name
-        # self.propagate_params = (intersect, locate)
-        # self.propagate_params = (0,)
-        self.propagate_params = tuple()
+            Parameters:
+            name (str): the name of this component
+            """
+            self.name = name
+            self.propagate_params = ()
 
-        # Aim neutrons toward the sample to cause JIT compilation.
-        import mcni
-        neutrons = mcni.neutron_buffer(1)
-        neutrons[0] = mcni.neutron(r=(0, 0, -1), v=(0, 0, 1), prob=1, time=0)
-        self.process(neutrons)
+            # Aim neutrons toward the sample to cause JIT compilation.
+            import mcni
+            neutrons = mcni.neutron_buffer(1)
+            neutrons[0] = mcni.neutron(r=(0, 0, -1), v=(0, 0, 1), prob=1, time=0)
+            self.process(neutrons)
 
-    @cuda.jit(void(
-        int64, xoroshiro128p_type[:],
-        NB_FLOAT[:],
-    ) , device=True)
-    def propagate(
-            threadindex, rng_states,
-            neutron
-    ):
-        x, y, z, vx, vy, vz = neutron[:6]
-        """
-        loc = locate(x,y,z)
-        ts = cuda.local.array(max_intersections, dtype=numba.float64)
-        ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
-        if ninter < 2: return
-        if ts[ninter-1] <= 0: return
-        rand = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        dt = calc_time_to_point_of_scattering(ts, ninter, rand)
-        if dt<=0: return
-        # propagate to scattering point
-        prop_dt_inplace(neutron, dt)
-        """
-        return
+        @cuda.jit(
+            void(int64, xoroshiro128p_type[:], NB_FLOAT[:],
+        ) , device=True)
+        def propagate(threadindex, rng_states, neutron):
+            x, y, z, vx, vy, vz = neutron[:6]
+            # loc = locate(x,y,z)
+            ts = cuda.local.array(max_intersections, dtype=numba.float64)
+            ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
+            if ninter < 2: return
+            if ts[ninter-1] <= 0: return
+            rand = xoroshiro128p_uniform_float32(rng_states, threadindex)
+            dt = calc_time_to_point_of_scattering(ts, ninter, rand)
+            if dt<=0: return
+            # propagate to scattering point
+            prop_dt_inplace(neutron, dt)
+            return
 
+    return HomogeneousSingleScatterer
 
 if test.USE_CUDASIM:
     @cuda.jit(device=True, inline=True)
@@ -77,7 +80,7 @@ if test.USE_CUDASIM:
         "compute the time to travel to the point for scattering"
         tpartialsums = np.zeros(max_intersections, dtype=np.float64)
         tpartialsums_include_gaps = np.zeros(max_intersections, dtype=np.float64)
-        return  _calc_time_to_point_of_scattering_impl(
+        return _calc_time_to_point_of_scattering_impl(
             ts, ninter, rand, tpartialsums, tpartialsums_include_gaps)
 else:
     @cuda.jit(device=True, inline=True)
@@ -85,8 +88,8 @@ else:
         "compute the time to travel to the point for scattering"
         tpartialsums = cuda.local.array(max_intersections, dtype=numba.float64)
         tpartialsums_include_gaps = cuda.local.array(max_intersections, dtype=numba.float64)
-        return  _calc_time_to_point_of_scattering_impl(
-            ts, ninter, 1.0*rand, tpartialsums, tpartialsums_include_gaps)
+        return _calc_time_to_point_of_scattering_impl(
+            ts, ninter, rand, tpartialsums, tpartialsums_include_gaps)
 
 @cuda.jit(device=True)
 def _calc_time_to_point_of_scattering_impl(

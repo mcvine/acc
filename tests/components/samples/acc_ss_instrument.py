@@ -2,8 +2,7 @@
 
 import os, mcvine
 from mcvine.acc.components.sources.source_simple import Source_simple
-from mcvine.acc.components.samples.homogeneous_single_scatterer import HomogeneousSingleScatterer
-# from mcvine.acc.components.samples.homogeneous_single_scatterer import factory
+from HSS_isotropic_sphere import HSS
 thisdir = os.path.dirname(__file__)
 
 def instrument():
@@ -18,12 +17,7 @@ def instrument():
     )
     instrument.append(source, position=(0,0,0.))
 
-    path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
-    from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
-    hs = loadFirstHomogeneousScatterer(path)
-    shape = hs.shape()
-    # sample = factory(shape = shape, kernel = None)('sample')
-    sample = HomogeneousSingleScatterer('sample')
+    sample = HSS('sample')
     instrument.append(sample, position=(0,0,1.))
 
     return instrument
