@@ -66,10 +66,33 @@ def factory(shape, kernel):
             if ninter < 2: return
             if ts[ninter-1] <= 0: return
             rand = xoroshiro128p_uniform_float32(rng_states, threadindex)
-            dt = calc_time_to_point_of_scattering(ts, ninter, rand)
+            total_time_in_shape1, total_time_travel_to_scattering_point, time_travelled_in_shape_to_scattering_point = calc_time_to_point_of_scattering(ts, ninter, rand)
+            dt = total_time_travel_to_scattering_point
             if dt<=0: return
             # propagate to scattering point
             prop_dt_inplace(neutron, dt)
+            # calc attenuation
+            v = sqrt(vx*vx+vy*vy+vz*vz)
+            dist = v*time_travelled_in_shape_to_scattering_point
+            fulllen = v*total_time_in_shape1
+            mu = 1.
+            sigma = 1.
+            atten = exp( -(mu/v*2200+sigma) * dist )
+            prob = sigma * fulllen * atten
+            # prob *= sum_of_weights/m_weights.scattering;
+            neutron[-1] *= prob
+            # kernel
+            # scatter(threadindex, rng_states, neutron)
+            # ev.probability *= packing_factor;
+            if neutron[-1] <=0:
+                absorb(neutron)
+                return
+            # find exiting time
+            x, y, z, vx, vy, vz = neutron[:6]
+            ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
+            dt3 = total_time_in_shape(ts, ninter)
+            atten2 = exp( -(mu/v*2200+sigma) * v * dt3 )
+            neutron[-1] *= atten2
             return
 
     return HomogeneousSingleScatterer
@@ -94,6 +117,12 @@ else:
 @cuda.jit(device=True)
 def _calc_time_to_point_of_scattering_impl(
         ts, ninter, rand, tpartialsums, tpartialsums_include_gaps):
+    """given intersection time array ts (size=ninter), and random number rand
+    (0<=rand<=1), compute a few time variables.
+    * total_time_in_shape: assume the particle goes through the shape all the way, the total amount of time spent in the shape
+    * time_travelled_in_shape_to_scattering_point: the scattering point is computed from total_time_in_shape and the given random number. this variable is the total time for the particle to travel within the shape to the scattering point (time spent in gaps is not included)
+    * total_time_travel_to_scattering_point: total time for the particle to travel to the scattering point. time spent thru gaps is included
+    """
     assert ninter%2 == 0
     # compute total time in shape and prepare partial sum
     T = 0.0; time_to_enter = -1.0 # is this needed?
@@ -122,8 +151,8 @@ def _calc_time_to_point_of_scattering_impl(
         if ttistsp < tpartialsums[i]:
             break
     # print(ttistsp, i, tpartialsums, tpartialsums_include_gaps)
-    total_time_travel = ttistsp - tpartialsums[i] + tpartialsums_include_gaps[i]
-    return total_time_travel
+    total_time_travel_to_scattering_point = ttistsp - tpartialsums[i] + tpartialsums_include_gaps[i]
+    return total_time_in_shape, total_time_travel_to_scattering_point, time_travelled_in_shape_to_scattering_point
 
 @cuda.jit(device=True)
 def total_time_in_shape(ts, ninter):
