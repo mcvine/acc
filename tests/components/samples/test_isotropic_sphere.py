@@ -38,6 +38,8 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
 
 
 def main():
+    import journal
+    journal.info("instrument").activate()
     test_compare_mcvine(num_neutrons=int(1e7), interactive=True)
     # test_compare_mcvine(num_neutrons=int(100), interactive=True, debug=True)
     # test1()
