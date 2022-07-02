@@ -36,6 +36,10 @@ def factory(shape, kernel):
     from ...geometry import arrow_intersect
     intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
     locate = arrow_intersect.locate_func_factory.render(shape)
+    from . import getAbsScttCoeffs
+    mu, sigma = getAbsScttCoeffs(kernel)
+    from ...kernels import scatter_func_factory
+    scatter = scatter_func_factory.render(kernel)
 
     class HomogeneousSingleScatterer(SampleBase):
 
@@ -75,14 +79,12 @@ def factory(shape, kernel):
             v = sqrt(vx*vx+vy*vy+vz*vz)
             dist = v*time_travelled_in_shape_to_scattering_point
             fulllen = v*total_time_in_shape1
-            mu = 1.
-            sigma = 1.
             atten = exp( -(mu/v*2200+sigma) * dist )
             prob = sigma * fulllen * atten
             # prob *= sum_of_weights/m_weights.scattering;
             neutron[-1] *= prob
             # kernel
-            # scatter(threadindex, rng_states, neutron)
+            scatter(threadindex, rng_states, neutron)
             # ev.probability *= packing_factor;
             if neutron[-1] <=0:
                 absorb(neutron)

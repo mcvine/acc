@@ -6,5 +6,6 @@ path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleasse
 from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
 hs = loadFirstHomogeneousScatterer(path)
 shape = hs.shape()
-HSSbase = factory(shape = shape, kernel = None)
+kernel = hs.kernel()
+HSSbase = factory(shape = shape, kernel = kernel)
 class HSS(HSSbase): pass
