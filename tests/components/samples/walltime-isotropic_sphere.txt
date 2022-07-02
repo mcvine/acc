@@ -1,0 +1,7 @@
+ncount  nonacc   acc 
+1e5     0.283    0.03
+1e6     2.89     0.31
+1e7     28.6     1.07
+1e8     284.     8.54
+
+# ncount < 1e8 numbers come from test_isotropic_sphere.py with timing code in mcni.instrument_simulator.SimulationNode.SimulationNode._createProcessor
