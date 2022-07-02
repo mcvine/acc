@@ -17,6 +17,7 @@ def loadScattererComposite(sampleassembly_xml):
 
     scatterercomposite = findkernelsfromxmls(
         sampleassembly2compositescatterer( sa ) )
+    os.chdir(save)
 
     return scatterercomposite
 
