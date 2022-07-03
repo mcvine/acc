@@ -1,6 +1,6 @@
-ncounts: [1e6]
+ncounts: [1e6, 1e7, 1e8]
 iterations: 2
-output_file: "./hss_isotropic_sphere_sample_timings.txt"
+output_file: "./speedtest_hss_isotropic_sphere_sample.txt"
 scripts:
   - name: "acc_run"
     file: "speedtest_instrument_for_hss_isotropic_sphere_sample.py"
