@@ -17,7 +17,7 @@ def default_source():
         flux=1, gauss=False, N=1
     )
 
-def instrument(source_factory=None, monitor_factory=None):
+def instrument(source_factory=None, monitor_factory=None, monitor_z=5):
     if monitor_factory is None:
         raise RuntimeError("missing monitor_factory!")
     instrument = mcvine.instrument()
@@ -26,5 +26,5 @@ def instrument(source_factory=None, monitor_factory=None):
     instrument.append(source, position=(0,0,0.))
 
     mon = monitor_factory()
-    instrument.append(mon, position=(0,0,5))
+    instrument.append(mon, position=(0,0,monitor_z))
     return instrument
