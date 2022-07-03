@@ -1,0 +1,15 @@
+ncounts: [1e6]
+iterations: 2
+output_file: "./hss_isotropic_sphere_sample_timings.txt"
+scripts:
+  - name: "acc_run"
+    file: "speedtest_instrument_for_hss_isotropic_sphere_sample.py"
+    kwds: 
+      use_acc_components: true
+      threads_per_block: 256
+    acc_run: true
+  - name: "nonacc_run"
+    file: "speedtest_instrument_for_hss_isotropic_sphere_sample.py"
+    kwds: 
+      use_acc_components: false
+    acc_run: false
