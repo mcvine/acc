@@ -67,7 +67,11 @@ class PSD_monitor_4Pi(base):
         phi = math.atan2(x,z)
         theta = math.asin(y/radius)
         iphi = int(nphi*(phi/2/math.pi+0.5))
+        if iphi>=nphi: iphi = nphi-1
+        elif iphi < 0: iphi = 0
         itheta = int(ntheta*(theta+math.pi/2)/math.pi+0.5)
+        if itheta>=ntheta: itheta = ntheta-1
+        elif itheta < 0: itheta = 0
         p = neutron[-1]
         cuda.atomic.add(out, (0, iphi, itheta), 1)
         cuda.atomic.add(out, (1, iphi, itheta), p)
