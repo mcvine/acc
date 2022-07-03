@@ -5,3 +5,4 @@ ncount	acc_run	nonacc_run  MPI_50_cores
 1e8   	1.2225	497.3939    24.9979
 1e9   	4.3181  nan         145.0943
 1e10  	35.0876 nan         nan
+1e11  	343.191 nan         nan
