@@ -4,6 +4,10 @@ from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
 @cuda.jit(device=True, inline=True)
+def dot(v1, v2):
+    return v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2]
+
+@cuda.jit(device=True, inline=True)
 def cross(v1, v2, vout):
     vout[0] = v1[1]*v2[2]-v1[2]*v2[1]
     vout[1] = v1[2]*v2[0]-v1[0]*v2[2]

@@ -3,7 +3,7 @@ import numpy as np, math, numba
 from numba import cuda
 # import cupy as cp
 
-epsilon = 1e-15
+from . import epsilon
 
 @cuda.jit(
     """float32(float32, float32, float32, float32, float32, float32,
