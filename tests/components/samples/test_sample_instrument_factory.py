@@ -1,13 +1,35 @@
 # -*- python -*-
 
 def construct(
-        component, size, gap=0.,
+        component, size, z_sample=1.,
         monitors=["PSD_4PI"],
-        **kwds
+        save_neutrons_before=False, save_neutrons_after=False,
 ):
+    """
+    implementation revised from mcvine.acc.tests.instrument_factory.construct
+    """
     builder = Builder()
-    from mcvine.acc.test.instrument_factory import construct
-    return construct(component, size, gap, monitors=monitors, builder=builder, **kwds)
+    # source
+    builder.add(builder.get_source(), gap=z_sample)
+
+    # instrument
+    if save_neutrons_before:
+        before = mc.monitors.NeutronToStorage(
+            name=f"before_{component.name}",
+            path=f"before_{component.name}.mcv")
+        builder.add(before, gap=0)
+    builder.add(component, gap=0)
+    if save_neutrons_after:
+        after = mc.monitors.NeutronToStorage(
+            name=f"after_{component.name}",
+            path=f"after_{component.name}.mcv")
+        builder.add(after, gap=0)
+
+    # monitors
+    for mon in monitors:
+        method = getattr(builder, f'add{mon}Monitor')
+        method()
+    return builder.instrument
 
 from mcvine.acc.test.instrument_factory import InstrumentBuilder as base
 
@@ -30,6 +52,4 @@ class Builder(base):
         mon = self.get_monitor(
             subtype="PSD_monitor_4PI", name = "psd_4pi",
             nx=30, ny=30, radius=3)
-        self.add(mon)
-
-
+        self.add(mon, gap=0)

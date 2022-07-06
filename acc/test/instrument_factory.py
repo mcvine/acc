@@ -8,9 +8,9 @@ specialized instrument builder for testing individual component.
 
 It consists of
 
-* source
-* component to test
-* multiple monitors
+* source at z=0
+* component to test at z=gap
+* multiple monitors at z=2*gap+size_of_component
 """
 
 import mcvine.components

@@ -53,7 +53,6 @@ def compare_acc_nonacc(
         overwrite_datafiles=True,
         **nonacc_component_spec
     )
-
     # Run our accelerated implementation
     outdir = f"out.debug-{classname}_gpu_instrument"
     if os.path.exists(outdir):
@@ -73,7 +72,9 @@ def compare_acc_nonacc(
     # Compare output files
     tolerance = tolerances[floattype]
     for monitor in monitors:
-        mcvine = hh.load(os.path.join(mcvine_outdir, monitor + ".h5"))
+        mcvine_hist_fn = os.path.join(mcvine_outdir, monitor + ".h5")
+        assert os.path.exists(mcvine_hist_fn), "Missing histogram {}".format(mcvine_hist_fn)
+        mcvine = hh.load(mcvine_hist_fn)
         mcvine_acc = hh.load(os.path.join(outdir, monitor + ".h5"))
         if interactive:
             from histogram import plot as plotHist
