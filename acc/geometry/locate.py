@@ -34,6 +34,17 @@ class LocateFuncFactory:
             return cu_device_locate_wrt_cylinder(x,y,z, R, H)
         return locateWrtCylinder
 
+    def onBox(self, b):
+        W = b.width / units.length.meter
+        H = b.height / units.length.meter
+        D = b.thickness / units.length.meter
+
+        @cuda.jit(device=True, inline=True)
+        def locateWrtBox(x, y, z):
+            return cu_device_locate_wrt_box(x, y, z, W, H, D)
+
+        return locateWrtBox
+
 # device functions for operations
 @cuda.jit(device=True)
 def cu_device_locate_wrt_union(x, y, z, f1, f2):
@@ -72,3 +83,21 @@ def cu_device_locate_wrt_cylinder(x,y,z, R, H):
         return inside
     return onborder
 
+@cuda.jit(device=True, inline=True)
+def cu_device_locate_wrt_box(x, y, z, W, H, D):
+    if (abs(x) - 0.5 * W > epsilon):
+        return outside
+
+    if (abs(y) - 0.5 * H > epsilon):
+        return outside
+
+    if (abs(z) - 0.5 * D > epsilon):
+        return outside
+
+    # check whether point is within bounds
+    if ((-0.5 * W < x < 0.5 * W) and
+            (-0.5 * H < y < 0.5 * H) and
+            (-0.5 * D < z < 0.5 * D)):
+        return inside
+
+    return onborder
