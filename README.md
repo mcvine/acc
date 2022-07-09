@@ -8,10 +8,8 @@ Accelerated mcvine engine
 Install mcvine
 ```
 $ conda config --add channels conda-forge 
-$ conda config --add channels diffpy 
-$ conda config --add channels mantid 
 $ conda config --add channels mcvine 
-$ conda install python=3.8 mcvine=1.4.4 
+$ conda install python=3.8 mcvine=1.4.5 
 ```
 
 Install dependencies
