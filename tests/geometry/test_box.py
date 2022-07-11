@@ -11,7 +11,20 @@ from mcvine.acc.geometry import locate, location
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_cu_device_locate_wrt_box():
     assert locate.cu_device_locate_wrt_box(0, 0, 0, 0.02, 0.03, 0.04) == location.inside
+    assert locate.cu_device_locate_wrt_box(0.009, 0, 0, 0.02, 0.03, 0.04) == location.inside
+    assert locate.cu_device_locate_wrt_box(0, 0.0149, 0, 0.02, 0.03, 0.04) == location.inside
+    assert locate.cu_device_locate_wrt_box(0, 0, 0.0199, 0.02, 0.03, 0.04) == location.inside
+    assert locate.cu_device_locate_wrt_box(0.009, 0.0149, 0.0199, 0.02, 0.03, 0.04) == location.inside
+    assert locate.cu_device_locate_wrt_box(-0.009, -0.0149, -0.0199, 0.02, 0.03, 0.04) == location.inside
+
     assert locate.cu_device_locate_wrt_box(0.01, 0, 0, 0.02, 0.03, 0.04) == location.onborder
+    assert locate.cu_device_locate_wrt_box(0, 0.015, 0, 0.02, 0.03, 0.04) == location.onborder
+    assert locate.cu_device_locate_wrt_box(0, 0, 0.02, 0.02, 0.03, 0.04) == location.onborder
+    assert locate.cu_device_locate_wrt_box(0.01, 0.015, 0.02, 0.02, 0.03, 0.04) == location.onborder
+
     assert locate.cu_device_locate_wrt_box(0.0101, 0, 0, 0.02, 0.03, 0.04) == location.outside
+    assert locate.cu_device_locate_wrt_box(0, 0.0201, 0, 0.02, 0.03, 0.04) == location.outside
+    assert locate.cu_device_locate_wrt_box(0, 0, 0.0301, 0.02, 0.03, 0.04) == location.outside
+    assert locate.cu_device_locate_wrt_box(0.0101, 0.0201, 0.0301, 0.02, 0.03, 0.04) == location.outside
 
     return
