@@ -4,6 +4,7 @@ from mcni import units
 from math import sqrt
 from ..vec3 import dot
 from .. import test
+from .onbox import cu_device_intersect_box
 
 from . import epsilon, location
 inside = location.inside
@@ -65,6 +66,22 @@ class ArrowIntersectFuncFactory:
             ts[1] = t2
             return 2
         return intersectCylinder
+
+    def onBox(self, box):
+        W = box.width / units.length.meter
+        H = box.height / units.length.meter
+        D = box.thickness / units.length.meter
+
+        @cuda.jit(device=True, inline=True)
+        def intersectBox(x, y, z, vx, vy, vz, ts, N):
+            t1, t2 = cu_device_intersect_box(x, y, z, vx, vy, vz, W, H, D)
+            if math.isnan(t1):
+                return 0
+            ts[0] = t1
+            ts[1] = t2
+            return 2
+
+        return intersectBox
 
 @cuda.jit(device=True)
 def intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1, f2, locate1):
