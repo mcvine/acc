@@ -45,6 +45,16 @@ class LocateFuncFactory:
 
         return locateWrtBox
 
+    def onDifference(self, s):
+        f1 = s.op1.identify(self)
+        f2 = s.op2.identify(self)
+
+        @cuda.jit(device=True, inline=True)
+        def locateWrtDifference(x, y, z):
+            return cu_device_locate_wrt_difference(x, y, z, f1, f2)
+
+        return locateWrtDifference
+
 # device functions for operations
 @cuda.jit(device=True)
 def cu_device_locate_wrt_union(x, y, z, f1, f2):
@@ -101,3 +111,15 @@ def cu_device_locate_wrt_box(x, y, z, W, H, D):
         return inside
 
     return onborder
+
+
+@cuda.jit(device=True, inline=True)
+def cu_device_locate_wrt_difference(x, y, z, f1, f2):
+    p1 = f1(x, y, z)
+    p2 = f2(x, y, z)
+    if p1 == outside or p2 == inside:
+        return outside
+    elif p1 == onborder or p2 == onborder:
+        return onborder
+    else:
+        return inside
