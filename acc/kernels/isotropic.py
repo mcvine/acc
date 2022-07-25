@@ -3,7 +3,7 @@ from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
 from math import sqrt, pi, sin, cos
 
 @cuda.jit(device=True)
-def scatter(threadindex, rng_states, neutron):
+def S(threadindex, rng_states, neutron):
     "isotropic scattering kernel with a uniform sampling of 4pi solid angle"
     # randomly pick direction
     cos_t = xoroshiro128p_uniform_float32(rng_states, threadindex)*2-1
@@ -22,7 +22,7 @@ def scatter(threadindex, rng_states, neutron):
 
 
 @cuda.jit(device=True)
-def scatter2(threadindex, rng_states, neutron):
+def S_impl2(threadindex, rng_states, neutron):
     "isotropic scattering kernel with a uniform sampling of the polar angle and azimuthal angle"
     # randomly pick direction
     theta = xoroshiro128p_uniform_float32(rng_states, threadindex)*pi

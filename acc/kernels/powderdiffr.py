@@ -125,7 +125,7 @@ class PowderDiffraction:
         my_s_v2 = np.zeros(Npeaks)
         for i in range(Npeaks):
             dw = peaks[i].DebyeWaller_factor
-            dw = dw if dw else 1.0
+            dw = dw if dw>0 else 1.0
             my_s_v2[i] = 4*pi*pi*pi*pack*dw/unitcell_volume/(V2K*V2K)
             my_s_v2[i] *= (peaks[i].multiplicity * peaks[i].F_squared / peaks[i].q) *XsectionFactor; 
             # unit is cross_section * v**2
@@ -136,6 +136,7 @@ class PowderDiffraction:
             w_v[i] = peaks[i].intrinsic_line_width
             #  make sure the list is sorted
             if i>0: assert(q_v[i-1] <= q_v[i])
+            # print(i, my_s_v2[i])
             continue
 
         # coherent cross section is calculated under scattering_coefficient function, as it depends on the incident neutron velocity.

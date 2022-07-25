@@ -63,8 +63,8 @@ def main():
     journal.info("instrument").activate()
     # test1()
     # test_compare_mcvine(num_neutrons=int(100), interactive=True, debug=True)
-    # test_compare_mcvine(num_neutrons=int(1e7), interactive=True)
-    test_acc_run_script(ncount=1e7)
+    test_compare_mcvine(num_neutrons=int(1e7), interactive=True)
+    # test_acc_run_script(ncount=1e7)
     return
 
 
