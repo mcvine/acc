@@ -4,13 +4,16 @@ def construct(
         component, size, z_sample=1.,
         monitors=["PSD_4PI"],
         save_neutrons_before=False, save_neutrons_after=False,
+        source_params=None,
+        builder = None,
 ):
     """
     implementation revised from mcvine.acc.tests.instrument_factory.construct
     """
-    builder = Builder()
+    builder = builder or Builder()
     # source
-    builder.add(builder.get_source(), gap=z_sample)
+    source_params = source_params or dict()
+    builder.add(builder.get_source(**source_params), gap=z_sample)
 
     # instrument
     if save_neutrons_before:
@@ -36,7 +39,9 @@ from mcvine.acc.test.instrument_factory import InstrumentBuilder as base
 class Builder(base):
 
     @classmethod
-    def get_source(cls):
+    def get_source(
+            cls, Lambda0=10., dLambda=9.5
+    ):
         """
         Construct a source.
         """
@@ -45,7 +50,7 @@ class Builder(base):
             name='source',
             radius=0., width=0.01, height=0.01, dist=1.,
             xw=0.008, yh=0.008,
-            Lambda0=10., dLambda=9.5
+            Lambda0 = Lambda0, dLambda = dLambda,
         )
 
     def addPSD_4PIMonitor(self):
