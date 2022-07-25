@@ -1,4 +1,4 @@
-import math, numpy as np
+import math, numpy as np, numba
 from numba import cuda
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
@@ -108,6 +108,7 @@ if test.USE_CUDASIM:
         return _rotate(
             v, c, angle, c1, v_pl, v_pp, e3, v_pp_r, epsilon)
 else:
+    @cuda.jit(device=True, inline=True)
     def rotate(v, c, angle, epsilon=1e-7):
         c1 = cuda.local.array(3, dtype=numba.float64)
         v_pl = cuda.local.array(3, dtype=numba.float64)
