@@ -177,6 +177,45 @@ def test_union_example2_kernel():
     np.testing.assert_allclose(intersections[:, :2], expected)
     return
 
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_difference_example1():
+    parsed = parse_file(os.path.join(thisdir, 'difference_example1.xml'))
+    difference = parsed[0]
+    f = locate.LocateFuncFactory()
+    devf_locate = f.render(difference)
+    # test shape is sphere - cylinder: all points in cylinder should be outside shape
+    assert devf_locate(0, 0, 0) == location.outside
+    assert devf_locate(0, 0, 0.03) == location.outside
+    assert devf_locate(0, 0, 0.049999) == location.outside
+    assert devf_locate(0, 0, 0.05) == location.outside
+    assert devf_locate(0, 0, 0.10) == location.outside
+
+    # test that edges of the cylinder inside sphere are on-border
+    assert devf_locate(0, 0.01, 0) == location.onborder
+    assert devf_locate(0.01, 0, 0) == location.onborder
+    assert devf_locate(0, 0.01, 0.025 * math.sin(math.acos(0.01 / 0.025))) == location.onborder
+    assert devf_locate(0.01, 0, 0.025 * math.sin(math.acos(0.01 / 0.025))) == location.onborder
+
+    assert devf_locate(0, 0.0249999, 0) == location.inside
+    assert devf_locate(0, 0.025, 0) == location.onborder
+    assert devf_locate(0, 0.0250001, 0) == location.outside
+
+    f = arrow_intersect.ArrowIntersectFuncFactory()
+    devf_arrow_intersect = f.render(difference)
+    ts = np.zeros(10)
+    # ray intersection through Z should miss entirely
+    N = devf_arrow_intersect(0, 0, 0, 0, 0, 1.0, ts, 0)
+    assert N == 0
+
+    # ray intersection to +X should hit 4 times:
+    # -X sphere edge, inner left and right side of inside hollow cylinder, then +X sphere edge
+    N = devf_arrow_intersect(0, 0, 0, 1.0, 0, 0, ts, 0)
+    assert N == 4
+    np.testing.assert_allclose(ts[:N], [-0.025, -0.01, 0.01, 0.025])
+    return
+
+
 def main():
     test_union_example2()
     return
