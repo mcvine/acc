@@ -26,8 +26,8 @@ def loadFirstHomogeneousScatterer(sampleassembly_xml):
     return sc.elements()[0]
 
 def getAbsScttCoeffs(kernel):
-    abs = kernel.absorption_coefficient
-    sctt = kernel.scattering_coefficient
+    abs = getattr(kernel, "absorption_coefficient", None)
+    sctt = getattr(kernel, "scattering_coefficient", None)
 
     if abs is None or sctt is None:
         #need to get cross section from sample assembly representation
