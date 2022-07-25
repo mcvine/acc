@@ -14,7 +14,13 @@ def test_rotate():
     c = np.array([0, 1., 0])
     angle = math.pi/2
     vec3.rotate(v, c, angle)
-    np.allclose(v, [0,0,-1])
+    assert np.allclose(v, [0,0,-1])
+    vec3.rotate(v, np.array([0,0,1]), math.pi/3)
+    assert np.allclose(v, [0,0,-1])
+    vec3.rotate(v, np.array([1,0,0]), math.pi)
+    assert np.allclose(v, [0,0,1])
+    vec3.rotate(v, np.array([1,0,0]), math.pi/3)
+    assert np.allclose(v, [0,-math.sqrt(3)/2,1./2])
     return
 
 def main():
