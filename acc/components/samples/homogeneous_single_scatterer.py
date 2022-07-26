@@ -39,7 +39,11 @@ def factory(shape, kernel):
     from . import getAbsScttCoeffs
     mu, sigma = getAbsScttCoeffs(kernel)
     from ...kernels import scatter_func_factory
-    scatter = scatter_func_factory.render(kernel)
+    scatter, calc_scattering_coeff = scatter_func_factory.render(kernel)
+    if calc_scattering_coeff is None:
+        @cuda.jit(device=True)
+        def calc_scattering_coeff(neutron):
+            return sigma
 
     class HomogeneousSingleScatterer(SampleBase):
 
@@ -79,8 +83,9 @@ def factory(shape, kernel):
             v = sqrt(vx*vx+vy*vy+vz*vz)
             dist = v*time_travelled_in_shape_to_scattering_point
             fulllen = v*total_time_in_shape1
+            sigma = calc_scattering_coeff(neutron)
             atten = exp( -(mu/v*2200+sigma) * dist )
-            prob = sigma * fulllen * atten
+            prob = fulllen * atten  # Xsigma is now part of scatter method
             # prob *= sum_of_weights/m_weights.scattering;
             neutron[-1] *= prob
             # kernel
@@ -93,6 +98,7 @@ def factory(shape, kernel):
             x, y, z, vx, vy, vz = neutron[:6]
             ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
             dt3 = total_time_in_shape(ts, ninter)
+            sigma = calc_scattering_coeff(neutron)
             atten2 = exp( -(mu/v*2200+sigma) * v * dt3 )
             neutron[-1] *= atten2
             return
