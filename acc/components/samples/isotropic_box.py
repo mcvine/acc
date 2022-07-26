@@ -11,7 +11,7 @@ from math import sqrt, exp
 from .SampleBase import SampleBase
 from ...neutron import absorb, prop_dt_inplace
 from ...geometry.onbox import cu_device_intersect_box
-from ...kernels.isotropic import scatter
+from ...kernels.isotropic import S as kernel
 
 from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
@@ -85,7 +85,7 @@ class IsotropicBox(SampleBase):
         # neutron is now at the location for scattering
         prop_dt_inplace( neutron, dt )
         # kernel
-        scatter(threadindex, rng_states, neutron)
+        kernel(threadindex, rng_states, neutron)
         # ev.probability *= packing_factor;
         if neutron[-1] <=0:
             absorb(neutron)
