@@ -190,3 +190,30 @@ def _getRelevantKwds(method, kwds):
             d[a] = kwds[a]
             del kwds[a]
     return d
+
+import click
+@click.command()
+@click.argument("script")
+@click.option("--workdir", default="output", help="work directory")
+@click.option("--ncount", default=int(1e6), help="neutron count")
+@click.option("--overwrite_datafiles", default=False, help="overwrite datafiles", is_flag=True)
+@click.option("--total_threads", default=int(1e6), help="number of total CUDA threads")
+@click.option("--threads_per_block", default=512, help="number of threads per block")
+@click.option("--additional-kargs", default=None, help='addiontal kwd args in a yaml file')
+def main(
+        script, workdir, ncount,
+        overwrite_datafiles=False,
+        total_threads=None, threads_per_block=None,
+        additional_kargs = None,
+):
+    if additional_kargs:
+        kwds = yaml.safe_load(open(additional_kargs))
+    else:
+        kwds = dict()
+    run(script, workdir, ncount,
+        overwrite_datafiles=overwrite_datafiles,
+        ntotalthreads=total_threads, threads_per_block=threads_per_block,
+        **kwds)
+    return
+
+if __name__ == '__main__': main()
