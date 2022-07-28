@@ -52,6 +52,8 @@ Parameters:
             if isinstance(comp, StochasticComponentBase)
             else ""
         )
+        if getattr(comp.__class__, 'requires_neutron_index_in_processing', False):
+            prefix += "neutron_index, "
         if i>0:
             body.append("abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(i-1, i-1))
         body.append("propagate{}({} neutron, *args{})".format(i, prefix, i))
@@ -131,7 +133,7 @@ def process_kernel_no_buffer(
     neutron = cuda.local.array(shape=10, dtype=NB_FLOAT)
     r = cuda.local.array(3, dtype=NB_FLOAT)
     v = cuda.local.array(3, dtype=NB_FLOAT)
-    for i in range(start_index, end_index):
+    for neutron_index in range(start_index, end_index):
 {propagate_body}
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
