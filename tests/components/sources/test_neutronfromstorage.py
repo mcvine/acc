@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, pytest
+import os, pytest, numpy as np
 thisdir = os.path.dirname(__file__)
 from mcvine.acc import test
 
@@ -28,8 +28,11 @@ def test_component_no_buffer(N=10):
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_component():
     neutrons = src.process(neutron_buffer(10))
-    for n in neutrons:
-        print(n)
+    from mcni.neutron_storage import neutrons_as_npyarr
+    arr = neutrons_as_npyarr(neutrons)
+    arr.shape = -1, 10
+    for n in arr:
+        assert np.allclose(n, np.arange(10.))
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
@@ -38,7 +41,7 @@ def test_component_long(ncount = 1e6):
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_component_long_with_monitors(ncount = 1e6):
+def test_component_with_monitors(ncount = 10):
     instr = os.path.join(thisdir, "src_psdmon.py")
     outdir = 'out.debug-acc_neutronfromstorage'
     ncount = int(ncount)
@@ -59,10 +62,9 @@ def test_component_long_with_monitors(ncount = 1e6):
 def main():
     # test_component_no_buffer(N=5)
     # test_component_no_buffer(N=1e8)
-    # test_component()
+    test_component()
     # test_component_long(1e7)
-    test_component_long_with_monitors(10)
-    # test_component_long_with_monitors(1e7)
+    # test_component_with_monitors(10)
     return
 
 if __name__ == '__main__': main()
