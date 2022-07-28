@@ -12,7 +12,8 @@ NB_FLOAT = get_numba_floattype()
 
 category = 'sources'
 
-
+# need slightly different process_kernel... methods because it needs neutron index.
+# probably should consider creating a base class for such components
 def make_process_kernel_no_buffer(propagate):
     @cuda.jit()
     def process_kernel_no_buffer(rng_states, N, n_neutrons_per_thread, args):
