@@ -101,6 +101,25 @@ class ArrowIntersectFuncFactory:
                 return intersectComposite(x, y, z, vx, vy, vz, ts, N, ts1, ts2, f1, f2, locate1)
         return intersectDifference
 
+    def onIntersection(self, u):
+        locate1 = self.locate_func_factory.onIntersection(u)
+        s1, s2 = u.shapes
+        f1 = s1.identify(self)
+        f2 = s2.identify(self)
+        if test.USE_CUDASIM:
+            @cuda.jit(device=True, inline=True)
+            def intersectIntersection(x, y, z, vx, vy, vz, ts, N):
+                ts1 = np.zeros(max_intersections, dtype=float)
+                ts2 = np.zeros(max_intersections, dtype=float)
+                return intersectComposite(x, y, z, vx, vy, vz, ts, N, ts1, ts2, f1, f2, locate1)
+        else:
+            @cuda.jit(device=True, inline=True)
+            def intersectIntersection(x, y, z, vx, vy, vz, ts, N):
+                ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
+                ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
+                return intersectComposite(x, y, z, vx, vy, vz, ts, N, ts1, ts2, f1, f2, locate1)
+        return intersectIntersection
+
 
 @cuda.jit(device=True)
 def intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1, f2, locate1):

@@ -210,6 +210,7 @@ def test_difference_example1():
 
     # ray intersection to +X should hit 4 times:
     # -X sphere edge, inner left and right side of inside hollow cylinder, then +X sphere edge
+    ts = np.zeros(10)
     N = devf_arrow_intersect(0, 0, 0, 1.0, 0, 0, ts, 0)
     assert N == 4
     np.testing.assert_allclose(ts[:N], [-0.025, -0.01, 0.01, 0.025])
@@ -304,6 +305,131 @@ def test_difference_example1_kernel():
     intersect_kernel[nblocks, threadsperblock](
         points, velocities, intersections, nintersections)
     for i in range(npts):
+        np.testing.assert_allclose(intersections[i, :nintersections[i]], expected[i])
+    return
+
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_intersection_example1():
+    parsed = parse_file(os.path.join(thisdir, 'intersection_example1.xml'))
+    intersection = parsed[0]
+    f = locate.LocateFuncFactory()
+    devf_locate = f.render(intersection)
+    assert devf_locate(0, 0, 0) == location.inside
+    assert devf_locate(0, 0, 0.03) == location.outside
+    assert devf_locate(0, 0, 0.025) == location.onborder
+    assert devf_locate(0, 0, 0.05) == location.outside
+    assert devf_locate(0, 0, 0.050001) == location.outside
+    assert devf_locate(0, 0.00999, 0) == location.inside
+    assert devf_locate(0, 0.01, 0) == location.onborder
+    assert devf_locate(0, 0.010001, 0) == location.outside
+    f = arrow_intersect.ArrowIntersectFuncFactory()
+    devf_arrow_intersect = f.render(intersection)
+    ts = np.zeros(10)
+
+    # ray intersection to +Z should hit top and bottom of cylinder at sphere radius
+    N = devf_arrow_intersect(0, 0, 0, 0, 0, 1., ts, 0)
+    assert N == 2
+    np.testing.assert_allclose(ts[:N], [-0.025, 0.025])
+
+    # ray intersection to +X should hit internal cylinder
+    ts = np.zeros(10)
+    N = devf_arrow_intersect(0, 0, 0, 1., 0, 0., ts, 0)
+    assert N == 2
+    np.testing.assert_allclose(ts[:N], [-0.01, 0.01])
+    return
+
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_intersection_example1_kernel():
+    parsed = parse_file(os.path.join(thisdir, 'intersection_example1.xml'))
+    intersection = parsed[0]
+    f = locate.LocateFuncFactory()
+    devf_locate = f.render(intersection)
+
+    @cuda.jit
+    def locate_kernel(points, locations):
+        idx = cuda.grid(1)
+        if idx < len(points):
+            x, y, z = points[idx]
+            locations[idx] = devf_locate(x, y, z)
+
+    points = np.array([
+        (0, 0, 0),
+        (0, 0, 0.03),
+        (0, 0, 0.025),
+        (0, 0, 0.05),
+        (0, 0, 0.050001),
+        (0, 0.00999, 0),
+        (0, 0.01, 0),
+        (0, 0.0100001, 0),
+    ])
+    expected = np.array([
+        location.inside,
+        location.outside,
+        location.onborder,
+        location.outside,
+        location.outside,
+        location.inside,
+        location.onborder,
+        location.outside,
+    ])
+    N = len(points)
+    locations = np.zeros(N, dtype=int)
+    nblocks = ceil(N / threadsperblock)
+    locate_kernel[nblocks, threadsperblock](points, locations)
+    np.testing.assert_array_equal(locations, expected)
+    # intersect
+    f = arrow_intersect.ArrowIntersectFuncFactory()
+    devf_intersect = f.render(intersection)
+
+    @cuda.jit
+    def intersect_kernel(points, velocities, intersections, nintersections):
+        idx = cuda.grid(1)
+        if idx < len(points):
+            x, y, z = points[idx]
+            vx, vy, vz = velocities[idx]
+            n = devf_intersect(x, y, z, vx, vy, vz, intersections[idx], 0)
+            nintersections[idx] = n
+
+    points = np.array([
+        (0., 0., 0.),
+        (0.001, 0.001, 0.),
+        (0.005, 0.005, 0.),
+        (-0.005, 0.005, 0.),
+        (0., 0., -5.),
+        (0., 0., 0.),
+        (0., 0., 0.),
+        (0., 0., 0.),
+    ])
+    velocities = np.array([
+        (0., 0., 1.),
+        (0., 0., 1.),
+        (0., 0., 1.),
+        (0., 0., 1.),
+        (0., 0., 1.),
+        (1., 0., 0.),
+        (0., 1., 0.),
+        (math.sqrt(2), math.sqrt(2), 0.),
+    ])
+    expected = np.array([
+        (-0.025, 0.025),
+        (-0.025, 0.025),
+        (-0.025, 0.025),
+        (-0.025, 0.025),
+        (5 - 0.025, 5 + 0.025),
+        (-0.01, 0.01),
+        (-0.01, 0.01),
+        (0.5 * -0.01, 0.5 * 0.01),
+    ])
+    npts = len(points)
+    intersections = np.zeros((npts, 10), dtype=float)
+    nintersections = np.zeros(npts, dtype=int)
+    nblocks = ceil(npts / threadsperblock)
+    intersect_kernel[nblocks, threadsperblock](
+        points, velocities, intersections, nintersections)
+    for i in range(npts):
+        # print(intersections[i, :nintersections[i]])
         np.testing.assert_allclose(intersections[i, :nintersections[i]], expected[i])
     return
 
