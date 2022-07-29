@@ -412,11 +412,13 @@ def test_intersection_example1_kernel():
         (0., 1., 0.),
         (math.sqrt(2), math.sqrt(2), 0.),
     ])
+    t2 = math.sqrt(0.025**2 - 0.001**2 - 0.001**2)
+    t3 = math.sqrt(0.025**2 - 0.005**2 - 0.005**2)
     expected = np.array([
         (-0.025, 0.025),
-        (-0.025, 0.025),
-        (-0.025, 0.025),
-        (-0.025, 0.025),
+        (-t2, t2),
+        (-t3, t3),
+        (-t3, t3),
         (5 - 0.025, 5 + 0.025),
         (-0.01, 0.01),
         (-0.01, 0.01),
@@ -429,13 +431,15 @@ def test_intersection_example1_kernel():
     intersect_kernel[nblocks, threadsperblock](
         points, velocities, intersections, nintersections)
     for i in range(npts):
-        # print(intersections[i, :nintersections[i]])
+        # print(i, intersections[i, :nintersections[i]])
         np.testing.assert_allclose(intersections[i, :nintersections[i]], expected[i])
     return
 
 
 def main():
-    test_union_example2()
+    # test_union_example2()
+    # test_intersection_example1()
+    test_intersection_example1_kernel()
     return
 
 if __name__ == '__main__': main()
