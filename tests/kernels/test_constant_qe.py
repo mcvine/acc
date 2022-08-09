@@ -3,11 +3,10 @@ import pytest
 from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
 from mcvine.acc import test
+from mcvine.acc.config import rng_seed
+from mcvine.acc.kernels import constant_qe
 from numba import cuda
 from numba.cuda.random import create_xoroshiro128p_states
-
-from acc.config import rng_seed
-from acc.kernels import constant_qe
 
 
 # Simple wrapper kernel to test the scatter device function
