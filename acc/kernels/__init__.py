@@ -46,9 +46,12 @@ class ScatterFuncFactory:
         return simplepowderdiffraction_scatter, simplepowderdiffraction_scattering_coefficient
 
     def onConstantQEKernel(self, kernel):
+        from ..components.samples import getAbsScttCoeffs
+        mu, sigma = getAbsScttCoeffs(kernel)
         from .constant_qe import S
         @cuda.jit(device=True)
         def constantqe_scatter(threadindex, rng_states, neutron):
+            neutron[-1] *= sigma
             return S(threadindex, rng_states, neutron, kernel.Q, kernel.E)
 
         return constantqe_scatter, None

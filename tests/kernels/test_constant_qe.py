@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from mcni import neutron_buffer, neutron
 from mcni.neutron_storage import neutrons_as_npyarr, ndblsperneutron
+from mcni.utils import conversion
 from mcvine.acc import test
 from mcvine.acc.config import rng_seed
 from mcvine.acc.kernels import constant_qe
@@ -27,7 +28,7 @@ def test_constant_qe_kernel():
     E = 30
 
     Ei = 60.0
-    vi = np.sqrt(Ei) * constant_qe.sqrte2v
+    vi = conversion.e2v(Ei)
     n = neutron([0., 0., 0.], [0., 0., vi])
 
     # create neutron buffer
@@ -40,8 +41,7 @@ def test_constant_qe_kernel():
     # calculate initial vi and ei
     vi = np.linalg.norm(n.state.velocity)
 
-    # Ei = constant_qe.v2E(vi)
-    Ei = vi * vi * constant_qe.vsq2e
+    Ei = conversion.v2e(vi)
 
     # setup test kernel with 1 neutron
     nblocks = 1
@@ -55,11 +55,11 @@ def test_constant_qe_kernel():
 
     # calculate Q and E and compare against expected
     vf = np.linalg.norm(buffer[3:6])
-    Ef = vf * vf * constant_qe.vsq2e
+    Ef = conversion.v2e(vf)
     e_diff = Ei - Ef
     v_diff = buffer[3:6] - np.array(n.state.velocity)
     q_as_v = np.linalg.norm(v_diff)
-    q_actual = constant_qe.v2k * q_as_v
+    q_actual = conversion.V2K * q_as_v
 
     np.testing.assert_almost_equal(e_diff, E)
     np.testing.assert_almost_equal(q_actual, Q)

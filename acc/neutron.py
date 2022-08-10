@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from math import isnan
+from mcni.utils import conversion
 from numba import boolean, cuda, void
 
 from . import vec3
@@ -51,3 +52,13 @@ def prop_z0(neutron):
     t = neutron[-2]
     dt = -z/vz
     return x+vx*dt, y+vy*dt, 0.0, t+dt
+
+
+@cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
+def v2e(v):
+    return v * v * conversion.VS2E
+
+
+@cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
+def e2v(e):
+    return cuda.libdevice.sqrt(e) * conversion.SE2V
