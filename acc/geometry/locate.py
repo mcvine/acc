@@ -45,6 +45,25 @@ class LocateFuncFactory:
 
         return locateWrtBox
 
+    def onDifference(self, s):
+        f1 = s.op1.identify(self)
+        f2 = s.op2.identify(self)
+
+        @cuda.jit(device=True, inline=True)
+        def locateWrtDifference(x, y, z):
+            return cu_device_locate_wrt_difference(x, y, z, f1, f2)
+
+        return locateWrtDifference
+
+    def onIntersection(self, u):
+        s1, s2 = u.shapes
+        f1 = s1.identify(self)
+        f2 = s2.identify(self)
+        @cuda.jit(device=True, inline=True)
+        def locateWrtIntersection(x, y, z):
+            return cu_device_locate_wrt_intersection(x,y,z, f1,f2)
+        return locateWrtIntersection
+
 # device functions for operations
 @cuda.jit(device=True)
 def cu_device_locate_wrt_union(x, y, z, f1, f2):
@@ -100,4 +119,33 @@ def cu_device_locate_wrt_box(x, y, z, W, H, D):
             (-0.5 * D < z < 0.5 * D)):
         return inside
 
+    return onborder
+
+
+@cuda.jit(device=True, inline=True)
+def cu_device_locate_wrt_difference(x, y, z, f1, f2):
+    p1 = f1(x, y, z)
+    p2 = f2(x, y, z)
+    if p1 == outside or p2 == inside:
+        return outside
+    elif p1 == onborder or p2 == onborder:
+        return onborder
+    else:
+        return inside
+
+
+@cuda.jit(device=True)
+def cu_device_locate_wrt_intersection(x, y, z, f1, f2):
+    "f1 and f2 are locate methods of elements in the intersection"
+    isinside = True
+    l = f1(x, y, z)
+    if l == outside:
+        return outside
+    isinside = isinside and l == inside
+    l = f2(x, y, z)
+    if l == outside:
+        return outside
+    isinside = isinside and l == inside
+    if isinside:
+        return inside
     return onborder

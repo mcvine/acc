@@ -1,0 +1,10 @@
+<!DOCTYPE geometry>
+
+<geometry>
+
+    <intersection>
+        <sphere radius="2.5*cm"/>
+        <cylinder height="10.*cm" radius="1.*cm"/>
+    </intersection>
+
+</geometry>
