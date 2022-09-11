@@ -38,7 +38,7 @@ jobs:
           auto-update-conda: true
           activate-environment: testenv
           python-version: ${{ matrix.python-version }}
-          channels: mcvine/label/unstable,mcvine,mantid/label/nightly,mantid,diffpy,conda-forge
+          channels: mcvine,conda-forge
 
       # install deps and build
       - name: install / build
