@@ -16,6 +16,7 @@ def test1():
     run_script.run1(
         instr, outdir,
         ncount=ncount, buffer_size=int(ncount),
+        is_acc=False,
     )
     return
 
