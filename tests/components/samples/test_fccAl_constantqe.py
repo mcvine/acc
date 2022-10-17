@@ -30,7 +30,7 @@ def test_compare_mcvine(num_neutrons=int(1024), debug=False, interactive=False):
     from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
     compare_acc_nonacc(
         "fccAl_constantqe_box",
-        ["psd_4pi"],
+        ["IQE"],
         {"float32": 4e-10, "float64": 4e-10},
         num_neutrons, debug,
         instr=instr,
@@ -45,7 +45,7 @@ def main():
     journal.info("instrument").activate()
     # test1()
     # test_compare_mcvine(num_neutrons=int(100), interactive=True, debug=True)
-    #test_compare_mcvine(num_neutrons=int(1e7), interactive=True)
+    # test_compare_mcvine(num_neutrons=int(1e7), interactive=True)
     return
 
 
