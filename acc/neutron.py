@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from math import isnan
+from math import sqrt, isnan
 from mcni.utils import conversion
 from numba import boolean, cuda, void
 
@@ -61,4 +61,4 @@ def v2e(v):
 
 @cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
 def e2v(e):
-    return cuda.libdevice.sqrt(e) * conversion.SE2V
+    return sqrt(e) * conversion.SE2V
