@@ -40,7 +40,7 @@ class Builder(base):
 
     @classmethod
     def get_source(
-            cls, Lambda0=10., dLambda=9.5
+            cls, Lambda0=10., dLambda=9.5, E0=0, dE=0,
     ):
         """
         Construct a source.
@@ -51,6 +51,7 @@ class Builder(base):
             radius=0., width=0.01, height=0.01, dist=1.,
             xw=0.008, yh=0.008,
             Lambda0 = Lambda0, dLambda = dLambda,
+            E0=E0, dE=dE,
         )
 
     def addPSD_4PIMonitor(self):

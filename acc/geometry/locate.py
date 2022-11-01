@@ -34,16 +34,16 @@ class LocateFuncFactory:
             return cu_device_locate_wrt_cylinder(x,y,z, R, H)
         return locateWrtCylinder
 
-    def onBox(self, b):
+    def onBlock(self, b):
         W = b.width / units.length.meter
         H = b.height / units.length.meter
         D = b.thickness / units.length.meter
 
         @cuda.jit(device=True, inline=True)
-        def locateWrtBox(x, y, z):
+        def locateWrtBlock(x, y, z):
             return cu_device_locate_wrt_box(x, y, z, W, H, D)
 
-        return locateWrtBox
+        return locateWrtBlock
 
     def onDifference(self, s):
         f1 = s.op1.identify(self)

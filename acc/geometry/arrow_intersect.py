@@ -67,13 +67,13 @@ class ArrowIntersectFuncFactory:
             return 2
         return intersectCylinder
 
-    def onBox(self, box):
+    def onBlock(self, box):
         W = box.width / units.length.meter
         H = box.height / units.length.meter
         D = box.thickness / units.length.meter
 
         @cuda.jit(device=True, inline=True)
-        def intersectBox(x, y, z, vx, vy, vz, ts, N):
+        def intersectBlock(x, y, z, vx, vy, vz, ts, N):
             t1, t2 = cu_device_intersect_box(x, y, z, vx, vy, vz, W, H, D)
             if math.isnan(t1):
                 return 0
@@ -81,7 +81,7 @@ class ArrowIntersectFuncFactory:
             ts[1] = t2
             return 2
 
-        return intersectBox
+        return intersectBlock
 
     def onDifference(self, s):
         locate1 = self.locate_func_factory.onDifference(s)
