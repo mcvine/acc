@@ -76,7 +76,7 @@ def factory(shape, kernel):
             x, y, z, vx, vy, vz = neutron[:6]
             # loc = locate(x,y,z)
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
-            ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
+            ninter = intersect(x,y,z, vx,vy,vz, ts)
             if ninter < 2: return
             if ts[ninter-1] <= 0: return
             rand = xoroshiro128p_uniform_float32(rng_states, threadindex)
@@ -102,7 +102,7 @@ def factory(shape, kernel):
                 return
             # find exiting time
             x, y, z, vx, vy, vz = neutron[:6]
-            ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
+            ninter = intersect(x,y,z, vx,vy,vz, ts)
             dt3 = total_time_in_shape(ts, ninter)
             sigma = calc_scattering_coeff(neutron)
             atten2 = exp( -(mu/v*2200+sigma) * v * dt3 )
