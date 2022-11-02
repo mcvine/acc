@@ -46,6 +46,10 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
 
     propagate_params = ()
 
+    # flag whether this is a multiple scattering component
+    is_multiscattering = False
+    NUM_MULTIPLE_SCATTER = 10
+
     @property
     def NP_FLOAT(self):
         return self.get_numpy_floattype()

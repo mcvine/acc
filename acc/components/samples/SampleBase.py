@@ -16,7 +16,7 @@ from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
 from ...config import rng_seed
-from ..StochasticComponentBase import StochasticComponentBase as base, make_process_kernel
+from ..StochasticComponentBase import StochasticComponentBase as base, make_process_kernel, make_process_ms_kernel
 class SampleBase(base):
 
     def process_no_buffer(self, N, threads_per_block=None, ntotalthreads=None):
@@ -52,7 +52,10 @@ class SampleBase(base):
     @classmethod
     def register_propagate_method(cls, propagate):
         new_propagate = cls._adjust_propagate_type(propagate)
-        cls.process_kernel = make_process_kernel(new_propagate)
+        if cls.is_multiscattering:
+            cls.process_kernel = make_process_ms_kernel(new_propagate, cls.NUM_MULTIPLE_SCATTER)
+        else:
+            cls.process_kernel = make_process_kernel(new_propagate)
         cls.process_kernel_no_buffer = make_process_kernel_no_buffer(new_propagate)
         return new_propagate
 
