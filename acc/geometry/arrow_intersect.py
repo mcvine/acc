@@ -123,8 +123,8 @@ class ArrowIntersectFuncFactory:
 
 @cuda.jit(device=True)
 def intersectComposite(x,y,z, vx,vy,vz, ts, ts1, ts2, f1, f2, locate1):
-    N1 = f1(x,y,z, vx,vy,vz, ts1, 0)
-    N2 = f2(x,y,z, vx,vy,vz, ts2, 0)
+    N1 = f1(x,y,z, vx,vy,vz, ts1)
+    N2 = f2(x,y,z, vx,vy,vz, ts2)
     # remove points not on border
     N = 0
     for i in range(N1):
