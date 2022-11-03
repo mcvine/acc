@@ -30,7 +30,7 @@ def test_union_example1():
     f = arrow_intersect.ArrowIntersectFuncFactory()
     devf_arrow_intersect = f.render(union1)
     ts = np.zeros(10)
-    N = devf_arrow_intersect(0,0,0, 0,0,1., ts, 0)
+    N = devf_arrow_intersect(0,0,0, 0,0,1., ts)
     # print(ts[:N])
     np.testing.assert_allclose(ts[:N], [-0.05, 0.05])
     return
@@ -82,7 +82,7 @@ def test_union_example1_kernel():
         if idx < len(points):
             x,y,z = points[idx]
             vx,vy,vz = velocities[idx]
-            n = devf_intersect(x,y,z, vx,vy,vz, intersections[idx], 0)
+            n = devf_intersect(x,y,z, vx,vy,vz, intersections[idx])
             nintersections[idx] = n
     points = np.array([
         (0.,0.,0.),
@@ -137,7 +137,7 @@ def test_union_example2():
     f = arrow_intersect.ArrowIntersectFuncFactory()
     devf_arrow_intersect = f.render(union1)
     ts = np.zeros(10)
-    N = devf_arrow_intersect(0,0,0, 0,0,1., ts, 0)
+    N = devf_arrow_intersect(0,0,0, 0,0,1., ts)
     # print(ts[:N])
     np.testing.assert_allclose(ts[:N], [-0.1, 0.1])
     return
@@ -155,7 +155,7 @@ def test_union_example2_kernel():
         if idx < len(points):
             x,y,z = points[idx]
             vx,vy,vz = velocities[idx]
-            n = devf_intersect(x,y,z, vx,vy,vz, intersections[idx], 0)
+            n = devf_intersect(x,y,z, vx,vy,vz, intersections[idx])
             nintersections[idx] = n
     points = np.array([
         (0.,0.,0.),
@@ -205,13 +205,13 @@ def test_difference_example1():
     devf_arrow_intersect = f.render(difference)
     ts = np.zeros(10)
     # ray intersection through Z should miss entirely
-    N = devf_arrow_intersect(0, 0, 0, 0, 0, 1.0, ts, 0)
+    N = devf_arrow_intersect(0, 0, 0, 0, 0, 1.0, ts)
     assert N == 0
 
     # ray intersection to +X should hit 4 times:
     # -X sphere edge, inner left and right side of inside hollow cylinder, then +X sphere edge
     ts = np.zeros(10)
-    N = devf_arrow_intersect(0, 0, 0, 1.0, 0, 0, ts, 0)
+    N = devf_arrow_intersect(0, 0, 0, 1.0, 0, 0, ts)
     assert N == 4
     np.testing.assert_allclose(ts[:N], [-0.025, -0.01, 0.01, 0.025])
     return
@@ -269,7 +269,7 @@ def test_difference_example1_kernel():
         if idx < len(points):
             x, y, z = points[idx]
             vx, vy, vz = velocities[idx]
-            n = devf_intersect(x, y, z, vx, vy, vz, intersections[idx], 0)
+            n = devf_intersect(x, y, z, vx, vy, vz, intersections[idx])
             nintersections[idx] = n
     points = np.array([
         (0., 0., 0.),
@@ -328,13 +328,13 @@ def test_intersection_example1():
     ts = np.zeros(10)
 
     # ray intersection to +Z should hit top and bottom of cylinder at sphere radius
-    N = devf_arrow_intersect(0, 0, 0, 0, 0, 1., ts, 0)
+    N = devf_arrow_intersect(0, 0, 0, 0, 0, 1., ts)
     assert N == 2
     np.testing.assert_allclose(ts[:N], [-0.025, 0.025])
 
     # ray intersection to +X should hit internal cylinder
     ts = np.zeros(10)
-    N = devf_arrow_intersect(0, 0, 0, 1., 0, 0., ts, 0)
+    N = devf_arrow_intersect(0, 0, 0, 1., 0, 0., ts)
     assert N == 2
     np.testing.assert_allclose(ts[:N], [-0.01, 0.01])
     return
@@ -389,7 +389,7 @@ def test_intersection_example1_kernel():
         if idx < len(points):
             x, y, z = points[idx]
             vx, vy, vz = velocities[idx]
-            n = devf_intersect(x, y, z, vx, vy, vz, intersections[idx], 0)
+            n = devf_intersect(x, y, z, vx, vy, vz, intersections[idx])
             nintersections[idx] = n
 
     points = np.array([
