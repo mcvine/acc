@@ -1,3 +1,7 @@
+"""
+intersect result is ordered, starting from lower number.
+"""
+
 import numpy as np, math, numba
 from numba import cuda
 from mcni import units
