@@ -33,6 +33,8 @@ def makePropagateMethods(intersect, locate):
         # this method should only be called if neutron is not inside the shape
         # check it before calling this method
         x,y,z,vx,vy,vz = neutron[:6]
+        if locate(x,y,z)==location.inside:
+            raise RuntimeError("_propagate_to_next_incident_surface only valid for neutrons outside the shape")
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N==0: return
         loc = locate(x,y,z)
