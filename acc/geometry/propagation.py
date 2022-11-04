@@ -73,6 +73,7 @@ def makePropagateMethods(intersect, locate):
         else:
             if loc == location.outside:
                 propagate_to_next_incident_surface(neutron)
+                x,y,z,vx,vy,vz = neutron[:6]
             # now we are at the surface
             # find the first intersection that is not the same point as the current point
             N = forward_intersect(x,y,z, vx,vy,vz, ts)
