@@ -49,13 +49,32 @@ def test_propagate_to_next_incident_surface():
         makePropagateMethods(intersect, locate)
     neutrons = np.array([
         [-1.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [-0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [-0.01,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.01,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [1.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
     ])
     expected = np.array([
         [-0.02,0.,0., 1.,0.,0., 0.,0., 0.98, 1.],
+        [-0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.01,0.,0., 1.,0.,0., 0.,0., 0.02, 1.],
+        [0.01,0.,0., 1.,0.,0., 0.,0., 0.01, 1.],
+        [0.01,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [1.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
     ])
     for neutron, out in zip(neutrons, expected):
-        propagate_to_next_exiting_surface(neutron)
+        propagate_to_next_incident_surface(neutron)
         assert np.allclose(neutron, out), f"{neutron} != {out}"
+    neutrons = np.array([
+        [-0.015,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.015,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+    ])
+    for neutron, out in zip(neutrons, expected):
+        with pytest.raises(RuntimeError):
+            propagate_to_next_incident_surface(neutron)
     return
 
 def main():
