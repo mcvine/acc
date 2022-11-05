@@ -22,6 +22,7 @@ def makePropagateMethods(intersect, locate):
 
     @cuda.jit(device=True)
     def _propagate_out(neutron, ts):
+        """propagate a neutron out of a shape"""
         x,y,z,vx,vy,vz = neutron[:6]
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N==0: return
@@ -30,8 +31,18 @@ def makePropagateMethods(intersect, locate):
 
     @cuda.jit(device=True)
     def _propagate_to_next_incident_surface(neutron, ts):
-        # this method should only be called if neutron is not inside the shape
-        # check it before calling this method
+        """
+        propagate a neutron to the next incident-surface of a shape
+        please notice that a neutorn could go through a shape in/out
+        several times. For example, a neutron can go through a
+        hollow cylinder by entering/exiting it twice (one at the
+        front surface, and another at the back surface.
+        note: shape cannot be infinitely large.
+        note: point must be out of shape, or it may be at an exiting
+              surface.
+        note: if the starting point is already on an
+              incident surface, nothing will be done.
+        """
         x,y,z,vx,vy,vz = neutron[:6]
         if locate(x,y,z)==location.inside:
             raise RuntimeError("_propagate_to_next_incident_surface only valid for neutrons outside the shape")
@@ -63,6 +74,20 @@ def makePropagateMethods(intersect, locate):
 
     @cuda.jit(device=True)
     def _propagate_to_next_exiting_surface(neutron, ts):
+        """
+        propagate a neutron to the next out-surface of a shape
+        please notice that a neutorn could go through a shape in/out
+        several times. For example, a neutron can go through a
+        hollow cylinder by entering/exiting it twice (one at the
+        front surface, and another at the back surface.
+        note: shape cannot be infinitely large.
+        note: the starting point must be either
+          1. inside the shape
+          2. outside the shape
+          3. on the input surface of the shape
+        If the starting point is already on the exiting surface of the shape,
+        nothing will be done.
+        """
         x,y,z,vx,vy,vz = neutron[:6]
         loc = locate(x,y,z)
         if loc == location.inside:
