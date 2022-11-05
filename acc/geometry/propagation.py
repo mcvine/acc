@@ -1,7 +1,7 @@
-import numpy as np
+import numpy as np, numba
 from numba import cuda
 from .arrow_intersect import max_intersections
-from . import location
+from .arrow_intersect import inside, outside, onborder
 from ..neutron import prop_dt_inplace
 from .. import test
 
@@ -44,14 +44,14 @@ def makePropagateMethods(intersect, locate):
               incident surface, nothing will be done.
         """
         x,y,z,vx,vy,vz = neutron[:6]
-        if locate(x,y,z)==location.inside:
+        if locate(x,y,z)==inside:
             raise RuntimeError("_propagate_to_next_incident_surface only valid for neutrons outside the shape")
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N==0: return
         loc = locate(x,y,z)
-        if loc == location.outside:
+        if loc == outside:
             t  = ts[0]
-        elif loc == location.onborder:
+        elif loc == onborder:
             # find the first intersection that is not the same point as the starting point
             found = False
             for i in range(N):
@@ -59,10 +59,10 @@ def makePropagateMethods(intersect, locate):
                 midy = y+ts[i]/2*vy
                 midz = z+ts[i]/2*vz
                 loc1 = locate(midx,midy,midz)
-                if loc1 == location.inside:
+                if loc1 == inside:
                     # the starting point is already the incident surface
                     return
-                elif loc1 == location.outside:
+                elif loc1 == outside:
                     t = ts[i]
                     found = True
                     break
@@ -90,13 +90,13 @@ def makePropagateMethods(intersect, locate):
         """
         x,y,z,vx,vy,vz = neutron[:6]
         loc = locate(x,y,z)
-        if loc == location.inside:
+        if loc == inside:
             # the next intersection should be the one
             N = forward_intersect(x,y,z, vx,vy,vz, ts)
             # N must be positive
             t = ts[0]
         else:
-            if loc == location.outside:
+            if loc == outside:
                 propagate_to_next_incident_surface(neutron)
                 x,y,z,vx,vy,vz = neutron[:6]
             # now we are at the surface
@@ -108,10 +108,10 @@ def makePropagateMethods(intersect, locate):
                 midy = y+ts[i]/2*vy
                 midz = z+ts[i]/2*vz
                 loc1 = locate(midx, midy, midz)
-                if loc1 == location.outside:
+                if loc1 == outside:
                     # starting point is exiting surface
                     return
-                elif loc1 == location.inside:
+                elif loc1 == inside:
                     t = ts[i]
                     found = True
                     break
@@ -119,6 +119,7 @@ def makePropagateMethods(intersect, locate):
         prop_dt_inplace(neutron, t)
         return
 
+    @cuda.jit(device=True)
     def _tof_before_exit(neutron, ts):
         """
         calcualte the total tof of neutron for it to exit
@@ -133,12 +134,13 @@ def makePropagateMethods(intersect, locate):
         """
         x,y,z,vx,vy,vz = neutron[:6]
         loc = locate(x,y,z)
-        if loc == location.outside:
-            raise RuntimeError(f'{(x,y,z)} is out of shape')
+        if loc == outside:
+            #raise RuntimeError('({},{},{})} is out of shape'.format(x,y,z))
+            raise RuntimeError('neutron is out of shape')
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N == 0:
             return 0.
-        if loc == location.inside:
+        if loc == inside:
             return ts[0]
         t = 0.
         for i in range(N):
@@ -146,9 +148,9 @@ def makePropagateMethods(intersect, locate):
             midy = y+ts[i]/2*vy
             midz = z+ts[i]/2*vz
             loc1 = locate(midx,midy,midz)
-            if loc1 == location.outside:
+            if loc1 == outside:
                 return 0.
-            elif loc1 == location.inside:
+            elif loc1 == inside:
                 t = ts[i]
                 break
             continue
