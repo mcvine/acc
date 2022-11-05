@@ -119,14 +119,56 @@ def makePropagateMethods(intersect, locate):
         prop_dt_inplace(neutron, t)
         return
 
+    def _tof_before_exit(neutron, ts):
+        """
+        calcualte the total tof of neutron for it to exit
+        the given shape for the first time.
+        please notice that a neutorn could go through a shape in/out
+        several times. For example, a neutron can go through a 
+        hollow cylinder by entering/exiting it twice (one at the
+        front surface, and another at the back surface.
+        note: shape cannot be infinitely large.
+        note: point must be inside the shape, or it may be at an incident
+        surface.
+        """
+        x,y,z,vx,vy,vz = neutron[:6]
+        loc = locate(x,y,z)
+        if loc == location.outside:
+            raise RuntimeError(f'{(x,y,z)} is out of shape')
+        N = forward_intersect(x,y,z, vx,vy,vz, ts)
+        if N == 0:
+            return 0.
+        if loc == location.inside:
+            return ts[0]
+        t = 0.
+        for i in range(N):
+            midx = x+ts[i]/2*vx
+            midy = y+ts[i]/2*vy
+            midz = z+ts[i]/2*vz
+            loc1 = locate(midx,midy,midz)
+            if loc1 == location.outside:
+                return 0.
+            elif loc1 == location.inside:
+                t = ts[i]
+                break
+            continue
+        return t
+
+
     if test.USE_CUDASIM:
         @cuda.jit(device=True, inline=True)
         def propagate_out(neutron):
             ts = np.zeros(max_intersections, dtype=float)
             return _propagate_out(neutron, ts)
+        @cuda.jit(device=True, inline=True)
+        def tof_before_exit(neutron):
+            ts = np.zeros(max_intersections, dtype=float)
+            return _tof_before_exit(neutron, ts)
+        @cuda.jit(device=True, inline=True)
         def propagate_to_next_incident_surface(neutron):
             ts = np.zeros(max_intersections, dtype=float)
             return _propagate_to_next_incident_surface(neutron, ts)
+        @cuda.jit(device=True, inline=True)
         def propagate_to_next_exiting_surface(neutron):
             ts = np.zeros(max_intersections, dtype=float)
             return _propagate_to_next_exiting_surface(neutron, ts)
@@ -135,11 +177,23 @@ def makePropagateMethods(intersect, locate):
         def propagate_out(neutron):
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
             return _propagate_out(neutron, ts)
+        @cuda.jit(device=True, inline=True)
+        def tof_before_exit(neutron):
+            ts = cuda.local.array(max_intersections, dtype=numba.float64)
+            return _tof_before_exit(neutron, ts)
+        @cuda.jit(device=True, inline=True)
         def propagate_to_next_incident_surface(neutron):
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
             return _propagate_to_next_incident_surface(neutron, ts)
+        @cuda.jit(device=True, inline=True)
         def propagate_to_next_exiting_surface(neutron):
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
             return _propagate_to_next_exiting_surface(neutron, ts)
 
-    return forward_intersect, propagate_out, propagate_to_next_incident_surface, propagate_to_next_exiting_surface
+    return dict(
+        forward_intersect = forward_intersect,
+        tof_before_exit = tof_before_exit,
+        propagate_out = propagate_out,
+        propagate_to_next_incident_surface = propagate_to_next_incident_surface,
+        propagate_to_next_exiting_surface = propagate_to_next_exiting_surface,
+    )
