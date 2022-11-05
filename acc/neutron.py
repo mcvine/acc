@@ -10,11 +10,16 @@ from mcvine.acc.config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 
 @cuda.jit(device=True, inline=True)
+def clone(in_neutron, out_neutron):
+    for i in range(10):
+        out_neutron[i] = in_neutron[i]
+    return
+
+@cuda.jit(device=True, inline=True)
 def abs2rel(r, v, rotmat, offset, rtmp, vtmp):
     vec3.copy(r, rtmp); vec3.copy(v, vtmp)
     vec3.abs2rel(rtmp, rotmat, offset, r)
     vec3.mXv(rotmat, vtmp, v)
-
 
 @cuda.jit(void(NB_FLOAT[:]),
           device=True, inline=True)
