@@ -11,16 +11,18 @@ from instrument.nixml import parse_file
 
 thisdir = os.path.dirname(__file__)
 
-# device functions can be tested with CUDASIM only
-@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
-def test_propagate_out():
+def getPropagateMethods():
     parsed = parse_file(os.path.join(thisdir, 'hollowcylinder_example1.xml'))
     shape = parsed[0]
     # print(shape)
     intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
     locate = arrow_intersect.locate_func_factory.render(shape)
-    forward_intersect, propagate_out, propagate_to_next_incident_surface, propagate_to_next_exiting_surface = \
-        makePropagateMethods(intersect, locate)
+    return makePropagateMethods(intersect, locate)
+
+# device functions can be tested with CUDASIM only
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_propagate_out():
+    propagate_out = getPropagateMethods()['propagate_out']
     neutrons = np.array([
         [-0.025,0.,0., 1.,0.,0., 0.,0., 0., 1.],
         [-0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
@@ -51,14 +53,35 @@ def test_propagate_out():
     return
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_tof_before_exit():
+    tof_before_exit = getPropagateMethods()['tof_before_exit']
+    neutrons = np.array([
+        [-0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [-0.015,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [-0.01,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.01,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.015,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+    ])
+    expected = (0.01, 0.005, 0., 0.01, 0.005, 0.)
+    for neutron, out in zip(neutrons, expected):
+        t = tof_before_exit(neutron)
+        assert np.allclose(t, out), f"{t} != {out}"
+    neutrons = np.array([
+        [-0.025,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+        [0.025,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+    ])
+    for neutron in neutrons:
+        with pytest.raises(RuntimeError):
+            tof_before_exit(neutron)
+    return
+
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_propagate_to_next_incident_surface():
-    parsed = parse_file(os.path.join(thisdir, 'hollowcylinder_example1.xml'))
-    shape = parsed[0]
-    # print(shape)
-    intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
-    locate = arrow_intersect.locate_func_factory.render(shape)
-    forward_intersect, propagate_out, propagate_to_next_incident_surface, propagate_to_next_exiting_surface = \
-        makePropagateMethods(intersect, locate)
+    propagate_to_next_incident_surface = getPropagateMethods()[
+        'propagate_to_next_incident_surface']
     neutrons = np.array([
         [-1.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
         [-0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
@@ -84,20 +107,15 @@ def test_propagate_to_next_incident_surface():
         [-0.015,0.,0., 1.,0.,0., 0.,0., 0., 1.],
         [0.015,0.,0., 1.,0.,0., 0.,0., 0., 1.],
     ])
-    for neutron, out in zip(neutrons, expected):
+    for neutron in neutrons:
         with pytest.raises(RuntimeError):
             propagate_to_next_incident_surface(neutron)
     return
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_propagate_to_next_exiting_surface():
-    parsed = parse_file(os.path.join(thisdir, 'hollowcylinder_example1.xml'))
-    shape = parsed[0]
-    # print(shape)
-    intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
-    locate = arrow_intersect.locate_func_factory.render(shape)
-    forward_intersect, propagate_out, propagate_to_next_incident_surface, propagate_to_next_exiting_surface = \
-        makePropagateMethods(intersect, locate)
+    propagate_to_next_exiting_surface = getPropagateMethods()[
+        'propagate_to_next_exiting_surface']
     neutrons = np.array([
         [-1.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
         [-0.025,0.,0., 1.,0.,0., 0.,0., 0., 1.],
@@ -128,6 +146,7 @@ def test_propagate_to_next_exiting_surface():
 
 def main():
     test_propagate_out()
+    test_tof_before_exit()
     test_propagate_to_next_incident_surface()
     test_propagate_to_next_exiting_surface()
     return
