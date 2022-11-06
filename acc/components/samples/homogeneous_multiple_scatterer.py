@@ -29,7 +29,7 @@ category = 'samples'
 def dummy_absorb(neutron):
     return
 
-def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops_path1=2, minimum_neutron_event_probability=1e-20):
+def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loops_path1=2, minimum_neutron_event_probability=1e-20):
     """
     Usage
     -----
@@ -44,10 +44,12 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops_path1=2, mini
     ----------
     max_scattered_neutrons: int
       max number of scattered neutrons to compute. this is used to set the limit of neutron cache
+    max_ms_loops: int
+      max number of multiple scattering loops running interactM_path1
     max_ms_loops_path1: int
       max number of multiple scattering loops in first encounter when the neutron never left the scatterer
     """
-    assert max_scattered_neutrons > max_ms_loops_path1
+    assert max_scattered_neutrons > max_ms_loops*(max_ms_loops_path1 + 1)
     from ...geometry import arrow_intersect
     intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
     locate = arrow_intersect.locate_func_factory.render(shape)
@@ -158,6 +160,13 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops_path1=2, mini
             to_be_scattered = tmp
             N_to_be_scattered = scattered2_index
             if not N_to_be_scattered: break
+        # leftover neutrons not yet scattered
+        for i in range(N_to_be_scattered):
+            if out_index >= min(max_scattered_neutrons, len(out_neutrons)):
+                break
+            neutron = to_be_scattered[i]
+            clone(neutron, out_neutrons[out_index])
+            out_index+=1
         return out_index
 
     class HomogeneousMultipleScatterer(SampleBase):
@@ -193,4 +202,8 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops_path1=2, mini
             return
     HomogeneousMultipleScatterer._interactM1 = _interactM1
     HomogeneousMultipleScatterer.interactM_path1 = interactM_path1
+    HomogeneousMultipleScatterer.max_scattered_neutrons = max_scattered_neutrons
+    HomogeneousMultipleScatterer.max_ms_loops = max_ms_loops
+    HomogeneousMultipleScatterer.max_ms_loops_path1 = max_ms_loops_path1
+    HomogeneousMultipleScatterer.minimum_neutron_event_probability = minimum_neutron_event_probability
     return HomogeneousMultipleScatterer

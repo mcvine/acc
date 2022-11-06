@@ -32,15 +32,17 @@ def test_interactM_path1():
     from HMS_isotropic_hollowcylinder import HMS
     interactM_path1 = HMS.interactM_path1
     @cuda.jit
-    def run_kernel(rng_states, out_neutrons, neutron):
+    def run_kernel(rng_states, out_neutrons, N, neutron):
         thread_id = cuda.grid(1)
-        interactM_path1(thread_id, rng_states, out_neutrons, neutron)
+        N[thread_id] = interactM_path1(thread_id, rng_states, out_neutrons, neutron)
         return
     neutron = np.array([-1,0,0, 3000,0,0., 0,0, 0., 1.])
-    out_neutrons = np.zeros((4, 10), dtype=float)
+    out_neutrons = np.zeros((5, 10), dtype=float)
     rng_states = create_xoroshiro128p_states(1, seed=0)
-    run_kernel[1,1](rng_states, out_neutrons, neutron)
-    print(out_neutrons)
+    N = np.zeros(1, dtype=int)
+    rt = run_kernel[1,1](rng_states, out_neutrons, N, neutron)
+    assert N[0] == HMS.max_ms_loops_path1 + 1
+    print(out_neutrons[:N[0]])
     return
 
 def main():
