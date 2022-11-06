@@ -29,16 +29,25 @@ category = 'samples'
 def dummy_absorb(neutron):
     return
 
-def factory(shape, kernel, max_scattered_neutrons=10, max_multiple_scattering=5, minimum_neutron_event_probability=1e-10):
+def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops_path1=2, minimum_neutron_event_probability=1e-20):
     """
-    Usage:
+    Usage
+    -----
     * create a new python module with code to define a new scatterer class
       that inherits from a base class created using this factory method.
       see tests/components/samples/HSS_isotropic_sphere.py for an example
       - ...load shape and kernel...
       - HSSbase = factory(shape = shape, kernel = None)
       - class HSS(HSSbase): pass
+
+    Parameters
+    ----------
+    max_scattered_neutrons: int
+      max number of scattered neutrons to compute. this is used to set the limit of neutron cache
+    max_ms_loops_path1: int
+      max number of multiple scattering loops in first encounter when the neutron never left the scatterer
     """
+    assert max_scattered_neutrons > max_ms_loops_path1
     from ...geometry import arrow_intersect
     intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
     locate = arrow_intersect.locate_func_factory.render(shape)
@@ -119,7 +128,7 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_multiple_scattering=5,
         N_to_be_scattered = 1
         clone(neutron, to_be_scattered[0])
         out_index = 0
-        for iloop in range(max_multiple_scattering):
+        for iloop in range(max_ms_loops_path1):
             scattered2_index = 0 # index for to_be_scattered2
             for ineutron in range(N_to_be_scattered):
                 neutron1 = to_be_scattered[ineutron]
