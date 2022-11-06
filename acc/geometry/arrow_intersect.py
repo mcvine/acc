@@ -10,10 +10,8 @@ from ..vec3 import dot
 from .. import test
 from .onbox import cu_device_intersect_box
 
-from . import epsilon, location
-inside = location.inside
-outside = location.outside
-onborder = location.onborder
+from . import epsilon
+from .location import inside, outside, onborder
 
 max_intersections = 10
 

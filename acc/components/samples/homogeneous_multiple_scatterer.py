@@ -13,8 +13,7 @@ from .SampleBase import SampleBase
 from ...neutron import absorb, prop_dt_inplace, clone
 from ... import vec3
 from ...geometry.arrow_intersect import max_intersections
-from ...geometry import location
-inside = location.inside
+from ...geometry.location import inside
 
 from numba.core import config
 if not config.ENABLE_CUDASIM:
@@ -56,9 +55,11 @@ def factory(shape, kernel):
     if absorb is None:
         absorb = dummy_absorb
 
+    # propagate methods
     propagate_to_next_incident_surface = propagators['propagate_to_next_incident_surface']
     propagate_to_next_exiting_surface = propagators['propagate_to_next_exiting_surface']
     tof_before_exit = propagators['tof_before_exit']
+
     @cuda.jit(
         void(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:]
     ) , device=True)
