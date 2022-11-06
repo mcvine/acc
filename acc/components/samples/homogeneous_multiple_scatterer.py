@@ -4,7 +4,7 @@
 #
 
 import numpy as np, numba
-from numba import cuda, void, int64
+from numba import cuda, void, int64, int32
 from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
 from math import sqrt, exp
 
@@ -29,7 +29,7 @@ category = 'samples'
 def dummy_absorb(neutron):
     return
 
-def factory(shape, kernel):
+def factory(shape, kernel, max_scattered_neutrons=10, max_multiple_scattering=5, minimum_neutron_event_probability=1e-10):
     """
     Usage:
     * create a new python module with code to define a new scatterer class
@@ -61,11 +61,12 @@ def factory(shape, kernel):
     tof_before_exit = propagators['tof_before_exit']
 
     @cuda.jit(
-        void(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:]
+        int32(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:]
     ) , device=True)
     def _interactM1(threadindex, rng_states, out_neutrons, neutron):
         """neutron interact with the scatterer once and generate scattered and transmitted neutrons.
-        also run the absorption mechanism
+        also run the absorption mechanism.
+        out_neutrons should be at least size of 2
         """
         x, y, z, vx, vy, vz = neutron[:6]
         loc = locate(x,y,z)
@@ -98,7 +99,57 @@ def factory(shape, kernel):
         prop_dt_inplace(scattered, x/v)
         scatter(threadindex, rng_states, scattered)
         # packing_factor
-        return
+        return 2
+
+    @cuda.jit(
+        int32(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:]),
+        device=True
+    )
+    def interactM_path1(threadindex, rng_states, out_neutrons, neutron):
+        """all interactions between a neutron and a scatterer during its first encounter,
+        the neutron never left the scatterer
+        """
+        # neutron too weak, bail out
+        if neutron[-1] < minimum_neutron_event_probability: return 0
+        # temp data
+        to_be_scattered = cuda.local.array((max_scattered_neutrons, 10), dtype=numba.float64)
+        to_be_scattered2 = cuda.local.array((max_scattered_neutrons, 10), dtype=numba.float64)
+        scattered = cuda.local.array((2, 10), dtype=numba.float64)
+        # init neutron array to be scattered
+        N_to_be_scattered = 1
+        clone(neutron, to_be_scattered[0])
+        out_index = 0
+        for iloop in range(max_multiple_scattering):
+            scattered2_index = 0 # index for to_be_scattered2
+            for ineutron in range(N_to_be_scattered):
+                neutron1 = to_be_scattered[ineutron]
+                nscattered1 = _interactM1(threadindex, rng_states, scattered, neutron1)
+                for iscattered in range(nscattered1):
+                    scattered1 = scattered[iscattered]
+                    if scattered1[-1] < minimum_neutron_event_probability: continue
+                    # save neutron at border or outside to output neutron array
+                    x,y,z = scattered1[:3]
+                    if locate(x,y,z) != inside:
+                        clone(scattered1, out_neutrons[out_index])
+                        out_index+=1
+                        if out_index >= min(max_scattered_neutrons, len(out_neutrons)):
+                            return out_index
+                        continue
+                    # neutron inside shape need to be scattered again
+                    clone(scattered1, to_be_scattered2[scattered2_index])
+                    scattered2_index+=1
+                    if scattered2_index >= max_scattered_neutrons:
+                        break
+                    continue
+                if scattered2_index >= max_scattered_neutrons:
+                    break
+            # swap to_be_scattered and to_be_scattered2
+            tmp = to_be_scattered2
+            to_be_scattered2 = to_be_scattered
+            to_be_scattered = tmp
+            N_to_be_scattered = scattered2_index
+            if not N_to_be_scattered: break
+        return out_index
 
     class HomogeneousMultipleScatterer(SampleBase):
 
@@ -132,4 +183,5 @@ def factory(shape, kernel):
             x, y, z, vx, vy, vz = in_neutron[:6]
             return
     HomogeneousMultipleScatterer._interactM1 = _interactM1
+    HomogeneousMultipleScatterer.interactM_path1 = interactM_path1
     return HomogeneousMultipleScatterer
