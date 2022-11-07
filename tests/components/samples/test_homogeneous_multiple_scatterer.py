@@ -45,9 +45,44 @@ def test_interactM_path1():
     print(out_neutrons[:N[0]])
     return
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_scatterM():
+    from HMS_isotropic_hollowcylinder import HMS
+    scatterM = HMS.scatterM
+    @cuda.jit
+    def run_kernel(rng_states, out_neutrons, N, neutron):
+        thread_id = cuda.grid(1)
+        N[thread_id] = scatterM(thread_id, rng_states, out_neutrons, neutron)
+        return
+    neutron = np.array([-1,0,0, 3000,0,0., 0,0, 0., 1.])
+    out_neutrons = np.zeros((10, 10), dtype=float)
+    rng_states = create_xoroshiro128p_states(1, seed=0)
+    N = np.zeros(1, dtype=int)
+    rt = run_kernel[1,1](rng_states, out_neutrons, N, neutron)
+    print(N)
+    print(out_neutrons[:N[0]])
+    return
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_scatterM_cudasim():
+    # rng_states = create_xoroshiro128p_states(1, seed=0)
+    rng_states = None
+    neutron = np.array([-1,0,0, 3000,0,0., 0,0, 0., 1.])
+    out_neutrons = np.zeros((40, 10), dtype=float)
+
+    from HMS_isotropic_hollowcylinder import HMS
+    scatterM = HMS.scatterM
+
+    N = scatterM(0, rng_states, out_neutrons, neutron)
+    print(N)
+    print(out_neutrons[:N])
+    return
+
 def main():
     test_interactM1()
     test_interactM_path1()
+    test_scatterM()
+    # test_scatterM_cudasim()
     return
 
 if __name__ == '__main__': main()
