@@ -21,6 +21,34 @@ def makePropagateMethods(intersect, locate):
         return Np
 
     @cuda.jit(device=True)
+    def _is_exiting(neutron, ts):
+        """is the neutron moving out of the shape?"""
+        x,y,z, vx,vy,vz = neutron[:6]
+        loc = locate(x,y,z)
+        # if event is still inside the shape, it is not exiting
+        if loc == inside: return False
+        # if no intersections, it is already exiting
+        N = forward_intersect(x,y,z, vx,vy,vz, ts)
+        if N==0: return True
+        # if event is outside the shape, but will hit the shape again, it
+        # does not count as exiting
+        if loc == outside: return False
+        # if we reach here, the neutron is on surface, need to check the intersections.
+        # if any intersection is not negligible, then it is not yet exiting
+        previous = 0.
+        for it in range(N):
+            now = ts[it]
+            middle = (previous+now)/2.
+            midx = x + vx*middle
+            midy = y + vy*middle
+            midz = z + vz*middle
+            if locate(midx, midy, midz) != onborder:
+                return False
+            previous = now
+            continue
+        return True
+
+    @cuda.jit(device=True)
     def _propagate_out(neutron, ts):
         """propagate a neutron out of a shape"""
         x,y,z,vx,vy,vz = neutron[:6]
@@ -120,7 +148,7 @@ def makePropagateMethods(intersect, locate):
         return
 
     @cuda.jit(device=True)
-    def _tof_before_exit(neutron, ts):
+    def _tof_before_first_exit(neutron, ts):
         """
         calcualte the total tof of neutron for it to exit
         the given shape for the first time.
@@ -159,13 +187,17 @@ def makePropagateMethods(intersect, locate):
 
     if test.USE_CUDASIM:
         @cuda.jit(device=True, inline=True)
+        def is_exiting(neutron):
+            ts = np.zeros(max_intersections, dtype=float)
+            return _is_exiting(neutron, ts)
+        @cuda.jit(device=True, inline=True)
         def propagate_out(neutron):
             ts = np.zeros(max_intersections, dtype=float)
             return _propagate_out(neutron, ts)
         @cuda.jit(device=True, inline=True)
-        def tof_before_exit(neutron):
+        def tof_before_first_exit(neutron):
             ts = np.zeros(max_intersections, dtype=float)
-            return _tof_before_exit(neutron, ts)
+            return _tof_before_first_exit(neutron, ts)
         @cuda.jit(device=True, inline=True)
         def propagate_to_next_incident_surface(neutron):
             ts = np.zeros(max_intersections, dtype=float)
@@ -176,13 +208,17 @@ def makePropagateMethods(intersect, locate):
             return _propagate_to_next_exiting_surface(neutron, ts)
     else:
         @cuda.jit(device=True, inline=True)
+        def is_exiting(neutron):
+            ts = cuda.local.array(max_intersections, dtype=numba.float64)
+            return _is_exiting(neutron, ts)
+        @cuda.jit(device=True, inline=True)
         def propagate_out(neutron):
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
             return _propagate_out(neutron, ts)
         @cuda.jit(device=True, inline=True)
-        def tof_before_exit(neutron):
+        def tof_before_first_exit(neutron):
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
-            return _tof_before_exit(neutron, ts)
+            return _tof_before_first_exit(neutron, ts)
         @cuda.jit(device=True, inline=True)
         def propagate_to_next_incident_surface(neutron):
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
@@ -193,8 +229,9 @@ def makePropagateMethods(intersect, locate):
             return _propagate_to_next_exiting_surface(neutron, ts)
 
     return dict(
+        is_exiting = is_exiting,
         forward_intersect = forward_intersect,
-        tof_before_exit = tof_before_exit,
+        tof_before_first_exit = tof_before_first_exit,
         propagate_out = propagate_out,
         propagate_to_next_incident_surface = propagate_to_next_incident_surface,
         propagate_to_next_exiting_surface = propagate_to_next_exiting_surface,
