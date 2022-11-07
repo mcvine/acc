@@ -33,6 +33,12 @@ def is_absorbed(neutron):
     prob = neutron[-1]
     return prob <= 0 and not isnan(prob)
 
+MIN_VELOCITY = 1.e-6      # typical thermal neutron are 10^3 m/s
+@cuda.jit(boolean(NB_FLOAT[:]), device=True, inline=True)
+def is_moving(neutron):
+    vx,vy,vz = neutron[3:6]
+    v = sqrt(vx*vx+vy*vy+vz*vz)
+    return v>MIN_VELOCITY
 
 @cuda.jit(device=True, inline=True)
 def prop_dt_inplace(neutron, dt):
