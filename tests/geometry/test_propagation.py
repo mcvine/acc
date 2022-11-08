@@ -53,8 +53,8 @@ def test_propagate_out():
     return
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
-def test_tof_before_exit():
-    tof_before_exit = getPropagateMethods()['tof_before_exit']
+def test_tof_before_first_exit():
+    tof_before_first_exit = getPropagateMethods()['tof_before_first_exit']
     neutrons = np.array([
         [-0.02,0.,0., 1.,0.,0., 0.,0., 0., 1.],
         [-0.015,0.,0., 1.,0.,0., 0.,0., 0., 1.],
@@ -65,7 +65,7 @@ def test_tof_before_exit():
     ])
     expected = (0.01, 0.005, 0., 0.01, 0.005, 0.)
     for neutron, out in zip(neutrons, expected):
-        t = tof_before_exit(neutron)
+        t = tof_before_first_exit(neutron)
         assert np.allclose(t, out), f"{t} != {out}"
     neutrons = np.array([
         [-0.025,0.,0., 1.,0.,0., 0.,0., 0., 1.],
@@ -74,7 +74,7 @@ def test_tof_before_exit():
     ])
     for neutron in neutrons:
         with pytest.raises(RuntimeError):
-            tof_before_exit(neutron)
+            tof_before_first_exit(neutron)
     return
 
 
@@ -146,7 +146,7 @@ def test_propagate_to_next_exiting_surface():
 
 def main():
     test_propagate_out()
-    test_tof_before_exit()
+    test_tof_before_first_exit()
     test_propagate_to_next_incident_surface()
     test_propagate_to_next_exiting_surface()
     return
