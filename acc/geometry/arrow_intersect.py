@@ -1,3 +1,7 @@
+"""
+intersect result is ordered, starting from lower number.
+"""
+
 import numpy as np, math, numba
 from numba import cuda
 from mcni import units
@@ -6,10 +10,8 @@ from ..vec3 import dot
 from .. import test
 from .onbox import cu_device_intersect_box
 
-from . import epsilon, location
-inside = location.inside
-outside = location.outside
-onborder = location.onborder
+from . import epsilon
+from .location import inside, outside, onborder
 
 max_intersections = 10
 
@@ -30,22 +32,22 @@ class ArrowIntersectFuncFactory:
         f2 = s2.identify(self)
         if test.USE_CUDASIM:
             @cuda.jit(device=True, inline=True)
-            def intersectUnion(x,y,z, vx,vy,vz, ts, N):
+            def intersectUnion(x,y,z, vx,vy,vz, ts):
                 ts1 = np.zeros(max_intersections, dtype=float)
                 ts2 = np.zeros(max_intersections, dtype=float)
-                return intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1,f2,locate1)
+                return intersectComposite(x,y,z, vx,vy,vz, ts, ts1, ts2, f1,f2,locate1)
         else:
             @cuda.jit(device=True, inline=True)
-            def intersectUnion(x,y,z, vx,vy,vz, ts, N):
+            def intersectUnion(x,y,z, vx,vy,vz, ts):
                 ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
                 ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
-                return intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1,f2,locate1)
+                return intersectComposite(x,y,z, vx,vy,vz, ts, ts1, ts2, f1,f2,locate1)
         return intersectUnion
 
     def onSphere(self, s):
         R = s.radius/units.length.meter
         @cuda.jit(device=True, inline=True)
-        def intersectSphere(x,y,z, vx,vy,vz, ts, N):
+        def intersectSphere(x,y,z, vx,vy,vz, ts):
             t1, t2 = cu_device_intersect_sphere(x,y,z, vx,vy,vz, R)
             if math.isnan(t1):
                 return 0
@@ -58,7 +60,7 @@ class ArrowIntersectFuncFactory:
         R = cyl.radius/units.length.meter
         H = cyl.height/units.length.meter
         @cuda.jit(device=True, inline=True)
-        def intersectCylinder(x,y,z, vx,vy,vz, ts, N):
+        def intersectCylinder(x,y,z, vx,vy,vz, ts):
             t1, t2 = cu_device_intersect_cylinder(x,y,z, vx,vy,vz, R, H)
             if math.isnan(t1):
                 return 0
@@ -73,7 +75,7 @@ class ArrowIntersectFuncFactory:
         D = box.thickness / units.length.meter
 
         @cuda.jit(device=True, inline=True)
-        def intersectBlock(x, y, z, vx, vy, vz, ts, N):
+        def intersectBlock(x, y, z, vx, vy, vz, ts):
             t1, t2 = cu_device_intersect_box(x, y, z, vx, vy, vz, W, H, D)
             if math.isnan(t1):
                 return 0
@@ -89,16 +91,16 @@ class ArrowIntersectFuncFactory:
         f2 = s.op2.identify(self)
         if test.USE_CUDASIM:
             @cuda.jit(device=True, inline=True)
-            def intersectDifference(x, y, z, vx, vy, vz, ts, N):
+            def intersectDifference(x, y, z, vx, vy, vz, ts):
                 ts1 = np.zeros(max_intersections, dtype=float)
                 ts2 = np.zeros(max_intersections, dtype=float)
-                return intersectComposite(x, y, z, vx, vy, vz, ts, N, ts1, ts2, f1, f2, locate1)
+                return intersectComposite(x, y, z, vx, vy, vz, ts, ts1, ts2, f1, f2, locate1)
         else:
             @cuda.jit(device=True, inline=True)
-            def intersectDifference(x, y, z, vx, vy, vz, ts, N):
+            def intersectDifference(x, y, z, vx, vy, vz, ts):
                 ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
                 ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
-                return intersectComposite(x, y, z, vx, vy, vz, ts, N, ts1, ts2, f1, f2, locate1)
+                return intersectComposite(x, y, z, vx, vy, vz, ts, ts1, ts2, f1, f2, locate1)
         return intersectDifference
 
     def onIntersection(self, u):
@@ -108,23 +110,23 @@ class ArrowIntersectFuncFactory:
         f2 = s2.identify(self)
         if test.USE_CUDASIM:
             @cuda.jit(device=True, inline=True)
-            def intersectIntersection(x, y, z, vx, vy, vz, ts, N):
+            def intersectIntersection(x, y, z, vx, vy, vz, ts):
                 ts1 = np.zeros(max_intersections, dtype=float)
                 ts2 = np.zeros(max_intersections, dtype=float)
-                return intersectComposite(x, y, z, vx, vy, vz, ts, N, ts1, ts2, f1, f2, locate1)
+                return intersectComposite(x, y, z, vx, vy, vz, ts, ts1, ts2, f1, f2, locate1)
         else:
             @cuda.jit(device=True, inline=True)
-            def intersectIntersection(x, y, z, vx, vy, vz, ts, N):
+            def intersectIntersection(x, y, z, vx, vy, vz, ts):
                 ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
                 ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
-                return intersectComposite(x, y, z, vx, vy, vz, ts, N, ts1, ts2, f1, f2, locate1)
+                return intersectComposite(x, y, z, vx, vy, vz, ts, ts1, ts2, f1, f2, locate1)
         return intersectIntersection
 
 
 @cuda.jit(device=True)
-def intersectComposite(x,y,z, vx,vy,vz, ts, N, ts1, ts2, f1, f2, locate1):
-    N1 = f1(x,y,z, vx,vy,vz, ts1, 0)
-    N2 = f2(x,y,z, vx,vy,vz, ts2, 0)
+def intersectComposite(x,y,z, vx,vy,vz, ts, ts1, ts2, f1, f2, locate1):
+    N1 = f1(x,y,z, vx,vy,vz, ts1)
+    N2 = f2(x,y,z, vx,vy,vz, ts2)
     # remove points not on border
     N = 0
     for i in range(N1):

@@ -1,0 +1,10 @@
+<!DOCTYPE geometry>
+
+<geometry>
+
+    <difference>
+        <cylinder height="10.*cm" radius="2.*cm"/>
+        <cylinder height="11.*cm" radius="1.*cm"/>
+    </difference>
+
+</geometry>

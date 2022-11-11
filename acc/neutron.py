@@ -10,11 +10,16 @@ from mcvine.acc.config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 
 @cuda.jit(device=True, inline=True)
+def clone(in_neutron, out_neutron):
+    for i in range(10):
+        out_neutron[i] = in_neutron[i]
+    return
+
+@cuda.jit(device=True, inline=True)
 def abs2rel(r, v, rotmat, offset, rtmp, vtmp):
     vec3.copy(r, rtmp); vec3.copy(v, vtmp)
     vec3.abs2rel(rtmp, rotmat, offset, r)
     vec3.mXv(rotmat, vtmp, v)
-
 
 @cuda.jit(void(NB_FLOAT[:]),
           device=True, inline=True)
@@ -28,6 +33,12 @@ def is_absorbed(neutron):
     prob = neutron[-1]
     return prob <= 0 and not isnan(prob)
 
+MIN_VELOCITY = 1.e-6      # typical thermal neutron are 10^3 m/s
+@cuda.jit(boolean(NB_FLOAT[:]), device=True, inline=True)
+def is_moving(neutron):
+    vx,vy,vz = neutron[3:6]
+    v = sqrt(vx*vx+vy*vy+vz*vz)
+    return v>MIN_VELOCITY
 
 @cuda.jit(device=True, inline=True)
 def prop_dt_inplace(neutron, dt):

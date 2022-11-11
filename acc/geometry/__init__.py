@@ -1,8 +1,2 @@
-epsilon = 1e-15
-
-
-class location:
-
-    outside = 1
-    onborder = 0
-    inside = -1
+# epsilon = 1e-15
+epsilon = 1e-10
