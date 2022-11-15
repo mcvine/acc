@@ -57,7 +57,8 @@ def make_process_kernel(propagate):
     return process_kernel
 
 def make_process_ms_kernel(propagate, num_ms):
-    @cuda.jit()
+    # set a max register limit (some larger components will cause an error due to register use)
+    @cuda.jit(max_registers=100)
     def process_kernel(rng_states, neutrons, n_neutrons_per_thread, args):
         N = len(neutrons)
         thread_index = cuda.grid(1)

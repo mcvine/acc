@@ -222,7 +222,7 @@ NB_FLOAT = get_numba_floattype()
 
 {num_multiple_scattering}
 
-@cuda.jit
+@cuda.jit(max_registers=100)
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
     args

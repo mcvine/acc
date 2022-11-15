@@ -6,6 +6,20 @@ from numba import cuda
 from numba.cuda.random import create_xoroshiro128p_states
 from mcvine.acc import test
 
+from mcvine.acc import run_script
+
+script = os.path.join(thisdir, 'acc_ms_test_instrument.py')
+workdir = 'out.acc_ms'
+ncount = int(1e7)
+
+def psd_mon_factory():
+    from mcvine.acc.components.monitors.psd_monitor import PSD_monitor
+    return PSD_monitor(
+        name='mon', nx=1000, ny=1000,
+        xwidth=0.5,
+        yheight=0.5
+    )
+
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_interactM1():
     from HMS_isotropic_hollowcylinder import HMS
@@ -78,11 +92,50 @@ def test_scatterM_cudasim():
     print(out_neutrons[:N])
     return
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
+    instr = os.path.join(thisdir, "isotropic_hollowcylinder_instrument.py")
+    from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
+    compare_acc_nonacc(
+        "isotropic_hollowcylinder",
+        ["psd_4pi"],
+        {"float32": 4e-10, "float64": 4e-10},
+        num_neutrons, debug,
+        instr = instr,
+        interactive=interactive,
+        acc_component_spec = dict(is_acc=True),
+        nonacc_component_spec = dict(is_acc=False),
+    )
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_compile():
+    run_script.compile(script, monitor_factory=psd_mon_factory)
+    return
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_run():
+    
+    run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_mon_factory, threads_per_block=128)
+    #run_script.run(script, workdir, ncount=ncount)
+    
+    # plot interactively 
+    monitor_hist = os.path.join(workdir, "psd.h5")
+    import histogram.hdf as hh
+    from histogram import plot as plotHist
+    plotHist(hh.load(monitor_hist))
+    
+    return
+
 def main():
-    test_interactM1()
-    test_interactM_path1()
-    test_scatterM()
+    #test_interactM1()
+    #test_interactM_path1()
+    #test_scatterM()
     # test_scatterM_cudasim()
+
+    test_run()
+    #test_compile()
+    #test_compare_mcvine(num_neutrons=int(1e5), interactive=True)
+    
     return
 
 if __name__ == '__main__': main()
