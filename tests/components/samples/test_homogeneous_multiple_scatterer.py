@@ -8,9 +8,10 @@ from mcvine.acc import test
 
 from mcvine.acc import run_script
 
-script = os.path.join(thisdir, 'acc_ms_test_instrument.py')
-workdir = 'out.acc_ms'
-ncount = int(1e7)
+ms_script = os.path.join(thisdir, 'acc_ms_test_instrument.py')
+ms_workdir = 'out.acc_ms'
+ss_script = os.path.join(thisdir, 'acc_ss_test_instrument.py')
+ss_workdir = 'out.acc_ss'
 
 def psd_mon_factory():
     from mcvine.acc.components.monitors.psd_monitor import PSD_monitor
@@ -18,6 +19,13 @@ def psd_mon_factory():
         name='mon', nx=1000, ny=1000,
         xwidth=0.5,
         yheight=0.5
+    )
+
+def psd_4pi_mon_factory():
+    from mcvine.acc.components.monitors.psd_monitor_4pi import PSD_monitor_4Pi
+    return PSD_monitor_4Pi(
+        name='mon',
+        radius = 1., nphi=90, ntheta=90, filename = "psd_4pi.h5",
     )
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
@@ -109,21 +117,30 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_compile():
-    run_script.compile(script, monitor_factory=psd_mon_factory)
+    run_script.compile(ms_script, monitor_factory=psd_mon_factory)
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_run():
-    
-    run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_mon_factory, threads_per_block=128)
+def test_run(ncount=1e7):
+    workdir, script = ms_workdir, ms_script
+    run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_4pi_mon_factory, threads_per_block=128)
     #run_script.run(script, workdir, ncount=ncount)
-    
-    # plot interactively 
-    monitor_hist = os.path.join(workdir, "psd.h5")
+    # plot interactively
+    monitor_hist = os.path.join(workdir, "psd_4pi.h5")
     import histogram.hdf as hh
     from histogram import plot as plotHist
     plotHist(hh.load(monitor_hist))
-    
+    return
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_run_ss(ncount=1e7):
+    workdir, script = ss_workdir, ss_script
+    run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_4pi_mon_factory, threads_per_block=128)
+    # plot interactively
+    monitor_hist = os.path.join(workdir, "psd_4pi.h5")
+    import histogram.hdf as hh
+    from histogram import plot as plotHist
+    plotHist(hh.load(monitor_hist))
     return
 
 def main():
@@ -131,11 +148,10 @@ def main():
     #test_interactM_path1()
     #test_scatterM()
     # test_scatterM_cudasim()
-
-    test_run()
+    test_run(ncount=1e7)
+    # test_run_ss(ncount=1e7)
     #test_compile()
     #test_compare_mcvine(num_neutrons=int(1e5), interactive=True)
-    
     return
 
 if __name__ == '__main__': main()
