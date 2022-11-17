@@ -336,11 +336,10 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loo
             neutrons[0] = mcni.neutron(r=(0, 0, -1), v=(0, 0, 1), prob=1, time=0)
             self.process(neutrons)
 
-        @cuda.jit(void(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:]) , device=True)
+        @cuda.jit(int32(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:]) , device=True)
         def propagate(threadindex, rng_states, out_neutrons, in_neutron):
             #x, y, z, vx, vy, vz = in_neutron[:6]
-            scatterM(threadindex, rng_states, out_neutrons, in_neutron)
-            return
+            return scatterM(threadindex, rng_states, out_neutrons, in_neutron)
 
         @cuda.jit(void(int64, xoroshiro128p_type[:], NB_FLOAT[:], NB_FLOAT[:, :]), device=True)
         def propagateM(threadindex, rng_states, in_neutron, out_neutrons):

@@ -70,16 +70,21 @@ Parameters:
         if ms_loop:
             # TODO: fix for > 1 MS components
             if i>0:
-                body.append("{}abs2rel(out_neutrons[ms{}][:3], out_neutrons[ms{}][3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, ms_loop_ind, ms_loop_ind, i-1, i-1))
-            body.append("{}propagate{}({} out_neutrons[ms{}], *args{})".format(' '*ms_indent, i, prefix, ms_loop_ind, i))
+                line = "{}abs2rel(out_neutrons[ms{}][:3], out_neutrons[ms{}][3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, ms_loop_ind, ms_loop_ind, i-1, i-1)
+                body.append(line)
+            line = "{}propagate{}({} out_neutrons[ms{}], *args{})".format(
+                ' '*ms_indent, i, prefix, ms_loop_ind, i)
+            body.append(line)
         else:
             if i>0:
                 body.append("{}abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, i-1, i-1))
-            body.append("{}propagate{}({} neutron, *args{})".format(' '*ms_indent, i, prefix, i))
+            n_ms = f'num_ms{i} = ' if comp.is_multiscattering else ''
+            body.append("{}{}propagate{}({} neutron, *args{})".format(
+                ' '*ms_indent, n_ms, i, prefix, i))
 
         if comp.is_multiscattering:
             # insert a multiple scattering loop
-            body.append("{}for ms{} in range(NUM_MS{}):".format(' '*ms_indent, i, i))
+            body.append("{}for ms{} in range(num_ms{}):".format(' '*ms_indent, i, i))
             ms_indent += 4
             ms_loop = True
             ms_loop_ind = i
