@@ -231,6 +231,9 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loo
             threadindex, rng_states, out_neutrons, neutron,
             to_be_scattered, to_be_scattered2, scattered):
         """scatter a neutron to multiple output neutrons"""
+        if is_exiting(neutron):
+            clone(neutron, out_neutrons[0])
+            return 1
         # init neutron array to be scattered
         N_to_be_scattered = 1
         clone(neutron, to_be_scattered[0])
