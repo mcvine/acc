@@ -1,6 +1,6 @@
 # -*- python -*-
 #
-# Jiao Lin <jiao.lin@gmail.com>
+# Cole Kendrick <kendrickcj@ornl.gov>
 #
 
 import numpy as np, numba
