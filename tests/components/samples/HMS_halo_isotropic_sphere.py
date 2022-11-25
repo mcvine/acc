@@ -1,5 +1,5 @@
 import os
-from mcvine.acc.components.samples.homogeneous_multiple_scatterer_test import factory
+from mcvine.acc.components.samples.homogeneous_multiple_scatterer_halo import factory
 thisdir = os.path.dirname(__file__)
 
 path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')

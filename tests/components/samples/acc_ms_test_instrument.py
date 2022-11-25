@@ -2,10 +2,9 @@
 
 import os, mcvine
 from mcvine.acc.components.sources.source_simple import Source_simple
-from HMS_isotropic_hollowcylinder import HMS
 thisdir = os.path.dirname(__file__)
 
-def instrument(monitor_factory=None, z_sample=2.0):
+def instrument(sample_factory=None, monitor_factory=None, z_sample=2.0):
     instrument = mcvine.instrument()
 
     source = Source_simple(
@@ -17,7 +16,11 @@ def instrument(monitor_factory=None, z_sample=2.0):
     )
     instrument.append(source, position=(0,0,0.))
 
-    sample = HMS('sample')
+    if sample_factory is None:
+        from HMS_isotropic_hollowcylinder import HMS
+        sample = HMS('sample')
+    else:
+        sample = sample_factory()
     instrument.append(sample, position=(0,0,z_sample))
 
     if monitor_factory is not None:

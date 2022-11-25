@@ -10,6 +10,10 @@ ncount = int(1e5)
 
 from mcvine.acc import run_script
 
+def halo_ms_sample():
+    from HMS_halo_isotropic_sphere import HMS
+    return HMS('sample')
+
 def psd_monitor_4pi():
     from mcvine.acc.components.monitors.psd_monitor_4pi import PSD_monitor_4Pi
     return PSD_monitor_4Pi(
@@ -28,13 +32,18 @@ def psd_mon_factory():
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_compile():
-    run_script.compile(script, monitor_factory=psd_monitor_4pi)
+    run_script.compile(
+        script, sample_factory=halo_ms_sample, monitor_factory=psd_monitor_4pi)
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_run():
     #run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_monitor_4pi)
-    run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_mon_factory)
+    run_script.run(
+        script, workdir, ncount=ncount,
+        sample_factory=halo_ms_sample,
+        monitor_factory=psd_mon_factory
+    )
     return
 
 

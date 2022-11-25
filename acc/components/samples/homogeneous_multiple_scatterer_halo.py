@@ -4,7 +4,7 @@
 #
 
 import numpy as np, numba
-from numba import cuda, void, int64
+from numba import cuda, void, int64, int32
 from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
 from math import sqrt, exp, pi, cos, sin
 
@@ -25,6 +25,10 @@ NB_FLOAT = get_numba_floattype()
 
 category = 'samples'
 
+@cuda.jit(device=True)
+def dummy_absorb(neutron):
+    return
+
 def factory(shape, kernel):
     """
     Usage:
@@ -41,11 +45,13 @@ def factory(shape, kernel):
     from . import getAbsScttCoeffs
     mu, sigma = getAbsScttCoeffs(kernel)
     from ...kernels import scatter_func_factory
-    scatter, calc_scattering_coeff = scatter_func_factory.render(kernel)
+    scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
     if calc_scattering_coeff is None:
         @cuda.jit(device=True)
         def calc_scattering_coeff(neutron):
             return sigma
+    if absorb is None:
+        absorb = dummy_absorb
 
     # sets the number of neutrons scattered by this component
     # has to be defined outside of the class so it is visible in propagate
@@ -73,19 +79,19 @@ def factory(shape, kernel):
             self.process(neutrons)
 
         @cuda.jit(
-            void(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:],
+            int32(int64, xoroshiro128p_type[:], NB_FLOAT[:, :], NB_FLOAT[:],
         ) , device=True)
         def propagate(threadindex, rng_states, out_neutrons, neutron):
             x, y, z, vx, vy, vz = neutron[:6]
             # loc = locate(x,y,z)
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
-            ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
-            if ninter < 2: return
-            if ts[ninter-1] <= 0: return
+            ninter = intersect(x,y,z, vx,vy,vz, ts)
+            if ninter < 2: return 0
+            if ts[ninter-1] <= 0: return 0
             rand = xoroshiro128p_uniform_float32(rng_states, threadindex)
             total_time_in_shape1, total_time_travel_to_scattering_point, time_travelled_in_shape_to_scattering_point = calc_time_to_point_of_scattering(ts, ninter, rand)
             dt = total_time_travel_to_scattering_point
-            if dt<=0: return
+            if dt<=0: return 0
             # propagate to scattering point
             prop_dt_inplace(neutron, dt)
             # calc attenuation
@@ -102,10 +108,10 @@ def factory(shape, kernel):
             # ev.probability *= packing_factor;
             if neutron[-1] <=0:
                 absorb(neutron)
-                return
+                return 0
             # find exiting time
             x, y, z, vx, vy, vz = neutron[:6]
-            ninter = intersect(x,y,z, vx,vy,vz, ts, 0)
+            ninter = intersect(x,y,z, vx,vy,vz, ts)
             dt3 = total_time_in_shape(ts, ninter)
             sigma = calc_scattering_coeff(neutron)
             atten2 = exp( -(mu/v*2200+sigma) * v * dt3 )
@@ -122,7 +128,7 @@ def factory(shape, kernel):
                     rand = xoroshiro128p_uniform_float32(rng_states, threadindex) - 0.5
                     out_neutrons[j][0] += r * cos(2*pi*rand)
                     out_neutrons[j][1] += r * sin(2*pi*rand)
-            return
+            return N
 
     return HomogeneousMultipleScattererTest
 
