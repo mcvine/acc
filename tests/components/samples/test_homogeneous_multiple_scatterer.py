@@ -100,7 +100,8 @@ def test_scatterM_cudasim():
     print(out_neutrons[:N])
     return
 
-@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+# @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+@pytest.mark.skipif(True, reason='No CUDA')
 def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     instr = os.path.join(thisdir, "isotropic_hollowcylinder_instrument.py")
     from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
@@ -112,7 +113,7 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
         instr = instr,
         interactive=interactive,
         acc_component_spec = dict(is_acc=True),
-        nonacc_component_spec = dict(is_acc=False),
+        nonacc_component_spec = dict(is_acc=False, multiple_scattering=True),
     )
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
@@ -121,10 +122,11 @@ def test_compile():
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_run(ncount=1e7):
+def test_run(ncount=1e7, interactive=False):
     workdir, script = ms_workdir, ms_script
     run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_4pi_mon_factory, threads_per_block=128)
     #run_script.run(script, workdir, ncount=ncount)
+    if not interactive: return
     # plot interactively
     monitor_hist = os.path.join(workdir, "psd_4pi.h5")
     import histogram.hdf as hh
@@ -133,9 +135,10 @@ def test_run(ncount=1e7):
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_run_ss(ncount=1e7):
+def test_run_ss(ncount=1e7, interactive=False):
     workdir, script = ss_workdir, ss_script
     run_script.run(script, workdir, ncount=ncount, monitor_factory=psd_4pi_mon_factory, threads_per_block=128)
+    if not interactive: return
     # plot interactively
     monitor_hist = os.path.join(workdir, "psd_4pi.h5")
     import histogram.hdf as hh
@@ -148,10 +151,10 @@ def main():
     #test_interactM_path1()
     #test_scatterM()
     # test_scatterM_cudasim()
-    test_run(ncount=1e7)
-    # test_run_ss(ncount=1e7)
+    # test_run(ncount=1e8, interactive=True)
+    # test_run_ss(ncount=1e7, interactive=True)
     #test_compile()
-    #test_compare_mcvine(num_neutrons=int(1e5), interactive=True)
+    test_compare_mcvine(num_neutrons=int(1e5), interactive=True)
     return
 
 if __name__ == '__main__': main()
