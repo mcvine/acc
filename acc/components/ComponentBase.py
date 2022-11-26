@@ -91,7 +91,7 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
             neutron_array = neutron_array.astype(neutron_array_dtype_int)
         t2 = time()
         from ..config import ntotalthreads, threads_per_block
-        self.call_process(
+        neutron_array = self.call_process(
             self.__class__.process_kernel,
             neutron_array,
             ntotthreads=ntotalthreads, threads_per_block = threads_per_block,
@@ -122,7 +122,7 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
         process_kernel[nblocks, threads_per_block](
             in_neutrons, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()
-        return
+        return in_neutrons
 
     @classmethod
     def register_propagate_method(cls, propagate):

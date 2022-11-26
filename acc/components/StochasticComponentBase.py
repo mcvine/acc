@@ -32,7 +32,7 @@ class StochasticComponentBase(base):
         process_kernel[nblocks, threads_per_block](
             rng_states, in_neutrons, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()
-        return
+        return in_neutrons
 
     @classmethod
     def register_propagate_method(cls, propagate):
