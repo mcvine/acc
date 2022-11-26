@@ -49,7 +49,7 @@ Parameters:
     ms_comps = []
     ms_loop_ind = -1
     for i, comp in enumerate(comps):
-        if comp.is_multiscattering:
+        if comp.is_multiplescattering:
             ms_comps.append(comp)
 
     modules = []
@@ -61,7 +61,7 @@ Parameters:
             if isinstance(comp, StochasticComponentBase)
             else ""
         )
-        if comp.is_multiscattering:
+        if comp.is_multiplescattering:
             prefix += "out_neutrons, "
 
         if getattr(comp.__class__, 'requires_neutron_index_in_processing', False):
@@ -78,11 +78,11 @@ Parameters:
         else:
             if i>0:
                 body.append("{}abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, i-1, i-1))
-            n_ms = f'num_ms{i} = ' if comp.is_multiscattering else ''
+            n_ms = f'num_ms{i} = ' if comp.is_multiplescattering else ''
             body.append("{}{}propagate{}({} neutron, *args{})".format(
                 ' '*ms_indent, n_ms, i, prefix, i))
 
-        if comp.is_multiscattering:
+        if comp.is_multiplescattering:
             # insert a multiple scattering loop
             body.append("{}for ms{} in range(num_ms{}):".format(' '*ms_indent, i, i))
             ms_indent += 4
@@ -114,7 +114,7 @@ Parameters:
             max_scattering_comp = comp
 
         # pre-define the number of neutrons scattered by each multiple-scattering component
-        scattering_nums = ['NUM_MS{} = comp{}.NUM_MULTIPLE_SCATTER'.format(i, i) if comp.is_multiscattering else '' for i, comp in enumerate(comps)]
+        scattering_nums = ['NUM_MS{} = comp{}.NUM_MULTIPLE_SCATTER'.format(i, i) if comp.is_multiplescattering else '' for i, comp in enumerate(comps)]
         for i, comp in enumerate(comps):
             if comp == max_scattering_comp:
                 scattering_nums.append("NUM_MS = NUM_MS{}".format(i))

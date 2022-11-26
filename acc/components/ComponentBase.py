@@ -47,7 +47,7 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
     propagate_params = ()
 
     # flag whether this is a multiple scattering component
-    is_multiscattering = False
+    is_multiplescattering = False
     NUM_MULTIPLE_SCATTER = 10
 
     @property

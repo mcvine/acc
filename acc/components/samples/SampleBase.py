@@ -52,7 +52,7 @@ class SampleBase(base):
     @classmethod
     def register_propagate_method(cls, propagate):
         new_propagate = cls._adjust_propagate_type(propagate)
-        if cls.is_multiscattering:
+        if cls.is_multiplescattering:
             cls.process_kernel = make_process_ms_kernel(new_propagate, cls.NUM_MULTIPLE_SCATTER)
         else:
             cls.process_kernel = make_process_kernel(new_propagate)

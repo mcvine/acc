@@ -59,7 +59,7 @@ def factory(shape, kernel):
 
     class HomogeneousMultipleScattererTest(SampleBase):
 
-        is_multiscattering = True
+        is_multiplescattering = True
         NUM_MULTIPLE_SCATTER = N
 
         def __init__(self, name):

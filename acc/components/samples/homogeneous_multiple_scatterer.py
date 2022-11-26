@@ -320,7 +320,7 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loo
             )
     class HomogeneousMultipleScatterer(SampleBase):
 
-        is_multiscattering = True
+        is_multiplescattering = True
         NUM_MULTIPLE_SCATTER = max_scattered_neutrons
 
         def __init__(self, name):
