@@ -256,6 +256,7 @@ InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
     instrument = loadInstrument(script, **kwds)
+    print(instrument)
     InstrumentBase(instrument).process_no_buffer(
         ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
