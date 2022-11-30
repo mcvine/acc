@@ -12,8 +12,8 @@ def loadScattererComposite(sampleassembly_xml):
     from sampleassembly.saxml import parse_file
     sa = parse_file( filename )
 
-    from mccomponents.sample.sampleassembly_support import sampleassembly2compositescatterer, \
-         findkernelsfromxmls
+    from mccomponents.sample.sampleassembly_support \
+        import sampleassembly2compositescatterer, findkernelsfromxmls
 
     scatterercomposite = findkernelsfromxmls(
         sampleassembly2compositescatterer( sa ) )
