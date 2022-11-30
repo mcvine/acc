@@ -102,18 +102,20 @@ def test_scatterM_cudasim():
 
 # @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 @pytest.mark.skipif(True, reason='No CUDA')
-def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
-    instr = os.path.join(thisdir, "isotropic_hollowcylinder_instrument.py")
+def test_compare_mcvine(num_neutrons=int(1e6), debug=False, interactive=False):
+    instr = os.path.join(thisdir, "ms_isotropic_sphere_instrument.py")
+    relerr_tol = dict(threshold=0.15, outlier_fraction=0.1)
     from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
     compare_acc_nonacc(
-        "isotropic_hollowcylinder",
+        "isotropic_sphere",
         ["psd_4pi"],
-        {"float32": 4e-10, "float64": 4e-10},
+        {"float32": 2e-9, "float64": 2e-9},
         num_neutrons, debug,
         instr = instr,
         interactive=interactive,
         acc_component_spec = dict(is_acc=True),
         nonacc_component_spec = dict(is_acc=False, multiple_scattering=True),
+        relerr_tolerances = dict(float32=relerr_tol, float64=relerr_tol)
     )
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
@@ -154,7 +156,8 @@ def main():
     # test_run(ncount=1e8, interactive=True)
     # test_run_ss(ncount=1e7, interactive=True)
     #test_compile()
-    test_compare_mcvine(num_neutrons=int(1e5), interactive=True)
+    test_compare_mcvine(num_neutrons=int(1e6), interactive=True)
+    # test_compare_mcvine(num_neutrons=10, interactive=True)
     return
 
 if __name__ == '__main__': main()
