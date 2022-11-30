@@ -15,6 +15,7 @@ def compare_acc_nonacc(
         className, monitors, tolerances, num_neutrons, debug,
         workdir=None, instr=None, interactive=False,
         acc_component_spec = None, nonacc_component_spec = None,
+        relerr_tolerances = None
 ):
     """
     Tests the acc cpu implementation of an instrument against mcvine.
@@ -22,7 +23,9 @@ def compare_acc_nonacc(
     Parameters:
     className (str): the name of the instrument class under test, e.g., "Guide"
     monitors (list): the names of the monitors to use in testing, e.g., "Ixy"
-    tolerances (dict): tolerance of float comparisons, e.g., "float32": 1e-8
+    tolerances (dict): tolerance of float comparisons, e.g., {"float32": 1e-8}
+    relerr_tolerances (dict): tolerances for relative error.
+        e.g. dict(float32=dict(threshold=0.05, outlier_fraction=0.05))
     num_neutrons (int): how many neutrons to use in the testing
     debug (bool): if to save the neutrons that exit the instrument
     """
@@ -76,11 +79,18 @@ def compare_acc_nonacc(
         assert os.path.exists(mcvine_hist_fn), "Missing histogram {}".format(mcvine_hist_fn)
         mcvine = hh.load(mcvine_hist_fn)
         mcvine_acc = hh.load(os.path.join(outdir, monitor + ".h5"))
+        relerr_hist = (mcvine_acc-mcvine)/mcvine
+        relerr = np.abs(relerr_hist.I)
         if interactive:
             from histogram import plot as plotHist
             plotHist(mcvine)
             plotHist(mcvine_acc)
-            plotHist((mcvine_acc - mcvine) / mcvine)
+            plotHist(relerr_hist)
         assert mcvine.shape() == mcvine_acc.shape()
         assert np.allclose(mcvine.data().storage(), mcvine_acc.data().storage(),
                            atol=tolerance)
+        if relerr_tolerances is not None:
+            relerr_tolerance = relerr_tolerances[floattype]
+            threshold = relerr_tolerance['threshold']
+            outlier_fraction = relerr_tolerance['outlier_fraction']
+            assert (relerr>threshold).sum() < outlier_fraction * relerr.size
