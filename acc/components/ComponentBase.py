@@ -121,6 +121,8 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
         n_neutrons_per_thread = math.ceil(N / actual_nthreads)
         print("%s blocks, %s threads, %s neutrons per thread" % (
             nblocks, threads_per_block, n_neutrons_per_thread))
+        self.check_kernel_launch(process_kernel, threads_per_block,
+                                 in_neutrons, n_neutrons_per_thread, self.propagate_params)
         process_kernel[nblocks, threads_per_block](
             in_neutrons, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()

@@ -44,6 +44,8 @@ class SourceBase(base):
         print("%s blocks, %s threads, %s neutrons per thread" % (
             nblocks, threads_per_block, n_neutrons_per_thread))
         rng_states = create_xoroshiro128p_states(actual_nthreads, seed=rng_seed)
+        self.check_kernel_launch(process_kernel_no_buffer, threads_per_block,
+                                 rng_states, N, n_neutrons_per_thread, self.propagate_params)
         process_kernel_no_buffer[nblocks, threads_per_block](
             rng_states, N, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()
