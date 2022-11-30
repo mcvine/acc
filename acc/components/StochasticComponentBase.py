@@ -13,7 +13,7 @@ from numba import cuda
 from numba.cuda.random import create_xoroshiro128p_states
 from numba.core import config
 
-from ..config import rng_seed, get_numba_floattype
+from ..config import rng_seed, get_numba_floattype, get_max_registers
 NB_FLOAT = get_numba_floattype()
 from .ComponentBase import ComponentBase as base
 class StochasticComponentBase(base):
@@ -34,10 +34,14 @@ class StochasticComponentBase(base):
         if kls.is_multiplescattering:
             out_neutrons = np.zeros(
                 (N*kls.NUM_MULTIPLE_SCATTER, 10), dtype=in_neutrons.dtype)
+            self.check_kernel_launch(process_kernel, threads_per_block, rng_states, in_neutrons, out_neutrons,
+                                     n_neutrons_per_thread, self.propagate_params)
             process_kernel[nblocks, threads_per_block](
                 rng_states, in_neutrons, out_neutrons,
                 n_neutrons_per_thread, self.propagate_params)
         else:
+            self.check_kernel_launch(process_kernel, threads_per_block, rng_states,
+                                     in_neutrons, n_neutrons_per_thread, self.propagate_params)
             process_kernel[nblocks, threads_per_block](
                 rng_states, in_neutrons, n_neutrons_per_thread,
                 self.propagate_params)
@@ -69,7 +73,6 @@ def make_process_kernel(propagate):
     return process_kernel
 
 def make_process_ms_kernel(propagate, num_ms):
-    # set a max register limit (some larger components will cause an error due to register use)
     def process_kernel(
             rng_states, neutrons, out_neutrons, n_neutrons_per_thread, args):
         N = len(neutrons)
@@ -88,5 +91,6 @@ def make_process_ms_kernel(propagate, num_ms):
     if config.ENABLE_CUDASIM:
         process_kernel = cuda.jit()(process_kernel)
     else:
-        process_kernel = cuda.jit(max_registers=100)(process_kernel)
+        # set a max register limit (some larger components will cause an error due to register use)
+        process_kernel = cuda.jit(max_registers=get_max_registers())(process_kernel)
     return process_kernel

@@ -19,6 +19,8 @@ from numba.core.types import Array, Float
 if not config.ENABLE_CUDASIM:
     from numba.cuda.compiler import Dispatcher, DeviceFunction
 
+from ..config import get_max_registers
+
 
 class Curator(type):
 
@@ -195,6 +197,28 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
         except Exception as e:
             print(e)
             return
+
+    def check_kernel_launch(self, kernel, threads_per_block, *args):
+        """
+        Helper to check the register usage of a kernel.
+        This will raise a RuntimeError if using too many to avoid a CUDA launch error.
+
+        Parameters:
+        kernel: Dispatcher object from @cuda.jit()
+        threads_per_block: Threads per block to launch this kernel with
+        *args: parameters used to launch the kernel
+        """
+        if config.ENABLE_CUDASIM:
+            return
+
+        max_registers = get_max_registers(threads_per_block)
+
+        specialized = kernel.specialize(*args)
+        used_regs = specialized.get_regs_per_thread()
+
+        if used_regs > max_registers:
+            raise RuntimeError("{}: kernel {} is using too many registers for the block size. using {} but max for block size {} is {}".format(
+                self.__class__, kernel.py_func, used_regs, threads_per_block, max_registers))
 
 
 def make_process_kernel(propagate):
