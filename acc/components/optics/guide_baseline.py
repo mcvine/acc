@@ -158,6 +158,7 @@ def call_process(
         in_neutrons
     )
     cuda.synchronize()
+    return in_neutrons
 
 class Guide(AbstractComponent):
 

@@ -5,7 +5,10 @@ from mcni import units
 class ScatterFuncFactory:
 
     def render(self, kernel):
-        "returns function tuple (scatter, scattering_coeff)"
+        """returns function tuple (scatter, scattering_coeff, absorb)
+        absorb function is used typically by detectors to handle neutron detection.
+        for other kernels, just use None
+        """
         return kernel.identify(self)
 
     def onIsotropicKernel(self, kernel):
@@ -16,7 +19,7 @@ class ScatterFuncFactory:
         def isotropic_scatter(threadindex, rng_states, neutron):
             neutron[-1] *= sigma
             return S(threadindex, rng_states, neutron)
-        return isotropic_scatter, None
+        return isotropic_scatter, None, None
 
     def onSimplePowderDiffractionKernel(self, kernel):
         from .powderdiffr import scatter, scattering_coefficient, PowderDiffraction
@@ -43,7 +46,7 @@ class ScatterFuncFactory:
         @cuda.jit(device=True)
         def simplepowderdiffraction_scattering_coefficient(neutron):
             return scattering_coefficient(neutron, ucvol, Npeaks, q_v, my_s_v2)
-        return simplepowderdiffraction_scatter, simplepowderdiffraction_scattering_coefficient
+        return simplepowderdiffraction_scatter, simplepowderdiffraction_scattering_coefficient, None
 
     def onConstantQEKernel(self, kernel):
         from ..components.samples import getAbsScttCoeffs
@@ -62,7 +65,7 @@ class ScatterFuncFactory:
             neutron[-1] *= sigma
             return S(threadindex, rng_states, neutron, Q, E)
 
-        return constantqe_scatter, None
+        return constantqe_scatter, None, None
 
 
 scatter_func_factory = ScatterFuncFactory()

@@ -37,7 +37,7 @@ class InstrumentBuilder:
         """
         return mc.sources.Source_simple(
             name='source',
-            radius=0., width=0.03, height=0.03, dist=1.,
+            radius=0., width=0.03, height=0.03, dist=0.9,
             xw=0.035, yh=0.035,
             Lambda0=10., dLambda=9.5
         )

@@ -48,7 +48,7 @@ class Builder(base):
         import mcvine.components as mc
         return mc.sources.Source_simple(
             name='source',
-            radius=0., width=0.01, height=0.01, dist=1.,
+            radius=0., width=0.01, height=0.01, dist=0.9,
             xw=0.008, yh=0.008,
             Lambda0 = Lambda0, dLambda = dLambda,
             E0=E0, dE=dE,

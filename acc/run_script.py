@@ -43,6 +43,15 @@ Parameters:
     script = os.path.abspath(script)
     instrument = loadInstrument(script, **kwds)
     comps = instrument.components
+
+    ms_loop = False
+    ms_indent = 0
+    ms_comps = []
+    ms_loop_ind = -1
+    for i, comp in enumerate(comps):
+        if comp.is_multiplescattering:
+            ms_comps.append(comp)
+
     modules = []
     body = []
     for i, comp in enumerate(comps):
@@ -52,11 +61,33 @@ Parameters:
             if isinstance(comp, StochasticComponentBase)
             else ""
         )
+        if comp.is_multiplescattering:
+            prefix += "out_neutrons, "
+
         if getattr(comp.__class__, 'requires_neutron_index_in_processing', False):
             prefix += "neutron_index, "
-        if i>0:
-            body.append("abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(i-1, i-1))
-        body.append("propagate{}({} neutron, *args{})".format(i, prefix, i))
+
+        if ms_loop:
+            # TODO: fix for > 1 MS components
+            if i>0:
+                line = "{}abs2rel(out_neutrons[ms{}][:3], out_neutrons[ms{}][3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, ms_loop_ind, ms_loop_ind, i-1, i-1)
+                body.append(line)
+            line = "{}propagate{}({} out_neutrons[ms{}], *args{})".format(
+                ' '*ms_indent, i, prefix, ms_loop_ind, i)
+            body.append(line)
+        else:
+            if i>0:
+                body.append("{}abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, i-1, i-1))
+            n_ms = f'num_ms{i} = ' if comp.is_multiplescattering else ''
+            body.append("{}{}propagate{}({} neutron, *args{})".format(
+                ' '*ms_indent, n_ms, i, prefix, i))
+
+        if comp.is_multiplescattering:
+            # insert a multiple scattering loop
+            body.append("{}for ms{} in range(num_ms{}):".format(' '*ms_indent, i, i))
+            ms_indent += 4
+            ms_loop = True
+            ms_loop_ind = i
         continue
     module_imports = ['from {} import {} as comp{}'.format(m, c, i) for i, (m, c) in enumerate(modules)]
     module_imports = '\n'.join(module_imports)
@@ -66,12 +97,36 @@ Parameters:
     args = ', '.join(args)
     indent = 8*' '
     body = '\n'.join([indent+line for line in body])
-    text = compiled_script_template.format(
-        script = script,
-        module_imports = module_imports,
-        propagate_definitions = propagate_defs,
-        args=args, propagate_body=body
-    )
+    if len(ms_comps) == 0:
+        text = compiled_script_template.format(
+            script = script,
+            module_imports = module_imports,
+            propagate_definitions = propagate_defs,
+            args=args, propagate_body=body
+        )
+    else:
+        # handle multiple scattering
+        max_scattering = 0
+        max_scattering_comp = None
+        # find the maximum number of scattered neutrons to define the output buffer size
+        for comp in ms_comps:
+            max_scattering = max(max_scattering, comp.NUM_MULTIPLE_SCATTER)
+            max_scattering_comp = comp
+
+        # pre-define the number of neutrons scattered by each multiple-scattering component
+        scattering_nums = ['NUM_MS{} = comp{}.NUM_MULTIPLE_SCATTER'.format(i, i) if comp.is_multiplescattering else '' for i, comp in enumerate(comps)]
+        for i, comp in enumerate(comps):
+            if comp == max_scattering_comp:
+                scattering_nums.append("NUM_MS = NUM_MS{}".format(i))
+        scattering_nums = '\n'.join(scattering_nums)
+
+        text = compiled_script_ms_template.format(
+            script = script,
+            module_imports = module_imports,
+            num_multiple_scattering = scattering_nums,
+            propagate_definitions = propagate_defs,
+            args=args, propagate_body=body
+        )
     if compiled_script is None:
         f, ext = os.path.splitext(script)
         kwds_str = str(kwds)
@@ -149,6 +204,59 @@ InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
     instrument = loadInstrument(script, **kwds)
+    InstrumentBase(instrument).process_no_buffer(
+        ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
+    saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
+"""
+
+compiled_script_ms_template = """#!/usr/bin/env python
+
+script = {script!r}
+from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonitorOutputs
+
+from numba import cuda
+import numba as nb
+from numba.cuda.random import create_xoroshiro128p_states
+from mcvine.acc.neutron import abs2rel
+from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
+NB_FLOAT = get_numba_floattype()
+
+{module_imports}
+
+{propagate_definitions}
+
+{num_multiple_scattering}
+
+@cuda.jit(max_registers=100)
+def process_kernel_no_buffer(
+    rng_states, N, n_neutrons_per_thread,
+    args
+):
+    {args}, offsets, rotmats = args
+    thread_index = cuda.grid(1)
+    start_index = thread_index*n_neutrons_per_thread
+    end_index = min(start_index+n_neutrons_per_thread, N)
+    neutron = cuda.local.array(shape=10, dtype=NB_FLOAT)
+    r = cuda.local.array(3, dtype=NB_FLOAT)
+    v = cuda.local.array(3, dtype=NB_FLOAT)
+    out_neutrons = cuda.local.array(shape=(NUM_MS,10), dtype=NB_FLOAT)
+    for neutron_index in range(start_index, end_index):
+{propagate_body}
+
+from mcvine.acc.components.sources.SourceBase import SourceBase
+class InstrumentBase(SourceBase):
+    def __init__(self, instrument):
+        offsets, rotmats = calcTransformations(instrument)
+        self.propagate_params = tuple(c.propagate_params for c in instrument.components)
+        self.propagate_params += (offsets, rotmats)
+        return
+    def propagate(self):
+        pass
+InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
+
+def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
+    instrument = loadInstrument(script, **kwds)
+    print(instrument)
     InstrumentBase(instrument).process_no_buffer(
         ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)

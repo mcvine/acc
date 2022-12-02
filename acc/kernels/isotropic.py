@@ -1,5 +1,5 @@
 from numba import cuda, void, int64
-from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
+from .._numba import xoroshiro128p_uniform_float32, xoroshiro128p_type
 from math import sqrt, pi, sin, cos
 
 @cuda.jit(device=True)

@@ -10,3 +10,11 @@ def get_numpy_floattype():
 def get_numba_floattype():
     import numba
     return getattr(numba, floattype)
+
+
+def get_max_registers(threads=threads_per_block):
+    # returns the maximum registers a kernel can use based on the device and block size
+    from numba.cuda import get_current_device
+    max_regs_per_block = getattr(
+        get_current_device(), "MAX_REGISTERS_PER_BLOCK")
+    return int(max_regs_per_block / threads)

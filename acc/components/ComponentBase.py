@@ -19,6 +19,8 @@ from numba.core.types import Array, Float
 if not config.ENABLE_CUDASIM:
     from numba.cuda.compiler import Dispatcher, DeviceFunction
 
+from ..config import get_max_registers
+
 
 class Curator(type):
 
@@ -45,6 +47,10 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
     _floattype = "float64"
 
     propagate_params = ()
+
+    # flag whether this is a multiple scattering component
+    is_multiplescattering = False
+    NUM_MULTIPLE_SCATTER = 10
 
     @property
     def NP_FLOAT(self):
@@ -87,7 +93,7 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
             neutron_array = neutron_array.astype(neutron_array_dtype_int)
         t2 = time()
         from ..config import ntotalthreads, threads_per_block
-        self.call_process(
+        neutron_array = self.call_process(
             self.__class__.process_kernel,
             neutron_array,
             ntotthreads=ntotalthreads, threads_per_block = threads_per_block,
@@ -115,10 +121,12 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
         n_neutrons_per_thread = math.ceil(N / actual_nthreads)
         print("%s blocks, %s threads, %s neutrons per thread" % (
             nblocks, threads_per_block, n_neutrons_per_thread))
+        self.check_kernel_launch(process_kernel, threads_per_block,
+                                 in_neutrons, n_neutrons_per_thread, self.propagate_params)
         process_kernel[nblocks, threads_per_block](
             in_neutrons, n_neutrons_per_thread, self.propagate_params)
         cuda.synchronize()
-        return
+        return in_neutrons
 
     @classmethod
     def register_propagate_method(cls, propagate):
@@ -191,6 +199,28 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
         except Exception as e:
             print(e)
             return
+
+    def check_kernel_launch(self, kernel, threads_per_block, *args):
+        """
+        Helper to check the register usage of a kernel.
+        This will raise a RuntimeError if using too many to avoid a CUDA launch error.
+
+        Parameters:
+        kernel: Dispatcher object from @cuda.jit()
+        threads_per_block: Threads per block to launch this kernel with
+        *args: parameters used to launch the kernel
+        """
+        if config.ENABLE_CUDASIM:
+            return
+
+        max_registers = get_max_registers(threads_per_block)
+
+        specialized = kernel.specialize(*args)
+        used_regs = specialized.get_regs_per_thread()
+
+        if used_regs > max_registers:
+            raise RuntimeError("{}: kernel {} is using too many registers for the block size. using {} but max for block size {} is {}".format(
+                self.__class__, kernel.py_func, used_regs, threads_per_block, max_registers))
 
 
 def make_process_kernel(propagate):
