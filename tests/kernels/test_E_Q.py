@@ -12,6 +12,7 @@ from mcvine.acc import test
 from mcvine.acc.config import rng_seed
 from mcvine.acc.kernels import E_Q as E_Q_kernel
 
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_makeS():
     E_Q = '5*sin(Q)**2+5'
     S_Q = '1'
