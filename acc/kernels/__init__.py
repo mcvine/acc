@@ -52,13 +52,6 @@ class ScatterFuncFactory:
         from ..components.samples import getAbsScttCoeffs
         mu, sigma = getAbsScttCoeffs(kernel)
 
-        from mccomposite.units_utils import UnitsRemover
-        from mccomposite import units
-        _units_remover = UnitsRemover(
-            length_unit=units.length.meter, angle_unit=units.angle.degree)
-        Q = _units_remover.remove_unit(kernel.Q, 1/units.length.angstrom)
-        E = _units_remover.remove_unit(kernel.E, units.energy.meV)
-
         from .constant_qe import S
         @cuda.jit(device=True)
         def constantqe_scatter(threadindex, rng_states, neutron):
@@ -67,5 +60,27 @@ class ScatterFuncFactory:
 
         return constantqe_scatter, None, None
 
+    def onE_Q_Kernel(self, kernel):
+        from ..components.samples import getAbsScttCoeffs
+        mu, sigma = getAbsScttCoeffs(kernel)
+
+        Qmin = _units_remover.remove_unit(kernel.Qmin, 1/units.length.angstrom)
+        Qmax = _units_remover.remove_unit(kernel.Qmax, 1/units.length.angstrom)
+        E_Q = kernel.E_Q
+        S_Q = kernel.S_Q
+
+        from .E_Q import makeS
+        S = makeS(E_Q, S_Q, Qmin, Qmax, max_iter=100)
+        @cuda.jit(device=True)
+        def E_Q_scatter(threadindex, rng_states, neutron):
+            neutron[-1] *= sigma
+            return S(threadindex, rng_states, neutron)
+        return E_Q_scatter, None, None
+
 
 scatter_func_factory = ScatterFuncFactory()
+
+from mccomposite.units_utils import UnitsRemover
+from mccomposite import units
+_units_remover = UnitsRemover(
+    length_unit=units.length.meter, angle_unit=units.angle.degree)
