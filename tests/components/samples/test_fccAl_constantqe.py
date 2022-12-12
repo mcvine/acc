@@ -7,8 +7,7 @@ from mcvine import run_script
 
 thisdir = os.path.dirname(__file__)
 
-
-def test1():
+def test_cpu():
     instr = os.path.join(thisdir, "fccAl_constantqe_box_instrument.py")
     outdir = 'out.fccAl_constantqe_box'
     if os.path.exists(outdir): shutil.rmtree(outdir)
@@ -19,7 +18,6 @@ def test1():
         is_acc=False,
     )
     return
-
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_compare_mcvine(num_neutrons=int(1024), debug=False, interactive=False):
@@ -43,7 +41,7 @@ def test_compare_mcvine(num_neutrons=int(1024), debug=False, interactive=False):
 def main():
     import journal
     journal.info("instrument").activate()
-    # test1()
+    # test_cpu()
     # test_compare_mcvine(num_neutrons=int(100), interactive=True, debug=True)
     # test_compare_mcvine(num_neutrons=int(1e7), interactive=True)
     return
