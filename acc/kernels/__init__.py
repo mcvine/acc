@@ -51,6 +51,8 @@ class ScatterFuncFactory:
     def onConstantQEKernel(self, kernel):
         from ..components.samples import getAbsScttCoeffs
         mu, sigma = getAbsScttCoeffs(kernel)
+        Q = _units_remover.remove_unit(kernel.Q, 1/units.length.angstrom)
+        E = _units_remover.remove_unit(kernel.E, units.energy.meV)
 
         from .constant_qe import S
         @cuda.jit(device=True)
