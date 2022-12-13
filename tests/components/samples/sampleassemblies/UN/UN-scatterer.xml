@@ -3,7 +3,10 @@
 <!DOCTYPE scatterer>
 
 <!-- weights: absorption, scattering, transmission -->
-<homogeneous_scatterer mcweights="0, 1, 0.1">
+<homogeneous_scatterer
+    mcweights="0, 1, 0.1"
+    max_multiplescattering_loops="1"
+    >
   <KernelContainer average="yes">
     <E_Q_Kernel
 	      E_Q="0"

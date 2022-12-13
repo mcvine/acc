@@ -2,7 +2,11 @@
 
 <!DOCTYPE SampleAssembly>
 
-<SampleAssembly name="UN">
+<SampleAssembly
+    name="UN"
+    max_multiplescattering_loops_among_scatterers="1"
+    max_multiplescattering_loops_interactM_path1="8"
+    >
 
   <PowderSample name="UN" type="sample">
     <Shape>
