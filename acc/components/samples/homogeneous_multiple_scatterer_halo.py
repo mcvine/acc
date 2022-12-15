@@ -25,10 +25,6 @@ NB_FLOAT = get_numba_floattype()
 
 category = 'samples'
 
-@cuda.jit(device=True)
-def dummy_absorb(neutron):
-    return
-
 def factory(shape, kernel):
     """
     Usage:
@@ -46,12 +42,6 @@ def factory(shape, kernel):
     mu, sigma = getAbsScttCoeffs(kernel)
     from ...kernels import scatter_func_factory
     scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
-    if calc_scattering_coeff is None:
-        @cuda.jit(device=True)
-        def calc_scattering_coeff(neutron):
-            return sigma
-    if absorb is None:
-        absorb = dummy_absorb
 
     # sets the number of neutrons scattered by this component
     # has to be defined outside of the class so it is visible in propagate
