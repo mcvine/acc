@@ -9,7 +9,14 @@ class ScatterFuncFactory:
         absorb function is used typically by detectors to handle neutron detection.
         for other kernels, just use None
         """
-        return kernel.identify(self)
+        scatter, calc_scattering_coeff, absorb =  kernel.identify(self)
+        if calc_scattering_coeff is None:
+            from ..components.samples import getAbsScttCoeffs
+            mu, sigma = getAbsScttCoeffs(kernel)
+            calc_scattering_coeff = make_calc_sctt_coeff_func(sigma)
+        if absorb is None:
+            absorb = dummy_absorb
+        return scatter, calc_scattering_coeff, absorb
 
     def onIsotropicKernel(self, kernel):
         from ..components.samples import getAbsScttCoeffs
@@ -81,6 +88,16 @@ class ScatterFuncFactory:
 
 
 scatter_func_factory = ScatterFuncFactory()
+
+def make_calc_sctt_coeff_func(sigma):
+    @cuda.jit(device=True)
+    def calc_scattering_coeff(neutron):
+        return sigma
+    return calc_scattering_coeff
+
+@cuda.jit(device=True)
+def dummy_absorb(neutron):
+    return
 
 from mccomposite.units_utils import UnitsRemover
 from mccomposite import units
