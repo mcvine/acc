@@ -5,7 +5,7 @@ from mcni import units
 class ScatterFuncFactory:
 
     def render(self, kernel):
-        """returns function tuple (scatter, scattering_coeff, absorb)
+        """returns cuda device function tuple (scatter, scattering_coeff, absorb)
         absorb function is used typically by detectors to handle neutron detection.
         for other kernels, just use None
         """
@@ -17,6 +17,18 @@ class ScatterFuncFactory:
         if absorb is None:
             absorb = dummy_absorb
         return scatter, calc_scattering_coeff, absorb
+
+    def onCompositeKernel(self, composite):
+        elements = composite.elements()
+        weights = []
+        for element in elements:
+            weights.append(getattr(element, 'weight', 1.))
+            continue
+        s = sum(weights)
+        for w, element in zip(weights, elements):
+            element.weight = w/s
+        from .composite import makeKernelMethods
+        return makeKernelMethods(composite)
 
     def onIsotropicKernel(self, kernel):
         from ..components.samples import getAbsScttCoeffs

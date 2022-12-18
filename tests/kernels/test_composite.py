@@ -19,14 +19,19 @@ hs = loadFirstHomogeneousScatterer(path)
 shape = hs.shape()
 kernel = hs.kernel()
 
-@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_makeKernelModule():
     from mcvine.acc.kernels.composite import makeKernelModule
     makeKernelModule(kernel)
     return
 
+def test_render():
+    from mcvine.acc.kernels import scatter_func_factory
+    scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
+    return
+
 def main():
     test_makeKernelModule()
+    test_render()
     return
 
 if __name__ == '__main__': main()
