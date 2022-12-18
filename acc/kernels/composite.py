@@ -9,10 +9,12 @@ def makeKernelMethods(composite):
     mod = makeKernelModule(composite)
     import imp
     m = imp.load_source('composite', mod)
-    return m.scatter, m.scattering_coeff, None
+    return m.scatter, m.scattering_coeff, module.absorb
 
+_modules = {}
 def makeKernelModule(composite):
     "make cuda device methods for the composite kernel"
+    if composite in _modules: return _modules[composite]
     import pickle as pkl, tempfile
     # save composite to be loaded by the "compiled" module
     tmpdir = tempfile.mkdtemp(prefix='composite_kernel_', dir=os.curdir)
@@ -25,29 +27,46 @@ def makeKernelModule(composite):
         f'scatter_{ikernel}, scattering_coeff_{ikernel}, absorb_{ikernel} = kernel_funcs_list[{ikernel}]'
         for ikernel in range(nkernels)]
     element_scatter_method_defs = '\n'.join(element_scatter_method_defs)
-    lines = []
-    args = 'threadindex, rng_states, neutron'
     indent = 4*' '
-    for i in range(nkernels-1):
-        lead = 'if'
-        if i>0: lead = 'elif'
-        lines.append(f'{lead} r < cumulative_weights[{i}]:')
-        lines.append(f'{indent}ret = scatter_{i}({args})')
-        lines.append(f'{indent}iscatter={i}')
-    lines.append(f'else:')
-    lines.append(f'{indent}scatter_{nkernels-1}({args})')
-    lines.append(f'{indent}iscatter={nkernels-1}')
-    lines.append(f'neutron[-1]*=weights[iscatter]')
-    lines.append(f'return ret')
+    lines = _create_select_kernel_func_lines(
+        nkernels,
+        method='scatter',
+        args = 'threadindex, rng_states, neutron',
+        indent = indent
+    )
     if_clause_for_scatter_method = '\n'.join([indent + line for line in lines])
     # 2. scattering_coeff
     lines = [f'r += scattering_coeff_{i}(neutron)' for i in range(nkernels)]
     add_scattering_coeff = '\n'.join(indent+l for l in lines)
+    # 3. absorb
+    lines = _create_select_kernel_func_lines(
+        nkernels,
+        method='absorb',
+        args = 'neutron',
+        indent = indent
+    )
+    if_clause_for_absorb_method = '\n'.join([indent + line for line in lines])
     # all together
     content = template.format(**locals())
     modulepath = os.path.join(tmpdir, 'compiled_composite.py')
     open(modulepath, 'wt').write(content)
+    _modules[composite] = modulepath
     return modulepath
+
+def _create_select_kernel_func_lines(nkernels, method, args, indent=4*' '):
+    lines = []
+    for i in range(nkernels-1):
+        lead = 'if'
+        if i>0: lead = 'elif'
+        lines.append(f'{lead} r < cumulative_weights[{i}]:')
+        lines.append(f'{indent}ret = {method}_{i}({args})')
+        lines.append(f'{indent}ikernel={i}')
+    lines.append(f'else:')
+    lines.append(f'{indent}ret = {method}_{nkernels-1}({args})')
+    lines.append(f'{indent}ikernel={nkernels-1}')
+    lines.append(f'neutron[-1]/=weights[ikernel]')
+    lines.append(f'return ret')
+    return lines
 
 template = """import os, pickle as pkl
 from numba import cuda
@@ -84,4 +103,9 @@ def scattering_coeff(neutron):
     r = 0.0
 {add_scattering_coeff}
     return r*scale_scattering_coeff
+
+@cuda.jit(device=True)
+def absorb(neutron):
+    r = xoroshiro128p_uniform_float32(rng_states, threadindex)
+{if_clause_for_absorb_method}
 """
