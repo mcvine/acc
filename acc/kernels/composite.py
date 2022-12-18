@@ -9,7 +9,7 @@ def makeKernelMethods(composite):
     mod = makeKernelModule(composite)
     import imp
     m = imp.load_source('composite', mod)
-    return m.scatter, m.scattering_coeff, module.absorb
+    return m.scatter, m.scattering_coeff, m.absorb
 
 _modules = {}
 def makeKernelModule(composite):
