@@ -29,9 +29,23 @@ def test_render():
     scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
     return
 
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_makeS():
+    from mcvine.acc.kernels import scatter_func_factory
+    scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
+    in_neutron = np.array([0.,0.,0., 0.,0.,10000., 0.,0., 0., 1.])
+    for i in range(10):
+        neutron = in_neutron.copy()
+        scatter(0, None, neutron)
+        vi = in_neutron[3:6]
+        vf = neutron[3:6]
+        print(vi, vf)
+    return
+
 def main():
-    test_makeKernelModule()
-    test_render()
+    # test_makeKernelModule()
+    # test_render()
+    test_makeS()
     return
 
 if __name__ == '__main__': main()

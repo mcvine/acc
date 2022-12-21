@@ -70,7 +70,7 @@ def _create_select_kernel_func_lines(nkernels, method, args, indent=4*' '):
 
 template = """import os, pickle as pkl
 from numba import cuda
-from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
+from mcvine.acc._numba import xoroshiro128p_uniform_float32
 
 pklpath = {pklpath!r}
 composite = pkl.load(open(pklpath, 'rb'))

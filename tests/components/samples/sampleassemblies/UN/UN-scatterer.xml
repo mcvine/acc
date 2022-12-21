@@ -26,7 +26,7 @@
 	      />
     <E_Q_Kernel
 	      E_Q="100"
-	      S_Q="1./2 * (0.00276*Q*Q)^2 * exp(-0.00276 * Q*Q)"
+	      S_Q="1./2 * (0.00276*Q*Q)**2 * exp(-0.00276 * Q*Q)"
 	      Qmin="0./angstrom"
 	      Qmax="35./angstrom"
 	      absorption_coefficient="32.395/meter"
@@ -34,7 +34,7 @@
 	      />
     <E_Q_Kernel
 	      E_Q="150"
-	      S_Q="1./6 * (0.00276*Q*Q)^3 * exp(-0.00276 * Q*Q)"
+	      S_Q="1./6 * (0.00276*Q*Q)**3 * exp(-0.00276 * Q*Q)"
 	      Qmin="0./angstrom"
 	      Qmax="35./angstrom"
 	      absorption_coefficient="32.395/meter"
@@ -42,7 +42,7 @@
 	      />
     <E_Q_Kernel
 	      E_Q="200"
-	      S_Q="1./24 * (0.00276*Q*Q)^4 * exp(-0.00276 * Q*Q)"
+	      S_Q="1./24 * (0.00276*Q*Q)**4 * exp(-0.00276 * Q*Q)"
 	      Qmin="0./angstrom"
 	      Qmax="35./angstrom"
 	      absorption_coefficient="32.395/meter"
@@ -50,7 +50,7 @@
 	      />
     <E_Q_Kernel
 	      E_Q="250"
-	      S_Q="1./120 * (0.00276*Q*Q)^5 * exp(-0.00276 * Q*Q)"
+	      S_Q="1./120 * (0.00276*Q*Q)**5 * exp(-0.00276 * Q*Q)"
 	      Qmin="0./angstrom"
 	      Qmax="35./angstrom"
 	      absorption_coefficient="32.395/meter"
@@ -58,7 +58,7 @@
 	      />
     <E_Q_Kernel
 	      E_Q="300"
-	      S_Q="1./720 * (0.00276*Q*Q)^6 * exp(-0.00276 * Q*Q)"
+	      S_Q="1./720 * (0.00276*Q*Q)**6 * exp(-0.00276 * Q*Q)"
 	      Qmin="0./angstrom"
 	      Qmax="35./angstrom"
 	      absorption_coefficient="32.395/meter"
@@ -66,7 +66,7 @@
 	      />
     <E_Q_Kernel
 	      E_Q="350"
-	      S_Q="1./5040 * (0.00276*Q*Q)^7 * exp(-0.00276 * Q*Q)"
+	      S_Q="1./5040 * (0.00276*Q*Q)**7 * exp(-0.00276 * Q*Q)"
 	      Qmin="0./angstrom"
 	      Qmax="35./angstrom"
 	      absorption_coefficient="32.395/meter"
