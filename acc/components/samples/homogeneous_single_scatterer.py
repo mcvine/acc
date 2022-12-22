@@ -44,13 +44,6 @@ def factory(shape, kernel):
     mu, sigma = getAbsScttCoeffs(kernel)
     from ...kernels import scatter_func_factory
     scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
-    if calc_scattering_coeff is None:
-        @cuda.jit(device=True)
-        def calc_scattering_coeff(neutron):
-            return sigma
-    if absorb is None:
-        absorb = dummy_absorb
-
     class HomogeneousSingleScatterer(SampleBase):
 
         def __init__(self, name):
