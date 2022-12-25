@@ -21,6 +21,8 @@ def makeS(E_Q, S_Q, Qmin, Qmax, max_iter=100):
         erf, erfc,
         pi, e
     )
+    E_Q = E_Q.replace('^', '**')
+    S_Q = S_Q.replace('^', '**')
     context = locals().copy()
     code = 'def E_Q_func(Q): return ' + E_Q
     exec(code, context, context)
