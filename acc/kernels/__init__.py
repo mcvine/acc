@@ -1,6 +1,7 @@
 import numba
 from numba import cuda
 from mcni import units
+from ..components.samples import getAbsScttCoeffs
 
 class ScatterFuncFactory:
 
@@ -9,14 +10,14 @@ class ScatterFuncFactory:
         absorb function is used typically by detectors to handle neutron detection.
         for other kernels, just use None
         """
-        scatter, calc_scattering_coeff, absorb =  kernel.identify(self)
-        if calc_scattering_coeff is None:
-            from ..components.samples import getAbsScttCoeffs
+        scatter, calc_scattering_coeff, absorb, calc_absorption_coeff =  kernel.identify(self)
+        if calc_scattering_coeff is None or calc_absorption_coeff is None:
             mu, sigma = getAbsScttCoeffs(kernel)
-            calc_scattering_coeff = make_calc_sctt_coeff_func(sigma)
+            calc_scattering_coeff = calc_scattering_coeff or make_calc_sctt_coeff_func(sigma)
+            calc_absorption_coeff = calc_absorption_coeff or make_calc_abs_coeff_func(mu)
         if absorb is None:
             absorb = dummy_absorb
-        return scatter, calc_scattering_coeff, absorb
+        return scatter, calc_scattering_coeff, absorb, calc_absorption_coeff
 
     def onCompositeKernel(self, composite):
         elements = composite.elements()
@@ -38,7 +39,7 @@ class ScatterFuncFactory:
         def isotropic_scatter(threadindex, rng_states, neutron):
             neutron[-1] *= sigma
             return S(threadindex, rng_states, neutron)
-        return isotropic_scatter, None, None
+        return isotropic_scatter, None, None, None
 
     def onSimplePowderDiffractionKernel(self, kernel):
         from .powderdiffr import scatter, scattering_coefficient, PowderDiffraction
@@ -65,7 +66,7 @@ class ScatterFuncFactory:
         @cuda.jit(device=True)
         def simplepowderdiffraction_scattering_coefficient(neutron):
             return scattering_coefficient(neutron, ucvol, Npeaks, q_v, my_s_v2)
-        return simplepowderdiffraction_scatter, simplepowderdiffraction_scattering_coefficient, None
+        return simplepowderdiffraction_scatter, simplepowderdiffraction_scattering_coefficient, None, None
 
     def onConstantQEKernel(self, kernel):
         from ..components.samples import getAbsScttCoeffs
@@ -79,7 +80,7 @@ class ScatterFuncFactory:
             neutron[-1] *= sigma
             return S(threadindex, rng_states, neutron, Q, E)
 
-        return constantqe_scatter, None, None
+        return constantqe_scatter, None, None, None
 
     def onE_Q_Kernel(self, kernel):
         from ..components.samples import getAbsScttCoeffs
@@ -96,7 +97,7 @@ class ScatterFuncFactory:
         def E_Q_scatter(threadindex, rng_states, neutron):
             neutron[-1] *= sigma
             return S(threadindex, rng_states, neutron)
-        return E_Q_scatter, None, None
+        return E_Q_scatter, None, None, None
 
 
 scatter_func_factory = ScatterFuncFactory()
@@ -107,8 +108,16 @@ def make_calc_sctt_coeff_func(sigma):
         return sigma
     return calc_scattering_coeff
 
+from ..vec3 import length
+def make_calc_abs_coeff_func(mu):
+    @cuda.jit(device=True)
+    def calc_absorption_coeff(neutron):
+        v = length(neutron[3:6])
+        return mu/v*2200
+    return calc_absorption_coeff
+
 @cuda.jit(device=True)
-def dummy_absorb(neutron):
+def dummy_absorb(threadindex, rng_states, neutron):
     return
 
 from mccomposite.units_utils import UnitsRemover
