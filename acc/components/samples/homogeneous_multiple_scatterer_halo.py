@@ -38,10 +38,8 @@ def factory(shape, kernel):
     from ...geometry import arrow_intersect
     intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
     locate = arrow_intersect.locate_func_factory.render(shape)
-    from . import getAbsScttCoeffs
-    mu, sigma = getAbsScttCoeffs(kernel)
     from ...kernels import scatter_func_factory
-    scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
+    scatter, calc_scattering_coeff, absorb, calc_absorption_coeff = scatter_func_factory.render(kernel)
 
     # sets the number of neutrons scattered by this component
     # has to be defined outside of the class so it is visible in propagate
@@ -89,7 +87,8 @@ def factory(shape, kernel):
             dist = v*time_travelled_in_shape_to_scattering_point
             fulllen = v*total_time_in_shape1
             sigma = calc_scattering_coeff(neutron)
-            atten = exp( -(mu/v*2200+sigma) * dist )
+            mu = calc_absorption_coeff(neutron)
+            atten = exp( -(mu+sigma) * dist )
             prob = fulllen * atten  # Xsigma is now part of scatter method
             # prob *= sum_of_weights/m_weights.scattering;
             neutron[-1] *= prob
@@ -97,14 +96,15 @@ def factory(shape, kernel):
             scatter(threadindex, rng_states, neutron)
             # ev.probability *= packing_factor;
             if neutron[-1] <=0:
-                absorb(neutron)
+                absorb(threadindex, rng_states, neutron)
                 return 0
             # find exiting time
             x, y, z, vx, vy, vz = neutron[:6]
             ninter = intersect(x,y,z, vx,vy,vz, ts)
             dt3 = total_time_in_shape(ts, ninter)
             sigma = calc_scattering_coeff(neutron)
-            atten2 = exp( -(mu/v*2200+sigma) * v * dt3 )
+            mu = calc_absorption_coeff(neutron)
+            atten2 = exp( -(mu+sigma) * v * dt3 )
             neutron[-1] *= atten2
 
             # set multiple scattering outputs
