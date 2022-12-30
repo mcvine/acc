@@ -4,6 +4,7 @@
 
 import os, sys, yaml, warnings, imp, hashlib
 from mcni import run_ppsd, run_ppsd_in_parallel
+from .components.ComponentBase import ComponentBase
 from .components.StochasticComponentBase import StochasticComponentBase
 
 def run(script, workdir, ncount,
@@ -49,6 +50,7 @@ Parameters:
     ms_comps = []
     ms_loop_ind = -1
     for i, comp in enumerate(comps):
+        assert isinstance(comp, ComponentBase), f"{comp} is not a mcvine.acc component"
         if comp.is_multiplescattering:
             ms_comps.append(comp)
 
