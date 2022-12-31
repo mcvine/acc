@@ -1,30 +1,15 @@
 #!/usr/bin/env python
 
-import os, mcvine
+import os, sys, mcvine
 from mcvine.acc.components.sources.source_simple import Source_simple
 thisdir = os.path.dirname(__file__)
+if thisdir not in sys.path:
+    sys.path.insert(0, thisdir)
 
 def instrument(sample_factory=None, monitor_factory=None, z_sample=2.0):
-    instrument = mcvine.instrument()
-
-    source = Source_simple(
-        'src',
-        radius = 0., width = 0.01, height = 0.01, dist = 1.,
-        xw = 0.008, yh = 0.008,
-        Lambda0 = 10., dLambda = 9.5, E0=0., dE=0.0,
-        flux=1, gauss=0
-    )
-    instrument.append(source, position=(0,0,0.))
-
+    from acc_ss_test_instrument import instrument
     if sample_factory is None:
-        from HMS_isotropic_hollowcylinder import HMS
-        sample = HMS('sample')
-    else:
-        sample = sample_factory()
-    instrument.append(sample, position=(0,0,z_sample))
-
-    if monitor_factory is not None:
-        monitor = monitor_factory()
-        instrument.append(monitor, position=(0,0,z_sample))
-
-    return instrument
+        def sample_factory():
+            from HMS_isotropic_hollowcylinder import HMS
+            return HMS('sample')
+    return instrument(sample_factory, monitor_factory, z_sample)
