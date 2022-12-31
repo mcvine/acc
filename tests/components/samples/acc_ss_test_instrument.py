@@ -20,7 +20,7 @@ def instrument(sample_factory=None, monitor_factory=None, z_sample=2.0, source_f
 
     if sample_factory is None:
         from HSS_isotropic_hollowcylinder import HSS
-        sample = HMS('sample')
+        sample = HSS('sample')
     else:
         sample = sample_factory()
     instrument.append(sample, position=(0,0,z_sample))
