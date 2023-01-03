@@ -10,13 +10,13 @@ class Builder(BuilderBase):
     def addIQEMonitor(self):
         return super(Builder, self).addIQEMonitor(
             Ei=Ei,
-            Qmin=0., Qmax=30.0, nQ = 300,
-            Emin=-100.0, Emax=400.0, nE = 200,
+            Qmin=0., Qmax=30.0, nQ = 150,
+            Emin=-100.0, Emax=400.0, nE = 100,
         )
 
 def instrument(is_acc=True):
     if is_acc:
-        from HSS_UN_box import HSS
+        from UN_HSS import HSS
         target = HSS(name='sample')
     else:
         import mcvine.components as mc
