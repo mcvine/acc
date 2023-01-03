@@ -5,7 +5,7 @@
 <!-- weights: absorption, scattering, transmission -->
 <homogeneous_scatterer
     mcweights="0, 1, 0"
-    max_multiplescattering_loops="1"
+    max_multiplescattering_loops="5"
     >
   <KernelContainer average="yes">
     <E_Q_Kernel
