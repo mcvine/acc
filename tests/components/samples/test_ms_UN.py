@@ -45,9 +45,9 @@ def run_gpu(ncount = 1e7, interactive=False):
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_cpu_vs_gpu(interactive=True):
-    # run_gpu(ncount=1e8)
-    # run_cpu(ncount=1e7)
+def test_cpu_vs_gpu(interactive=False):
+    run_gpu(ncount=1e8)
+    run_cpu(ncount=1e7)
     Es, cpu_I_Q, gpu_I_Q = compareIQs(
         cpu_workdir, gpu_workdir,
         relerr = None, outlier_fraction = None
