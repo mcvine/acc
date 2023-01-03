@@ -5,12 +5,16 @@
 <SampleAssembly
     name="UN"
     max_multiplescattering_loops_among_scatterers="1"
-    max_multiplescattering_loops_interactM_path1="8"
+    max_multiplescattering_loops_interactM_path1="1"
+    min_neutron_probability="1e-20"
     >
 
   <PowderSample name="UN" type="sample">
     <Shape>
+      <!--
       <block width="1*cm" height="1*cm" thickness="1*cm" />
+      -->
+      <cylinder height="1.*cm" radius="0.56419*cm"/>
     </Shape>
     <Phase type="crystal">
       <ChemicalFormula>UN</ChemicalFormula>
