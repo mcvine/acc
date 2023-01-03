@@ -59,6 +59,7 @@ def makeS(E_Q, S_Q, Qmin, Qmax, max_iter=100):
             found = True
             break
         if not found:
+            neutron[-1] = 0
             return
         sint = sqrt(1.0 - cost2)
         phi = xoroshiro128p_uniform_float32(rng_states, threadindex) * 2.0 * np.pi
