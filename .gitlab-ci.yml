@@ -11,7 +11,7 @@
     - conda config --add channels mcvine
     - conda config --show channels
     - conda remove --name testenv --all
-    - conda create -n testenv python=3.8 mcvine=1.4.4 numba=0.53.1 pyyaml=5.3
+    - conda create -n testenv python=3.8 mcvine mcvine-core=1.4.6 numba=0.53.1 pyyaml=5.3
     - conda install -n testenv cupy cudatoolkit=11.3
     - conda run -n testenv python setup.py sdist
     - conda run -n testenv pip install --no-deps .
