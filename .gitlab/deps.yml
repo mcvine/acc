@@ -7,7 +7,8 @@ channels:
 dependencies:
   - python=3.8
   - numba=0.53.1
-  - mcvine=1.4.4
+  - mcvine
+  - mcvine-core=1.4.6
   - pytest
   - cupy
   - cudatoolkit
