@@ -17,12 +17,18 @@ gpu_workdir = 'out.ms_UN-gpu'
 def run_cpu(ncount = 1e6, interactive=False):
     workdir = cpu_workdir
     from mcvine import run_script
-    run_script.run_mpi(
-        script, workdir, overwrite_datafiles=True,
-        multiple_scattering=True,
-        ncount=ncount, nodes=10, buffer_size=1e5,
-        Ei = Ei
-    )
+    logfile = 'log.ms_UN-cpu'
+    try:
+        run_script.run_mpi(
+            script, workdir, overwrite_datafiles=True,
+            multiple_scattering=True,
+            ncount=ncount, nodes=10, buffer_size=5e4,
+            Ei = Ei, log=logfile,
+        )
+    except RuntimeError as e:
+        msg = "CPU simulation failed. Log file: {os.path.abspath(logfile)}\n"
+        msg += str(e)
+        raise RuntimeError(msg)
     if interactive:
         plot_UN_IQ.plot(os.path.join(workdir, 'iqe.h5'))
     return
@@ -46,20 +52,21 @@ def run_gpu(ncount = 1e7, interactive=False):
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_cpu_vs_gpu(interactive=False):
-    run_gpu(ncount=1e8)
+    run_gpu(ncount=1e9)
     run_cpu(ncount=1e7)
     Es, cpu_I_Q, gpu_I_Q = compareIQs(
         cpu_workdir, gpu_workdir,
         relerr = None, outlier_fraction = None
     )
     if interactive:
-        plotIQcomparison(Es, cpu_I_Q, gpu_I_Q)
+        labels = dict(cpu='CPU ncount=1e7', gpu='GPU ncount=1e9')
+        plotIQcomparison(Es, cpu_I_Q, gpu_I_Q, labels=labels)
     return
 
 def main():
     import journal
     journal.info("instrument").activate()
-    # run_gpu(ncount=1e8)
+    # run_gpu(ncount=1e9)
     # run_cpu(ncount=1e7)
     test_cpu_vs_gpu(interactive=True)
     return
