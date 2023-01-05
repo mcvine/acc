@@ -95,7 +95,7 @@ def makeS(E_Q, S_Q, Qmin, Qmax, max_iter=100):
         neutron[5] = e1[2] + e2[2] + e3[2]
 
         prob_f = S_Q_df(Q) * (vf/vi) * Q*(Qmax-Qmin) / (kf*ki) /2
-        neutron[-1] *= prob_f# /(itr+1)
+        neutron[-1] *= prob_f /(itr+1)
         return
 
     if config.ENABLE_CUDASIM:
