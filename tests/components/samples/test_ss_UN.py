@@ -16,10 +16,11 @@ def run_cpu(ncount = 1e5, interactive=False):
     script = os.path.join(thisdir, 'UN_test_instrument.py')
     workdir = cpu_workdir
     from mcvine import run_script
+    # logfile = 'log.ss_UN-cpu'
     run_script.run_mpi(
         script, workdir, overwrite_datafiles=True,
         ncount=ncount, nodes=10,
-        Ei = Ei
+        Ei = Ei, # log=logfile,
     )
     if interactive:
         plot_UN_IQ.plot(os.path.join(workdir, 'iqe.h5'))
@@ -72,12 +73,18 @@ def compareIQs(cpu_workdir, gpu_workdir, relerr=0.1, outlier_fraction=0.1):
         assert outliers.sum() < outlier_fraction * cpuIQ.size()
     return Es, cpu_IQ_list, gpu_IQ_list
 
-def plotIQcomparison(Es, cpu_I_Q, gpu_I_Q):
+def plotIQcomparison(Es, cpu_I_Q, gpu_I_Q, labels=dict()):
     from matplotlib import pyplot as plt
     plt.figure()
-    for E, cs, gs in zip(Es, cpu_I_Q, gpu_I_Q):
-        plt.plot(cs.Q, cs.I, 'k', label=f"CPU: {E}")
-        plt.plot(gs.Q, gs.I, 'r--', label=f"GPU: {E}")
+    cpu_label = labels.get('cpu', "CPU")
+    gpu_label = labels.get('gpu', "GPU")
+    colors = 'bgrcmyk'
+    for i, (E, cs, gs) in enumerate(zip(Es, cpu_I_Q, gpu_I_Q)):
+        if i==0: continue
+        ic = i % len(colors)
+        c = colors[ic]
+        plt.plot(cs.Q, cs.I, c+'-', label=f"{cpu_label}: {E}")
+        plt.plot(gs.Q, gs.I, c+'--', label=f"{gpu_label}: {E}")
     plt.legend()
     plt.show()
     return
