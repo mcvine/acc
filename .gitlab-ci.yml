@@ -55,6 +55,7 @@ build-job-using-docker:
     - export PATH=/opt/conda/bin:$PATH
     - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
     - conda env list
+    - conda list -n acc mcvine # check mcvine
     - git clone https://github.com/yxqd/dotmantid ~/.mantid
     - conda run -n acc mcvine
     - conda run -n acc python setup.py sdist
