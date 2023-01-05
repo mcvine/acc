@@ -1,5 +1,6 @@
-import os
-thisdir = os.path.dirname(__file__)
+import os, sys
+thisdir = os.path.abspath(os.path.dirname(__file__))
+if thisdir not in sys.path: sys.path.insert(0, thisdir)
 import mcvine, mcvine.components as mc
 
 def source(ctor, Ei):
