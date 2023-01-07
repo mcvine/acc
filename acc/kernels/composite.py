@@ -9,7 +9,7 @@ def makeKernelMethods(composite):
     mod = makeKernelModule(composite)
     import imp
     m = imp.load_source('composite', mod)
-    return m.scatter, m.scattering_coeff, m.absorb
+    return m.scatter, m.scattering_coeff, m.absorb, m.absorption_coeff
 
 _modules = {}
 def makeKernelModule(composite):
@@ -24,8 +24,8 @@ def makeKernelModule(composite):
     nkernels = len(composite.elements())
     # 1. scatter
     element_scatter_method_defs = [
-        f'scatter_{ikernel}, scattering_coeff_{ikernel}, absorb_{ikernel} = kernel_funcs_list[{ikernel}]'
-        for ikernel in range(nkernels)]
+        f'scatter_{ik}, scattering_coeff_{ik}, absorb_{ik}, absorption_coeff_{ik} = kernel_funcs_list[{ik}]'
+        for ik in range(nkernels)]
     element_scatter_method_defs = '\n'.join(element_scatter_method_defs)
     indent = 4*' '
     lines = _create_select_kernel_func_lines(
@@ -42,10 +42,13 @@ def makeKernelModule(composite):
     lines = _create_select_kernel_func_lines(
         nkernels,
         method='absorb',
-        args = 'neutron',
+        args = 'threadindex, rng_states, neutron',
         indent = indent
     )
     if_clause_for_absorb_method = '\n'.join([indent + line for line in lines])
+    # 4. absorption_coeff
+    lines = [f'r += absorption_coeff_{i}(neutron)' for i in range(nkernels)]
+    add_absorption_coeff = '\n'.join(indent+l for l in lines)
     # all together
     content = template.format(**locals())
     modulepath = os.path.join(tmpdir, 'compiled_composite.py')
@@ -68,7 +71,7 @@ def _create_select_kernel_func_lines(nkernels, method, args, indent=4*' '):
     lines.append(f'return ret')
     return lines
 
-template = """import os, pickle as pkl
+template = """import os, pickle as pkl, numpy as np
 from numba import cuda
 from mcvine.acc._numba import xoroshiro128p_uniform_float32
 
@@ -76,10 +79,12 @@ pklpath = {pklpath!r}
 composite = pkl.load(open(pklpath, 'rb'))
 elements = composite.elements()
 Nkernels = len(elements)
-weights = [element.weight for element in elements]
+weights = [float(element.weight) for element in elements]
 cumulative_weights = [weights[0]]
 for w in weights[1:]:
     cumulative_weights.append(w+cumulative_weights[-1])
+cumulative_weights = np.array(cumulative_weights)
+weights = np.array(weights)
 scale_scattering_coeff = 1./Nkernels if composite.average else 1
 
 # create cuda functions for kernels
@@ -105,7 +110,13 @@ def scattering_coeff(neutron):
     return r*scale_scattering_coeff
 
 @cuda.jit(device=True)
-def absorb(neutron):
+def absorb(threadindex, rng_states, neutron):
     r = xoroshiro128p_uniform_float32(rng_states, threadindex)
 {if_clause_for_absorb_method}
+
+@cuda.jit(device=True)
+def absorption_coeff(neutron):
+    r = 0.0
+{add_absorption_coeff}
+    return r/Nkernels
 """

@@ -4,6 +4,7 @@
 
 import os, sys, yaml, warnings, imp, hashlib
 from mcni import run_ppsd, run_ppsd_in_parallel
+from .components.ComponentBase import ComponentBase
 from .components.StochasticComponentBase import StochasticComponentBase
 
 def run(script, workdir, ncount,
@@ -49,6 +50,7 @@ Parameters:
     ms_comps = []
     ms_loop_ind = -1
     for i, comp in enumerate(comps):
+        assert isinstance(comp, ComponentBase), f"{comp} is not a mcvine.acc component"
         if comp.is_multiplescattering:
             ms_comps.append(comp)
 
@@ -166,7 +168,7 @@ script = {script!r}
 from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonitorOutputs
 
 from numba import cuda
-import numba as nb
+import numpy as np, numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
 from mcvine.acc.neutron import abs2rel
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
@@ -181,7 +183,7 @@ def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
     args
 ):
-    {args}, offsets, rotmats = args
+    {args}, offsets, rotmats, neutron_counter = args
     thread_index = cuda.grid(1)
     start_index = thread_index*n_neutrons_per_thread
     end_index = min(start_index+n_neutrons_per_thread, N)
@@ -189,23 +191,31 @@ def process_kernel_no_buffer(
     r = cuda.local.array(3, dtype=NB_FLOAT)
     v = cuda.local.array(3, dtype=NB_FLOAT)
     for neutron_index in range(start_index, end_index):
+        cuda.atomic.add(neutron_counter, 0, 1)
 {propagate_body}
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
-class InstrumentBase(SourceBase):
+class _Base(SourceBase): # has to be named Base in definition
     def __init__(self, instrument):
         offsets, rotmats = calcTransformations(instrument)
+        self.neutron_counter = neutron_counter = np.zeros(1, dtype=int)
         self.propagate_params = tuple(c.propagate_params for c in instrument.components)
-        self.propagate_params += (offsets, rotmats)
+        self.propagate_params += (offsets, rotmats, neutron_counter)
         return
-    def propagate(self):
-        pass
-InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
+    def propagate(self): return
+InstrumentWrapper = _Base
+InstrumentWrapper.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
     instrument = loadInstrument(script, **kwds)
-    InstrumentBase(instrument).process_no_buffer(
+    iw = InstrumentWrapper(instrument)
+    iw.process_no_buffer(
         ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
+    processed = iw.neutron_counter[0]
+    assert processed == ncount, (
+        "Processed neutron count "+str(processed)
+        + " does not match requested neutron count " + str(int(ncount))
+    )
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
 """
 
@@ -215,7 +225,7 @@ script = {script!r}
 from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonitorOutputs
 
 from numba import cuda
-import numba as nb
+import numpy as np, numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
 from mcvine.acc.neutron import abs2rel
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
@@ -232,7 +242,7 @@ def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
     args
 ):
-    {args}, offsets, rotmats = args
+    {args}, offsets, rotmats, neutron_counter = args
     thread_index = cuda.grid(1)
     start_index = thread_index*n_neutrons_per_thread
     end_index = min(start_index+n_neutrons_per_thread, N)
@@ -241,24 +251,32 @@ def process_kernel_no_buffer(
     v = cuda.local.array(3, dtype=NB_FLOAT)
     out_neutrons = cuda.local.array(shape=(NUM_MS,10), dtype=NB_FLOAT)
     for neutron_index in range(start_index, end_index):
+        cuda.atomic.add(neutron_counter, 0, 1)
 {propagate_body}
 
 from mcvine.acc.components.sources.SourceBase import SourceBase
-class InstrumentBase(SourceBase):
+class _Base(SourceBase): # has to be named Base in definition
     def __init__(self, instrument):
         offsets, rotmats = calcTransformations(instrument)
+        self.neutron_counter = neutron_counter = np.zeros(1, dtype=int)
         self.propagate_params = tuple(c.propagate_params for c in instrument.components)
-        self.propagate_params += (offsets, rotmats)
+        self.propagate_params += (offsets, rotmats, neutron_counter)
         return
-    def propagate(self):
-        pass
-InstrumentBase.process_kernel_no_buffer = process_kernel_no_buffer
+    def propagate(self): return
+InstrumentWrapper = _Base
+InstrumentWrapper.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
     instrument = loadInstrument(script, **kwds)
     print(instrument)
-    InstrumentBase(instrument).process_no_buffer(
+    iw = InstrumentWrapper(instrument)
+    iw.process_no_buffer(
         ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
+    processed = iw.neutron_counter[0]
+    assert processed == ncount, (
+        "Processed neutron count "+str(processed)
+        + " does not match requested neutron count " + str(int(ncount))
+    )
     saveMonitorOutputs(instrument, scale_factor=1.0/ncount)
 """
 

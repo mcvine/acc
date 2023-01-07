@@ -26,7 +26,11 @@ NB_FLOAT = get_numba_floattype()
 
 category = 'samples'
 
-def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loops_path1=2, minimum_neutron_event_probability=1e-20):
+def factory(
+        shape, kernel,
+        max_scattered_neutrons=10,
+        max_ms_loops=3, max_ms_loops_path1=2,
+        minimum_neutron_event_probability=1e-20):
     """
     Usage
     -----
@@ -53,10 +57,8 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loo
     locate = arrow_intersect.locate_func_factory.render(shape)
     from ...geometry import propagation
     propagators = propagation.makePropagateMethods(intersect, locate)
-    from . import getAbsScttCoeffs
-    mu, sigma = getAbsScttCoeffs(kernel)
     from ...kernels import scatter_func_factory
-    scatter, calc_scattering_coeff, absorb = scatter_func_factory.render(kernel)
+    scatter, calc_scattering_coeff, absorb, calc_absorption_coeff = scatter_func_factory.render(kernel)
 
     # propagate methods
     propagate_to_next_incident_surface = propagators['propagate_to_next_incident_surface']
@@ -68,10 +70,8 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loo
     @cuda.jit(NB_FLOAT(NB_FLOAT[:]), device=True, inline=True)
     def _calc_atten_coeff(neutron):
         sigma = calc_scattering_coeff(neutron)
-        vx,vy,vz = neutron[3:6]
-        v = sqrt(vx*vx+vy*vy+vz*vz)
-        mu1 = mu/v*2200
-        return sigma+mu1
+        mu = calc_absorption_coeff(neutron)
+        return sigma+mu
 
     @cuda.jit(void(NB_FLOAT[:]), device=True)
     def _propagate_to_next_exiting_surface_with_attenuation(neutron):
@@ -101,9 +101,9 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loo
         v = sqrt(vx*vx+vy*vy+vz*vz)
         distance = tof*v
         sigma = calc_scattering_coeff(neutron)
-        mu1 = mu/v*2200
-        transmission_prob = exp(-(mu1+sigma) * distance)
-        absorption_prob = (1-transmission_prob)*(mu1/(mu1+sigma))
+        mu = calc_absorption_coeff(neutron)
+        transmission_prob = exp(-(mu+sigma) * distance)
+        absorption_prob = (1-transmission_prob)*(mu/(mu+sigma))
         # transmission
         transmitted = out_neutrons[0]
         clone(neutron, transmitted)
@@ -113,11 +113,11 @@ def factory(shape, kernel, max_scattered_neutrons=10, max_ms_loops=3, max_ms_loo
         temp = out_neutrons[1]
         clone(neutron, temp)
         temp[-1] *= absorption_prob
-        absorb(temp)
+        absorb(threadindex, rng_states, temp)
         # scattering
         rand = xoroshiro128p_uniform_float32(rng_states, threadindex)
         x = distance*rand
-        prob = distance * exp( -(mu1+sigma) * x );
+        prob = distance * exp( -(mu+sigma) * x );
         scattered = out_neutrons[1]
         clone(neutron, scattered)
         scattered[-1] *= prob

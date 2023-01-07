@@ -21,6 +21,8 @@ def makeS(E_Q, S_Q, Qmin, Qmax, max_iter=100):
         erf, erfc,
         pi, e
     )
+    E_Q = E_Q.replace('^', '**')
+    S_Q = S_Q.replace('^', '**')
     context = locals().copy()
     code = 'def E_Q_func(Q): return ' + E_Q
     exec(code, context, context)
@@ -57,6 +59,7 @@ def makeS(E_Q, S_Q, Qmin, Qmax, max_iter=100):
             found = True
             break
         if not found:
+            neutron[-1] = 0
             return
         sint = sqrt(1.0 - cost2)
         phi = xoroshiro128p_uniform_float32(rng_states, threadindex) * 2.0 * np.pi
@@ -92,7 +95,7 @@ def makeS(E_Q, S_Q, Qmin, Qmax, max_iter=100):
         neutron[5] = e1[2] + e2[2] + e3[2]
 
         prob_f = S_Q_df(Q) * (vf/vi) * Q*(Qmax-Qmin) / (kf*ki) /2
-        neutron[-1] *= prob_f/(itr+1)
+        neutron[-1] *= prob_f /(itr+1)
         return
 
     if config.ENABLE_CUDASIM:

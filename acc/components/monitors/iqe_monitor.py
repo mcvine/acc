@@ -28,6 +28,9 @@ class IQE_monitor(base):
         """
         self.name = name
         self.filename = filename
+        self.Ei = Ei
+        self.nQ, self.Qmin, self.Qmax = nQ, Qmin, Qmax
+        self.nE, self.Emin, self.Emax = nE, Emin, Emax
         dQ = (Qmax-Qmin)/nQ
         self.Q_centers = np.arange(Qmin+dQ/2, Qmax, dQ)
         dE = (Emax-Emin)/nE
@@ -45,7 +48,28 @@ class IQE_monitor(base):
             nQ, nE, self.out
         )
 
+    def copy(self):
+        (Ei, Qmin, Qmax, Emin, Emax,
+         max_angle_in_plane, min_angle_in_plane,
+         max_angle_out_of_plane, min_angle_out_of_plane,
+         ), nQ, nE, out = self.propagate_params
+        return self.__class__(
+            self.name,
+            Ei = Ei,
+            Qmin=Qmin, Qmax=Qmax, nQ=nQ,
+            Emin=Emin, Emax=Emax, nE=nE,
+            max_angle_in_plane = max_angle_in_plane,
+            min_angle_in_plane = min_angle_in_plane,
+            max_angle_out_of_plane = max_angle_out_of_plane,
+            min_angle_out_of_plane = min_angle_out_of_plane,
+            filename=self.filename)
+
     def getHistogram(self, scale_factor=1.):
+        h = self._getHistogram(scale_factor)
+        n = getNormalization(self, N=None, epsilon=1e-7)
+        return h/n
+
+    def _getHistogram(self, scale_factor=1.):
         import histogram as H
         axes = [('Q', self.Q_centers, '1./angstrom'), ('E', self.E_centers, 'meV')]
         return H.histogram(
@@ -87,3 +111,64 @@ class IQE_monitor(base):
                 cuda.atomic.add(out, (1,iQ,iE), p)
                 cuda.atomic.add(out, (2,iQ,iE), p*p)
         return
+
+def getNormalization(monitor, N=None, epsilon=1e-7):
+    # randomly shoot neutrons to monitor in 4pi solid angle
+    print("* start computing normalizer...")
+    if N is None:
+        N = monitor.nQ * monitor.nE * 10000
+    import mcni, random, mcni.utils.conversion as conversion, math, os
+    import numpy as np
+
+    # incident velocity
+    vi = conversion.e2v(monitor.Ei)
+    # monitor copy
+    mcopy = monitor.copy()
+    # send neutrons to monitor copy
+    N1 = 0; dN = int(2e7)
+    print("  - total neutrons needed :", N)
+    while N1 < N:
+        n = min(N-N1, dN)
+        neutrons = makeNeutrons(monitor.Ei, monitor.Emin, monitor.Emax, n)
+        mcopy.process(neutrons)
+        N1 += n
+        print("  - processed %s" % N1)
+        continue
+    h = mcopy._getHistogram(1.) # /N)
+    # for debug
+    # import histogram.hdf as hh
+    # hh.dump(h, 'tmp.h5', '/', 'c')
+    h.I[h.I<epsilon] = 1
+    #
+    print("  - done computing normalizer")
+    return h
+
+def makeNeutrons(Ei, Emin, Emax, N):
+    import mcni
+    neutrons = mcni.neutron_buffer(N)
+    # randomly select E, the energy transfer
+    E = Emin + np.random.random(N) * (Emax-Emin)
+    # the final energy
+    Ef = Ei - E
+    # the final velocity
+    from mcni.utils.conversion import e2v
+    vi = e2v(Ei)
+    vf = e2v(Ef)
+    # choose cos(theta) between -1 and 1
+    cos_t = np.random.random(N) * 2 - 1
+    # theta
+    theta = np.arccos(cos_t)
+    # sin(theta)
+    sin_t = np.sin(theta)
+    # phi: 0 - 2pi
+    phi = np.random.random(N) * 2 * np.pi
+    # compute final velocity vector
+    vx,vy,vz = vf*sin_t*np.cos(phi), vf*sin_t*np.sin(phi), vf*cos_t
+    # neutron position, spin, tof are set to zero
+    x = y = z = sx = sy = t = np.zeros(N, dtype="float64")
+    # probability
+    prob = np.ones(N, dtype="float64") * (vf/vi)
+    # XXX: this assumes a specific data layout of neutron struct
+    n_arr = np.array([x,y,z,vx,vy,vz, sx,sy, t, prob]).T.copy()
+    neutrons.from_npyarr(n_arr)
+    return neutrons
