@@ -14,7 +14,7 @@ from .SampleBase import SampleBase
 from ...neutron import absorb, prop_dt_inplace, clone, is_moving
 from ... import vec3
 from ...geometry.arrow_intersect import max_intersections
-from ...geometry.location import inside
+from ...geometry.location import inside, outside
 
 from numba.core import config
 if not config.ENABLE_CUDASIM:
@@ -98,6 +98,7 @@ def factory(
         if loc!= inside:
             propagate_to_next_incident_surface(neutron)
         tof = tof_before_first_exit(neutron)
+        if tof == 0.: return 0
         v = sqrt(vx*vx+vy*vy+vz*vz)
         distance = tof*v
         sigma = calc_scattering_coeff(neutron)

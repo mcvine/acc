@@ -72,11 +72,12 @@ def makePropagateMethods(intersect, locate):
               incident surface, nothing will be done.
         """
         x,y,z,vx,vy,vz = neutron[:6]
-        if locate(x,y,z)==inside:
-            raise RuntimeError("_propagate_to_next_incident_surface only valid for neutrons outside the shape")
+        loc = locate(x,y,z)
+        if loc==inside:
+            # raise RuntimeError("_propagate_to_next_incident_surface only valid for neutrons outside the shape")
+            return
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N==0: return
-        loc = locate(x,y,z)
         if loc == outside:
             t  = ts[0]
         elif loc == onborder:
@@ -164,7 +165,8 @@ def makePropagateMethods(intersect, locate):
         loc = locate(x,y,z)
         if loc == outside:
             #raise RuntimeError('({},{},{})} is out of shape'.format(x,y,z))
-            raise RuntimeError('neutron is out of shape')
+            # raise RuntimeError('neutron is out of shape')
+            return 0.
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N == 0:
             return 0.
