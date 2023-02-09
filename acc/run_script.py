@@ -84,8 +84,8 @@ Parameters:
             body.append("{}{}propagate{}({} neutron, *args{})".format(
                 ' '*ms_indent, n_ms, i, prefix, i))
 
-        if comp.is_multiplescattering:
-            # insert a multiple scattering loop
+        if comp.is_multiplescattering and i + 1 < len(comps):
+            # insert a multiple scattering loop for remaining components
             body.append("{}for ms{} in range(num_ms{}):".format(' '*ms_indent, i, i))
             ms_indent += 4
             ms_loop = True
