@@ -1,5 +1,6 @@
 import numpy as np, numba
 from numba import cuda
+from numba.core.config import ENABLE_CUDASIM
 from .arrow_intersect import max_intersections
 from .arrow_intersect import inside, outside, onborder
 from ..neutron import prop_dt_inplace
@@ -72,11 +73,14 @@ def makePropagateMethods(intersect, locate):
               incident surface, nothing will be done.
         """
         x,y,z,vx,vy,vz = neutron[:6]
-        if locate(x,y,z)==inside:
-            raise RuntimeError("_propagate_to_next_incident_surface only valid for neutrons outside the shape")
+        loc = locate(x,y,z)
+        if loc==inside:
+            if ENABLE_CUDASIM:
+                e = "_propagate_to_next_incident_surface only valid for neutrons outside the shape"
+                raise RuntimeError(e)
+            return
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N==0: return
-        loc = locate(x,y,z)
         if loc == outside:
             t  = ts[0]
         elif loc == onborder:
@@ -163,8 +167,10 @@ def makePropagateMethods(intersect, locate):
         x,y,z,vx,vy,vz = neutron[:6]
         loc = locate(x,y,z)
         if loc == outside:
-            #raise RuntimeError('({},{},{})} is out of shape'.format(x,y,z))
-            raise RuntimeError('neutron is out of shape')
+            if ENABLE_CUDASIM:
+                e = '({},{},{}) is out of shape'.format(x,y,z)
+                raise RuntimeError(e)
+            return 0.
         N = forward_intersect(x,y,z, vx,vy,vz, ts)
         if N == 0:
             return 0.
