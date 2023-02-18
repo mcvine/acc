@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 """
-quary:
-* CPU
+Performance comparison
+@quary:
+* CPU (Intel Core i7-4790K 4GHz) 1e7 10cores
   - real    2m22.877s
   - user    16m20.316s
   - sys     0m33.205s
-* GPU
+* GPU (GeForce GTX 1660) 1e9
   - real    7m32.941s
   - user    7m19.961s
   - sys     0m13.396s
