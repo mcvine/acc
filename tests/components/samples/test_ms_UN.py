@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 
+"""
+quary:
+* CPU 1e7 10cores
+  - real    2m22.877s
+  - user    16m20.316s
+  - sys     0m33.205s
+* GPU 1e9
+  - real    7m32.941s
+  - user    7m19.961s
+  - sys     0m13.396s
+"""
+
 import os, sys, shutil
 import pytest
 from mcvine.acc import test
