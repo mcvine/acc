@@ -51,7 +51,7 @@ class IQE_monitor(base):
         max_angle = max(
             np.abs(max_angle_out_of_plane), np.abs(min_angle_out_of_plane)
         )
-        height = 1.1*2*radius/math.tan(math.radians(max_angle))
+        height = 1.1*2*radius*math.tan(math.radians(max_angle))
         self.propagate_params = (
             np.array([
                 Ei, L0, Qmin, Qmax, Emin, Emax,
@@ -102,7 +102,7 @@ class IQE_monitor(base):
          max_angle_out_of_plane, min_angle_out_of_plane,
          radius, height) = params
         x,y,z, vx,vy,vz = neutron[:6]
-        n, t1, t2 = intersectCylinderSide(x,y,z, vx,vy,vz, radius, height)
+        n, t1, t2 = intersectCylinderSide(z,x,y, vz,vx,vy, radius, height)
         if n == 0: return
         if n == 2:
             dt = t2
