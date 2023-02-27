@@ -3,7 +3,8 @@
 <!DOCTYPE scatterer>
 
 <!-- weights: absorption, scattering, transmission -->
-<homogeneous_scatterer mcweights="0, 1, 0">
+<homogeneous_scatterer mcweights="0, 1, 0"
+    max_multiplescattering_loops="3">
   <IsotropicKernel absorption_coefficient="10./m" scattering_coefficient="10./m">
   </IsotropicKernel>
 </homogeneous_scatterer>

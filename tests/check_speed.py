@@ -193,7 +193,7 @@ def main():
 
     for i in range(len(ncounts)):
         n = ncounts[i]
-        line = "{}\t".format(n)
+        line = "{:1.0e}\t".format(n)
         for r in runs:
             line += "{:.4f}\t".format(runs[r][i] * 1e-9)
         line += "\n"

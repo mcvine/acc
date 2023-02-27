@@ -2,7 +2,10 @@
 
 <!DOCTYPE SampleAssembly>
 
-<SampleAssembly name="isotropic_hollowcylinder">
+<SampleAssembly name="isotropic_hollowcylinder"
+    max_multiplescattering_loops_among_scatterers="1"
+    max_multiplescattering_loops_interactM_path1="3"
+    min_neutron_probability="1e-20">
   <PowderSample name="sample" type="sample">
     <Shape>
       <difference>
