@@ -3,6 +3,14 @@
 # acc
 Accelerated mcvine engine
 
+Speedup various for different MCViNE applications.
+
+1000X speedup achieved for a simple virtual experiment with an isotropic spherical sample component.
+
+<img src="https://user-images.githubusercontent.com/1796155/222188657-1c6a4a5a-6970-4516-b51a-ba0329f56dae.png"  width="500">
+
+<img src="https://user-images.githubusercontent.com/1796155/222188086-3156e883-8691-4178-905a-be3f1c48dd1a.png"  width="500">
+
 ## Develop
 
 Install mcvine
