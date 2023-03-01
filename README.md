@@ -1,7 +1,6 @@
 [![CI](https://github.com/mcvine/acc/actions/workflows/CI.yml/badge.svg)](https://github.com/mcvine/acc/actions/workflows/CI.yml)
 
-# acc
-Accelerated mcvine engine
+# acc - Accelerated mcvine engine
 
 Speedup varies for different MCViNE applications.
 
