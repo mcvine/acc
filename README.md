@@ -3,7 +3,7 @@
 # acc
 Accelerated mcvine engine
 
-Speedup various for different MCViNE applications.
+Speedup varies for different MCViNE applications.
 
 1000X speedup achieved for a simple virtual experiment with an isotropic spherical sample component.
 
