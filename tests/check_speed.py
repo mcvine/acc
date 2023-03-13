@@ -37,7 +37,7 @@ def run(instrument_script, ncount, niters, mpi=False, nodes=1, acc_run=False, sk
             avg_times.append(np.nan)
             continue
 
-        print(" Running '{}' with n={}".format(instrument_script, n))
+        print(" Running '{}' with n={:1.0e}".format(instrument_script, n))
 
         times = []
         # redirect script output to reduce terminal clutter
@@ -82,6 +82,10 @@ def run(instrument_script, ncount, niters, mpi=False, nodes=1, acc_run=False, sk
             delta = time_after - time_before
             times.append(delta)
 
+            sys.stdout = sys.__stdout__
+            print("\t\t--Time (iter {}) = {} s".format(iter, delta * 1e-9))
+            sys.stdout = stdout
+
         sys.stdout = sys.__stdout__
 
         time_avg = np.sum(np.asarray(times)) / len(times)
@@ -98,7 +102,7 @@ def run(instrument_script, ncount, niters, mpi=False, nodes=1, acc_run=False, sk
 def parse_array_opt(array):
     tmp = array
     if isinstance(array, str):
-        tmp = np.fromstring(array, dtype=np.float, sep=',')
+        tmp = np.fromstring(array, dtype=float, sep=',')
     # convert sci notation number (e.g, 1e5) to int
     output = []
     for n in tmp:
