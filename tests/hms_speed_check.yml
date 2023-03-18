@@ -4,7 +4,7 @@ output_file: "./hms_timings.txt"
 scripts:
   - name: "cpu"
     file: "components/samples/hms_speed_instrument.py"
-    kwds: { 
+    kwds: {
       use_gpu: false,
       multiple_scattering: true,
       Ei: 500.0
@@ -14,7 +14,7 @@ scripts:
 
   - name: "mpi_12core"
     file: "components/samples/hms_speed_instrument.py"
-    kwds: { 
+    kwds: {
       use_gpu: false,
       multiple_scattering: true,
       Ei: 500.0
