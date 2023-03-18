@@ -11,7 +11,8 @@ import UN_with_ARCS_test_instrument as uati
 from test_ss_UN import compareIQs, plotIQcomparison
 
 script = os.path.join(thisdir, 'UN_with_ARCS_test_instrument.py')
-Ei = 500.0
+Ei = 512.0
+neutron_beam = os.path.join(thisdir, 'ARCS_vsource_512.mcv')
 cpu_workdir = 'out.ms_UN_with_ARCS-cpu'
 gpu_workdir = 'out.ms_UN_with_ARCS-gpu'
 
@@ -24,7 +25,7 @@ def run_cpu(ncount = 1e6, interactive=False):
             script, workdir, overwrite_datafiles=True,
             multiple_scattering=True,
             ncount=ncount, nodes=10, buffer_size=5e4,
-            Ei = Ei, log=logfile,
+            Ei = Ei, neutron_beam = neutron_beam, log=logfile,
         )
     except RuntimeError as e:
         msg = f"CPU simulation failed. Log file: {os.path.abspath(logfile)}\n"
@@ -42,10 +43,10 @@ def run_gpu(ncount = 1e7, interactive=False):
     from mcvine.acc import run_script
     run_script.run(
         script, workdir, ncount=ncount,
-        Ei = Ei,
+        Ei = Ei, neutron_beam = neutron_beam,
         source_factory = uati.source_gpu,
         sample_factory = sample,
-        monitor_factory = uati.monitor_gpu2,
+        monitor_factory = uati.monitor_gpu,
     )
     if interactive:
         plot_UN_IQ.plot(os.path.join(workdir, 'iqe.h5'))
@@ -67,7 +68,7 @@ def test_cpu_vs_gpu(interactive=False):
 def main():
     import journal
     journal.info("instrument").activate()
-    run_gpu(ncount=1e7)
+    run_gpu(ncount=1e9)
     # run_cpu(ncount=1e7)
     # test_cpu_vs_gpu(interactive=True)
     return

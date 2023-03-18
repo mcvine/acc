@@ -22,8 +22,8 @@ def monitor_gpu2(Ei):
      )
 
 def instrument(
-        Ei=500.,
-        neutron_beam = os.path.join(thisdir, 'ARCS_vsource_500.mcv'),
+        Ei=512.,
+        neutron_beam = os.path.join(thisdir, 'ARCS_vsource_512.mcv'),
         source_factory=source_cpu,
         sample_factory=sample_cpu,
         monitor_factory=monitor_cpu,
