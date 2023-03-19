@@ -10,16 +10,16 @@ scripts:
       Ei: 500.0
     acc_run: false
     skip_for: [1e8, 1e9, 1e10]
-  - name: "cpu_8cores"
+  - name: "cpu_50cores"
     file: "components/samples/UN_speed_instrument.py"
     kwds:
       use_gpu: false
       multiple_scattering: true
       Ei: 500.0
     acc_run: false
-    skip_for: [1e8, 1e9, 1e10]
+    skip_for: [1e9, 1e10]
     mpi: true
-    nodes: 8
+    nodes: 50
   - name: "acc"
     file: "components/samples/UN_speed_instrument.py"
     kwds:

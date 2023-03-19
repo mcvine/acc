@@ -12,15 +12,18 @@ def source(ctor, Ei):
         flux=1, gauss=0
     )
 source_cpu = lambda Ei: source(mc.sources.Source_simple, Ei)
-from mcvine.acc.components.sources.source_simple import Source_simple
-source_gpu = lambda Ei: source(Source_simple, Ei)
+def source_gpu(Ei):
+    from mcvine.acc.components.sources.source_simple import Source_simple
+    return source(Source_simple, Ei)
 
 sample_xml=os.path.join(thisdir, "sampleassemblies", "UN", "sampleassembly.xml")
 sample_cpu = lambda: mc.samples.SampleAssemblyFromXml('sample', sample_xml)
-from UN_HMS import HMS
-sample_gpu_MS = lambda: HMS('sample')
-from UN_HSS import HSS
-sample_gpu_SS = lambda: HSS('sample')
+def sample_gpu_MS():
+    from UN_HMS import HMS
+    return HMS('sample')
+def sample_gpu_SS():
+    from UN_HSS import HSS
+    return HSS('sample')
 
 def monitor(ctor, Ei, filename='iqe.dat'):
     return ctor(
@@ -33,11 +36,12 @@ def monitor(ctor, Ei, filename='iqe.dat'):
         filename = filename
     )
 monitor_cpu = lambda Ei: monitor(mc.monitors.IQE_monitor, Ei)
-from mcvine.acc.components.monitors.iqe_monitor import IQE_monitor
-monitor_gpu = lambda Ei: monitor(IQE_monitor, Ei, filename='iqe.h5')
+def monitor_gpu(Ei):
+    from mcvine.acc.components.monitors.iqe_monitor import IQE_monitor
+    return monitor(IQE_monitor, Ei, filename='iqe.h5')
 
 def instrument(
-        use_gpu,
+        use_gpu=False,
         Ei=500.,
         gpu_multiple_scattering=True,
 ):
