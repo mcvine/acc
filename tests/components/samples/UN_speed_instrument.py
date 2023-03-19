@@ -22,23 +22,37 @@ sample_gpu_MS = lambda: HMS('sample')
 from UN_HSS import HSS
 sample_gpu_SS = lambda: HSS('sample')
 
+def monitor(ctor, Ei, filename='iqe.dat'):
+    return ctor(
+        'iqe_monitor',
+        Ei = Ei,
+        Qmin=0., Qmax=30.0, nQ = 150,
+        Emin=-100.0, Emax=400.0, nE = 100,
+        min_angle_in_plane=10., max_angle_in_plane=135.,
+        min_angle_out_of_plane=-26., max_angle_out_of_plane=26.,
+        filename = filename
+    )
+monitor_cpu = lambda Ei: monitor(mc.monitors.IQE_monitor, Ei)
+from mcvine.acc.components.monitors.iqe_monitor import IQE_monitor
+monitor_gpu = lambda Ei: monitor(IQE_monitor, Ei, filename='iqe.h5')
+
 def instrument(
         use_gpu,
         Ei=500.,
         gpu_multiple_scattering=True,
-        source_cpu_factory=source_cpu,
-        sample_cpu_factory=sample_cpu,
-        source_gpu_factory=source_gpu,
 ):
     instrument = mcvine.instrument()
     if use_gpu:
-        instrument.append(source_gpu_factory(Ei), position=(0,0,0))
+        instrument.append(source_gpu(Ei), position=(0,0,0))
         if gpu_multiple_scattering:
             sample = sample_gpu_MS()
         else:
             sample = sample_gpu_SS()
+        monitor = monitor_gpu(Ei)
     else:
-        instrument.append(source_cpu_factory(Ei), position=(0,0,0))
-        sample = sample_cpu_factory()
+        instrument.append(source_cpu(Ei), position=(0,0,0))
+        sample = sample_cpu()
+        monitor = monitor_cpu(Ei)
     instrument.append(sample, position=(0,0,1.1))
+    # instrument.append(monitor, position=(0,0,0), relativeTo=sample)
     return instrument
