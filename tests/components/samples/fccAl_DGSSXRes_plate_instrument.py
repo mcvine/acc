@@ -3,11 +3,11 @@
 import os
 thisdir = os.path.dirname(__file__)
 
-from test_powdersqesample_instrument_factory import construct, Builder
+from test_powderdiffraction_sample_instrument_factory import construct, Builder
 
 def instrument(is_acc=True):
     if is_acc:
-        from HSS_fccAl_dgssxres_plate import HSS
+        from HSS_fccAl_DGSSXRes_plate import HSS
         target = HSS(name='sample')
     else:
         import mcvine.components as mc
@@ -16,5 +16,5 @@ def instrument(is_acc=True):
     source_params = dict(E0 = 70.0, dE=0.1, Lambda0=0, dLambda=0.)
     return construct(
         target, size=0.,
-        source_params=source_params, monitors=['IQE'],
+        source_params=source_params, monitors=['PSD_4PI'],
         builder=Builder())

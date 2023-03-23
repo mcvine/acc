@@ -24,7 +24,7 @@ def scatter_test_kernel(
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
-def test_constant_qe_kernel():
+def test_DGSSXRes_kernel():
 
     tof_at_sample = 1.0
     target_position = np.asarray([3.0, 0.0, 0.0], dtype=float)
