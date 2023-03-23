@@ -48,10 +48,7 @@ def choose_direction(threadindex: int, rng_states: xoroshiro128p_type, direction
         norm[1] = 0.0
         norm[2] = target_direction[0]
 
-    # TODO: move to inline vec3 function
-    norm[0] = norm[0] * target_direction[0]
-    norm[1] = norm[1] * target_direction[1]
-    norm[2] = norm[2] * target_direction[2]
+    vec3.cross(norm, target_direction, norm)
 
     vec3.copy(target_direction, direction)
     vec3.rotate(direction, norm, theta, epsilon)
@@ -95,7 +92,6 @@ def scatter(threadindex, rng_states, neutron, target, target_radius, tof_target,
     vf_over_vi = vf / vec3.length(neutron[3:6])
 
     # set vf
-    # neutron[3:6] = vf_dir
     neutron[3] = vf_dir[0]
     neutron[4] = vf_dir[1]
     neutron[5] = vf_dir[2]

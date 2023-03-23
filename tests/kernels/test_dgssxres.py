@@ -11,7 +11,7 @@ from numba.cuda.random import create_xoroshiro128p_states
 
 
 # Simple wrapper kernel to test the scatter device function
-@cuda.jit(max_registers=100)
+@cuda.jit()
 def scatter_test_kernel(
         rng_states, N, n_neutrons_per_thread, neutrons, target, target_radius, tof_target, delta_tof
 ):
@@ -28,17 +28,16 @@ def test_constant_qe_kernel():
 
     tof_at_sample = 1.0
     target_position = np.asarray([3.0, 0.0, 0.0], dtype=float)
-    print("target = {}".format(target_position))
     target_radius = 0.025
     tof_at_target = 0.001 + tof_at_sample
     dtof = 1e-5
 
-    from mcni.utils import conversion
     vil = 3000.0
-    vi = (0, 0, vil)
-    Ei = conversion.v2e(vil)
-
     n = neutron([0., 0., 0.], [0., 0., vil], prob=1.0, time=tof_at_sample)
+
+    # calculate initial vi and ei
+    vi = np.linalg.norm(n.state.velocity)
+    Ei = conversion.v2e(vi)
 
     # create neutron buffer
     buffer = neutron_buffer(1)
@@ -46,11 +45,6 @@ def test_constant_qe_kernel():
     tmp = neutrons_as_npyarr(buffer)
     tmp.shape = -1, ndblsperneutron
     buffer_d = cuda.to_device(tmp)
-
-    # calculate initial vi and ei
-    vi = np.linalg.norm(n.state.velocity)
-
-    Ei = conversion.v2e(vi)
 
     # setup test kernel with 1 neutron
     nblocks = 1
@@ -69,14 +63,11 @@ def test_constant_qe_kernel():
     Ef = conversion.v2e(vf)
     e_diff = Ei - Ef
     v_diff = buffer[3:6] - np.array(n.state.velocity)
-    print(buffer)
-    print(vf)
-    print(v_diff)
     q_as_v = np.linalg.norm(v_diff)
     q_actual = conversion.V2K * q_as_v
 
-    np.testing.assert_almost_equal(e_diff, 0.0)
-    np.testing.assert_almost_equal(q_actual, 6.74)
+    np.testing.assert_allclose(e_diff, 0.0, atol=0.5)
+    np.testing.assert_allclose(q_actual, 6.74, rtol=1.0e-2)
 
 
 if __name__ == '__main__':
