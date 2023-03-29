@@ -73,3 +73,14 @@ def v2e(v):
 @cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
 def e2v(e):
     return sqrt(e) * conversion.SE2V
+
+# In mcstas header
+# V2K = 1.58825361e-3
+@cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
+def v2k(v):
+    """v in m/s, k in inverse AA """
+    return v * conversion.V2K
+
+@cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
+def e2k(e):
+    return v2k( e2v( e) )

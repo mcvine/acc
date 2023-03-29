@@ -117,6 +117,29 @@ class ScatterFuncFactory:
             neutron[-1] *= sigma
             return scatter(threadindex, rng_states, neutron, target_position, target_radius, tof_target, dtof)
         return dgssxres_scatter, None, None, None
+    
+    def onSQEkernel(self, kernel):
+        from ..components.samples import getAbsScttCoeffs
+        mu, sigma = getAbsScttCoeffs(kernel)
+
+        qrange = _units_remover.remove_unit(kernel.Qrange, 1/units.length.angstrom)
+        erange = _units_remover.remove_unit(kernel.Erange, units.energy.meV)
+
+        qrange = np.asarray(qrange, dtype=float)
+        erange = np.asarray(erange, dtype=float)
+
+        sqehist = kernel.SQE.sqehist
+
+        print(sqehist.shape())
+        print(sqehist.data())
+        print(type(sqehist.data()))
+
+        from .SQEKernel import scatter
+        @cuda.jit(device=True)
+        def sqe_scatter(threadindex, rng_states, neutron):
+            neutron[-1] *= sigma
+            return scatter(threadindex, rng_states, neutron, qrange[0], qrange[1], erange[0], erange[1], sqehist.data(), int(len(sqehist.Q)), int(len(sqehist.energy)))
+        return sqe_scatter, None, None, None
 
 
 scatter_func_factory = ScatterFuncFactory()
