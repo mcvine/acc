@@ -3,7 +3,7 @@ from mcvine.acc.neutron import v2e, v2k, e2k
 from numba import cuda, float64
 from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
 from typing import List
-from mcni.utils.conversion import K2V
+from mcni.utils.conversion import K2V, V2K
 import math
 
 from .. import vec3
@@ -22,14 +22,14 @@ def scatter(threadindex, rng_states, neutron, qmin, qmax, emin, emax, sqe, nq, n
 
     vi = vec3.length(neutron[3:6])
     Ei = v2e(vi)
-    ki = v2k * vi
+    ki = V2K * vi
 
     if emin > Ei:
         return
 
     e_max = min(Ei, emax)
     # randomly pick energy transfer
-    Er = xoroshiro128p_uniform_float32(threadindex, rng_states)
+    Er = xoroshiro128p_uniform_float32(rng_states, threadindex)
     E = Er * (e_max - emin) + emin
     # use the same random number [0,1] and map to histogram size of [0, len(sqehist.energy) - 1]. See comment below for Q.
     Eind = int(Er * int(ne))
@@ -46,7 +46,7 @@ def scatter(threadindex, rng_states, neutron, qmin, qmax, emin, emax, sqe, nq, n
     if q_max < q_min:
         return
 
-    Qr = xoroshiro128p_uniform_float32(threadindex, rng_states)
+    Qr = xoroshiro128p_uniform_float32(rng_states, threadindex)
     Q = Qr * (q_max - q_min) + q_min
     # TODO: check this - the CPU mcvine looks up sqehist[Q,E] using float values. Since the histogram data seems to have Q,E values ordered,
     # this is converting the same random number (Qr) used in Q from [Qmin,Qmax] and mapping it an integer index from [0,len(SQE.Q_axis)-1] to try and find the closest Q value for that index.
@@ -61,7 +61,7 @@ def scatter(threadindex, rng_states, neutron, qmin, qmax, emin, emax, sqe, nq, n
     costheta = (kf * kf + ki * ki - Q*Q) / 2.0 / kf / ki
     sintheta = math.sqrt(1.0 - costheta * costheta)
 
-    phi = xoroshiro128p_uniform_float32(threadindex, rng_states) * 2 * math.pi
+    phi = xoroshiro128p_uniform_float32(rng_states, threadindex) * 2 * math.pi
 
     cosphi = math.cos(phi)
     sinphi = math.sin(phi)
