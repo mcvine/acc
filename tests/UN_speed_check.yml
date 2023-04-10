@@ -1,0 +1,32 @@
+ncounts: [1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10]
+iterations: 2
+output_file: "./UN_ms_timings.txt"
+scripts:
+  - name: "cpu"
+    file: "components/samples/UN_speed_instrument.py"
+    kwds:
+      use_gpu: false
+      multiple_scattering: true
+      Ei: 500.0
+    acc_run: false
+    skip_for: [1e8, 1e9, 1e10]
+  - name: "cpu_50cores"
+    file: "components/samples/UN_speed_instrument.py"
+    kwds:
+      use_gpu: false
+      multiple_scattering: true
+      Ei: 500.0
+    acc_run: false
+    skip_for: [1e9, 1e10]
+    mpi: true
+    nodes: 50
+  - name: "acc"
+    file: "components/samples/UN_speed_instrument.py"
+    kwds:
+      use_gpu: true
+      gpu_multiple_scattering: true
+      Ei: 500.0
+    acc_run: true
+    skip_for: [ ]
+
+

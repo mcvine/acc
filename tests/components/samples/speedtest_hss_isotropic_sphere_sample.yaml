@@ -4,13 +4,13 @@ output_file: "./speedtest_hss_isotropic_sphere_sample.txt"
 scripts:
   - name: "acc_run"
     file: "speedtest_instrument_for_hss_isotropic_sphere_sample.py"
-    kwds: 
+    kwds:
       use_acc_components: true
       threads_per_block: 256
     acc_run: true
   - name: "nonacc_run"
     file: "speedtest_instrument_for_hss_isotropic_sphere_sample.py"
-    kwds: 
+    kwds:
       use_acc_components: false
     acc_run: false
     skip_for: [1e9, 1e10, 1e11]
