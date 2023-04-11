@@ -13,10 +13,6 @@ from .SampleBase import SampleBase
 from ...neutron import absorb, prop_dt_inplace
 from ...geometry.arrow_intersect import max_intersections
 
-from numba.core import config
-if not config.ENABLE_CUDASIM:
-    from numba.cuda.compiler import Dispatcher, DeviceFunction
-
 from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 

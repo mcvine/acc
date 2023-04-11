@@ -9,7 +9,6 @@ import numba
 from mcvine.acc.test import USE_CUDA
 if USE_CUDA:
     from numba import cuda
-    import cupy as cp
 
     @cuda.jit(device=True)
     def atomic_func(a, x):
