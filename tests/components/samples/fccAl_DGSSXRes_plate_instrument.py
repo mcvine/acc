@@ -3,7 +3,9 @@
 import os
 thisdir = os.path.dirname(__file__)
 
-from test_powderdiffraction_sample_instrument_factory import construct, Builder
+from test_sample_instrument_factory import construct
+from test_DGSSXRes_sample_instrument_factory import Builder
+from mcni import neutron
 
 def instrument(is_acc=True):
     if is_acc:
@@ -13,8 +15,9 @@ def instrument(is_acc=True):
         import mcvine.components as mc
         xml=os.path.join(thisdir, "sampleassemblies", "Al-DGSSXResKernel", "sampleassembly.xml")
         target = mc.samples.SampleAssemblyFromXml("sample", xml)
-    source_params = dict(E0 = 70.0, dE=0.1, Lambda0=0, dLambda=0.)
+    source_params = dict(neutron=neutron([0., 0., 0.], [0., 0., 3000.0], prob=1.0, time=0.0))
     return construct(
-        target, size=0.,
-        source_params=source_params, monitors=['PSD_4PI'],
-        builder=Builder())
+        target, size=0., z_sample=6.0,
+        source_params=source_params, monitors=[],
+        builder=Builder(),
+        save_neutrons_after=True)
