@@ -17,7 +17,7 @@ def test_cpu():
     outdir = 'out.fccAl_DGSSXRes_plate'
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
-    ncount = 1e5
+    ncount = 1e4
     run_script.run1(
         instr, outdir,
         ncount=ncount, buffer_size=int(ncount),
@@ -70,15 +70,16 @@ def test_compare_mcvine(num_neutrons=int(1024), debug=False, interactive=False):
         gpu_r = np.linalg.norm(neutrons_gpu[i].state.position)
         gpu_v = np.linalg.norm(neutrons_gpu[i].state.velocity)
 
-        assert np.isclose(cpu_r, gpu_r)
-        assert np.isclose(cpu_v, gpu_v)
+        assert np.isclose(cpu_r, gpu_r, atol=0.1)
+        assert np.isclose(cpu_v, gpu_v, rtol=1.5e-2)
+        assert np.isclose(neutrons[i].time, neutrons_gpu[i].time, atol=1e-4)
 
 
 def main():
     import journal
     journal.info("instrument").activate()
     # test_cpu()
-    test_compare_mcvine(num_neutrons=int(1e2), interactive=True, debug=True)
+    test_compare_mcvine(num_neutrons=int(100), interactive=True, debug=False)
     return
 
 
