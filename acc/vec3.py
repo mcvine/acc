@@ -20,6 +20,13 @@ def length(v):
     return math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])
 
 @cuda.jit(device=True, inline=True)
+def distance(v1, v2):
+    x = v1[0]-v2[0]
+    y = v1[1]-v2[1]
+    z = v1[2]-v2[2]
+    return math.sqrt(x*x+y*y+z*z)
+
+@cuda.jit(device=True, inline=True)
 def normalize(v):
     l = length(v)
     scale(v, 1.0/l)
@@ -37,6 +44,13 @@ def copy(v1, v2):
     v2[0]=v1[0]
     v2[1]=v1[1]
     v2[2]=v1[2]
+    return
+
+@cuda.jit(device=True, inline=True)
+def add_inplace(v1, v2): # v1+=v2
+    v1[0]+=v2[0]
+    v1[1]+=v2[1]
+    v1[2]+=v2[2]
     return
 
 @cuda.jit(device=True, inline=True)
