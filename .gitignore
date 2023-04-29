@@ -1,3 +1,8 @@
 __pycache__/
 .ipynb_checkpoints/
 *.~undo-tree~
+out.*
+log.*
+mcvine.acc.egg-info/
+build/
+dist/
