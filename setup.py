@@ -22,6 +22,7 @@ setup(
         'mcvine.acc.components.optics',
         'mcvine.acc.components.monitors',
         'mcvine.acc.components.samples',
+        'mcvine.acc.scatterers',
     ],
     package_dir = {
         'mcvine.acc': "acc",
@@ -33,6 +34,7 @@ setup(
         'mcvine.acc.components.optics' : "acc/components/optics",
         'mcvine.acc.components.monitors' : "acc/components/monitors",
         'mcvine.acc.components.samples' : "acc/components/samples",
+        'mcvine.acc.scatterers' : "acc/scatterers",
     },
     data_files = [],
     install_requires = [
