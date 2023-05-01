@@ -1,3 +1,4 @@
+import os, tempfile
 import numpy as np
 from numba.core import config
 if config.ENABLE_CUDASIM:
@@ -6,3 +7,23 @@ if config.ENABLE_CUDASIM:
     from numba.cuda.random import xoroshiro128p_type
 else:
     from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
+
+class Coder:
+
+    def __init__(self, workdir=None):
+        self.workdir = workdir = workdir or os.path.abspath(".mcvine.acc.coder")
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+
+    def createUniqueDir(self, prefix):
+        return tempfile.mkdtemp(prefix=prefix, dir=self.workdir)
+
+    @classmethod
+    def unrollLoop(cls, N, indent=4*' ', before_loop=None, in_loop=None, after_loop=None):
+        lines=[indent+line for line in before_loop or []]
+        for i in range(N):
+            lines+=[indent+line.format(i=i) for line in in_loop or []]
+        lines+=[indent+line for line in after_loop or []]
+        return lines
+
+coder = Coder()
