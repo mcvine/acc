@@ -11,15 +11,15 @@ def makeKernelMethods(composite):
     m = imp.load_source('composite', mod)
     return m.createKernelMethods(composite)
 
-_modules = {}
 def makeKernelModule(composite):
     "make cuda device methods for the composite kernel"
     from .._numba import coder
-    if composite in _modules: return _modules[composite]
-    # save composite to be loaded by the "compiled" module
-    tmpdir = coder.createUniqueDir("composite_kernel_")
-    # make "compiled" composite module
     nkernels = len(composite.elements())
+    modulepath = coder.getModule("composite_kernel", nkernels)
+    if os.path.exists(modulepath):
+        return modulepath
+    # save composite to be loaded by the "compiled" module
+    # make "compiled" composite module
     #
     indent = 4*' '
     add_indent = lambda lines, n: [indent*n+l for l in lines]
@@ -46,9 +46,7 @@ def makeKernelModule(composite):
     ))
     # all together
     content = template.format(**locals())
-    modulepath = os.path.join(tmpdir, 'compiled_composite.py')
     open(modulepath, 'wt').write(content)
-    _modules[composite] = modulepath
     return modulepath
 
 def _create_scattering_coeff_method(nkernels, indent=4*' '):
