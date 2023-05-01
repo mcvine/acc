@@ -150,8 +150,13 @@ def remove_item(idx, l, N):
 
 @cuda.jit(device=True)
 def insert_into_sorted_list(d, l, N):
-    'insert data "d" into existing sorted array (low to high) of length N'
-    if N>=len(l): return N
+    '''insert data "d" into existing sorted array (low to high) of length N
+    and keep the lower number when there are too many elements
+    '''
+    if N>=len(l):
+        if l[N-1] <= d:
+            return N
+        N = N - 1
     if N==0:
         l[0] = d
         return 1
