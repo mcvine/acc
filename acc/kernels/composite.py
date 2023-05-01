@@ -55,8 +55,8 @@ def _create_scattering_coeff_method(nkernels, indent=4*' '):
         N = nkernels,
         indent = indent,
         before_loop = ['r = 0.0'],
-        in_loop = ['r += scattering_coeff_{i}(neutron)'],
-        after_loop = ['return r*scale_scattering_coeff']
+        in_loop     = ['r += scattering_coeff_{i}(neutron)'],
+        after_loop  = ['return r*scale_scattering_coeff']
     )
     return header + loop
 
@@ -67,8 +67,8 @@ def _create_scatter_method(nkernels, indent=4*' '):
     ]
     loop = _create_select_kernel_func_lines(
         nkernels,
-        method='scatter',
-        args = 'threadindex, rng_states, neutron',
+        method = 'scatter',
+        args   = 'threadindex, rng_states, neutron',
         indent = indent
     )
     return header + loop
@@ -83,8 +83,8 @@ def _create_abs_coeff_method(nkernels, indent=4*' '):
         N = nkernels,
         indent = indent,
         before_loop = ['r = 0.0'],
-        in_loop = ['r += absorption_coeff_{i}(neutron)'],
-        after_loop = ['return r/Nkernels']
+        in_loop     = ['r += absorption_coeff_{i}(neutron)'],
+        after_loop  = ['return r/Nkernels']
     )
     return header + loop
 
@@ -95,8 +95,8 @@ def _create_absorb_method(nkernels, indent=4*' '):
     ]
     loop = _create_select_kernel_func_lines(
         nkernels,
-        method='absorb',
-        args = 'threadindex, rng_states, neutron',
+        method = 'absorb',
+        args   = 'threadindex, rng_states, neutron',
         indent = indent
     )
     return header + loop
