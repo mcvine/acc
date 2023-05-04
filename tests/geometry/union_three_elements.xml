@@ -3,9 +3,17 @@
 <geometry>
 
     <union>
-      <cylinder height="20.*cm" radius="4.*mm"/>
+      <difference>
+        <cylinder height="20.*cm" radius="20.*cm"/>
+        <cylinder height="21.*cm" radius="19.9*cm"/>
+      </difference>
+
+      <difference>
+        <cylinder height="20.*cm" radius="10.*cm"/>
+        <cylinder height="21.*cm" radius="9.9*cm"/>
+      </difference>
+
       <sphere radius="2.5*cm"/>
-      <cylinder height="10.*cm" radius="1.*cm"/>
     </union>
 
 </geometry>

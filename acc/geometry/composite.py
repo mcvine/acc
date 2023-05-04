@@ -1,3 +1,72 @@
+from mcvine.acc.geometry.arrow_intersect import max_intersections
+
+def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_point):
+    @cuda.jit(device=True)
+    def _find_1st_hit(x,y,z, vx,vy,vz, ts):
+        nIntersections = forward_intersect_all(x,y,z, vx,vy,vz, ts)
+        # we have two cases
+        # case 1
+        #   shape1     |  vacuum | shape2
+        #        start-|---------|---> 
+        # case 2
+        #   vacuum     |  shape1
+        #        start-|-----------> 
+        # case 1: there will be odd number of intersections
+        # case 2: there will be even number of intersections
+        # we just need to determine which one of the above two cases is true,
+        # case1:
+        if nIntersections % 2 == 1:
+            ret = find_shape_containing_point(
+                x + ts[0]/2.*vx,
+                y + ts[0]/2.*vy,
+                z + ts[0]/2.*vz,
+            )
+        else :
+            # case2:
+            # no intersection
+            if nIntersections==0:
+                return -1
+        # at least two
+            midt = (ts[0]+ts[1])/2.
+            ret = find_shape_containing_point(
+                x + midt*vx,
+                y + midt*vy,
+                z + midt*vz,
+            )
+            # let us determine if the start is on border
+            isonborder = is_onborder(x,y,z)
+            # If start is not on border of any shape, it would be easier.
+            if (not isonborder): return ret
+
+            # on border. that is a bit more difficult.
+            # we need to go over all intersection pairs, and find the first pair
+            # whose midlle point is insde a shape. That shape containing
+            # the middle point is the target.
+            previous = 0.0
+            for point_index in range(nIntersections):
+                now = ts[point_index]
+                midt = (previous+now)/2
+                ret = find_shape_containing_point(
+                    x + midt*vx,
+                    y + midt*vy,
+                    z + midt*vz,
+                )
+                if ret>=0: return ret
+                previous = now
+        return -1
+    if test.USE_CUDASIM:
+        @cuda.jit(device=True)
+        def find_1st_hit(x,y,z, vx,vy,vz):
+            ts = np.zeros(max_intersections, dtype=float)
+            return _find_1st_hit(x,y,z, vx,vy,vz, ts)
+    else:
+        @cuda.jit(device=True)
+        def find_1st_hit(x,y,z, vx,vy,vz):
+            ts = cuda.local.array(max_intersections, dtype=numba.float64)
+            return _find_1st_hit(x,y,z, vx,vy,vz, ts)
+    return find_1st_hit
+
+
 def makeMethods(shapes):
     mod = makeModule(shapes)
     import imp
@@ -71,10 +140,18 @@ def createMethods_3(shapes):
             return 1
         if locate_2(x,y,z) == inside:
             return 2
+        return -1
 
     @cuda.jit(device=True)
-    def find_1st_hit(start, direction):
-        raise NotImplementedError
+    def is_onborder(x,y,z):
+        "check if the point is on the border of any of the shapes"
+        if locate_0(x,y,z) == onborder:
+            return True
+        if locate_1(x,y,z) == onborder:
+            return True
+        if locate_2(x,y,z) == onborder:
+            return True
+        return False
 
     if test.USE_CUDASIM:
         @cuda.jit(device=True)
@@ -93,5 +170,5 @@ def createMethods_3(shapes):
     return dict(
         forward_intersect_all = forward_intersect_all,
         find_shape_containing_point = find_shape_containing_point,
-        find_1st_hit = find_1st_hit,
+        is_onborder = is_onborder,
     )
