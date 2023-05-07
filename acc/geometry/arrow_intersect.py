@@ -26,6 +26,14 @@ class ArrowIntersectFuncFactory:
         return shape.identify(self)
 
     def onUnion(self, u):
+        nelements = len(u.shapes)
+        if nelements == 2: return self.onUnion2(u)
+        if nelements == 3:
+            from .composite import createMethods_3
+            return createMethods_3(u.shapes)['intersect_all']
+        raise NotImplementedError(f"locate for union of {nelements} elements")
+
+    def onUnion2(self, u):
         locate1 = self.locate_func_factory.onUnion(u)
         s1, s2 = u.shapes
         f1 = s1.identify(self)
@@ -84,6 +92,22 @@ class ArrowIntersectFuncFactory:
             return 2
 
         return intersectBlock
+
+    def onTranslation(self, t):
+        x0,y0,z0 = [_/units.length.meter for _ in t.vector]
+        body = t.body
+        intersect_body = self.render(body)
+        @cuda.jit(device=True, inline=True)
+        def intersectTranslation(x,y,z, vx,vy,vz, ts):
+            return intersect_body(x-x0,y-y0,z-z0, vx,vy,vz, ts)
+        return intersectTranslation
+
+    def onRotation(self, r):
+        euler_angles = [_/units.angle.rad for _ in r.euler_angles]
+        # hack
+        if not np.allclose(euler_angles, [0,0,0]):
+            raise NotImplementedError
+        return self.render(r.body)
 
     def onDifference(self, s):
         locate1 = self.locate_func_factory.onDifference(s)
