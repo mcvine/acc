@@ -16,7 +16,7 @@ def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_
         # we just need to determine which one of the above two cases is true,
         # case1:
         if nIntersections % 2 == 1:
-            ret = find_shape_containing_point(
+            return find_shape_containing_point(
                 x + ts[0]/2.*vx,
                 y + ts[0]/2.*vy,
                 z + ts[0]/2.*vz,

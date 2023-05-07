@@ -7,8 +7,7 @@ class ScatterFuncFactory:
     def render(self, scatterer):
         """returns cuda device function tuple (scatter, interact_path1)
         """
-        scatter, interact_path1 =  scatterer.identify(self)
-        return scatter, interact_path1
+        return scatterer.identify(self)
 
     def onCompositeKernel(self, composite):
         elements = composite.elements()
@@ -23,7 +22,13 @@ class ScatterFuncFactory:
         return makeKernelMethods(composite)
 
     def onHomogeneousScatterer(self, hs):
-        return
+        from .homogeneous_scatterer import factory
+        shape = hs.shape()
+        kernel = hs.kernel()
+        mcweights = hs.mcweights
+        packing_factor = hs.packing_factor
+        methods = factory(shape, kernel, mcweights, packing_factor)
+        return methods
 
 
 scatter_func_factory = ScatterFuncFactory()

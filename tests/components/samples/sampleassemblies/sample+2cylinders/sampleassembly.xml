@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE SampleAssembly>
+
+<SampleAssembly name="isotropic_sphere">
+  <PowderSample name="sample" type="sample">
+    <Shape>
+      <sphere radius="1*cm" />
+    </Shape>
+    <Phase type="crystal">
+      <ChemicalFormula>Al</ChemicalFormula>
+      <xyzfile>Al.xyz</xyzfile>
+    </Phase>
+  </PowderSample>
+
+  <PowderSample name="sampleenv1" type="sample">
+    <Shape>
+      <difference>
+        <cylinder height="20.*cm" radius="20.*cm"/>
+        <cylinder height="21.*cm" radius="19.9*cm"/>
+      </difference>
+    </Shape>
+    <Phase type="crystal">
+      <ChemicalFormula>Al</ChemicalFormula>
+      <xyzfile>Al.xyz</xyzfile>
+    </Phase>
+  </PowderSample>
+
+  <PowderSample name="sampleenv2" type="sample">
+    <Shape>
+      <difference>
+        <cylinder height="20.*cm" radius="10.*cm"/>
+        <cylinder height="21.*cm" radius="9.9*cm"/>
+      </difference>
+    </Shape>
+    <Phase type="crystal">
+      <ChemicalFormula>Al</ChemicalFormula>
+      <xyzfile>Al.xyz</xyzfile>
+    </Phase>
+  </PowderSample>
+
+  <LocalGeometer registry-coordinate-system="InstrumentScientist">
+    <Register name="sample" position="(0,0,0)" orientation="(0,0,0)"/>
+    <Register name="sampleenv1" position="(0,0,0)" orientation="(0,0,0)"/>
+    <Register name="sampleenv2" position="(0,0,0)" orientation="(0,0,0)"/>
+  </LocalGeometer>
+</SampleAssembly>
