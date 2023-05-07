@@ -95,6 +95,7 @@ from mcvine.acc._numba import xoroshiro128p_uniform_float32
 from mcvine.acc import test
 
 def createMethods_3(shapes):
+    "methods for a list of non-overlapping shapes"
     assert len(shapes)==3
     Nshapes = len(shapes)
     from mcvine.acc.geometry import arrow_intersect
@@ -199,3 +200,33 @@ def createMethods_3(shapes):
         find_shape_containing_point = find_shape_containing_point,
         is_onborder = is_onborder,
     )
+
+def createUnionLocateMethod_3(shapes):
+    assert len(shapes)==3
+    Nshapes = len(shapes)
+    from mcvine.acc.geometry import arrow_intersect
+    from mcvine.acc.geometry.location import inside, onborder, outside
+    locates = []
+    for shape in shapes:
+        locate = arrow_intersect.locate_func_factory.render(shape)
+        locates.append(locate)
+        continue
+
+    locate_0 = locates[0]
+    locate_1 = locates[1]
+    locate_2 = locates[2]
+
+    @cuda.jit(device=True)
+    def locate(x,y,z):
+        loc0 = locate_0(x,y,z)
+        loc1 = locate_1(x,y,z)
+        loc2 = locate_2(x,y,z)
+        if loc0 == inside: return inside
+        if loc1 == inside: return inside
+        if loc2 == inside: return inside
+        if loc0 == onborder: return onborder
+        if loc1 == onborder: return onborder
+        if loc2 == onborder: return onborder
+        return outside
+
+    return locate

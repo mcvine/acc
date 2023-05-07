@@ -13,6 +13,21 @@ thisdir = os.path.dirname(__file__)
 
 # device functions can be tested with CUDASIM only
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_locate():
+    union = parse_file(os.path.join(thisdir, 'union_three_elements.xml'))[0]
+    shapes = union.shapes
+    from mcvine.acc.geometry.composite import createUnionLocateMethod_3
+    locate_u3 =  createUnionLocateMethod_3(shapes)
+    assert locate_u3(0, 0, 0) == locate.inside
+    assert locate_u3(0.025, 0, 0) == locate.onborder
+    assert locate_u3(0.099, 0, 0) == locate.onborder
+    assert locate_u3(0.1, 0, 0) == locate.onborder
+    assert locate_u3(0.199, 0, 0) == locate.onborder
+    assert locate_u3(0.2, 0, 0) == locate.onborder
+    assert locate_u3(0.3, 0, 0) == locate.outside
+    return
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_intersect_all():
     union = parse_file(os.path.join(thisdir, 'union_three_elements.xml'))[0]
     shapes = union.shapes
