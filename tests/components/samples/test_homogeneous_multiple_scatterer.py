@@ -63,7 +63,7 @@ def test_interactM_path1():
     rng_states = create_xoroshiro128p_states(1, seed=0)
     N = np.zeros(1, dtype=int)
     rt = run_kernel[1,1](rng_states, out_neutrons, N, neutron)
-    assert N[0] == HMS.max_ms_loops_path1 + 1
+    assert N[0] == HMS.max_ms_loops_path1
     print(out_neutrons[:N[0]])
     return
 
