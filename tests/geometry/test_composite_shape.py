@@ -13,6 +13,18 @@ thisdir = os.path.dirname(__file__)
 
 # device functions can be tested with CUDASIM only
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_intersect_all():
+    union = parse_file(os.path.join(thisdir, 'union_three_elements.xml'))[0]
+    shapes = union.shapes
+    methods = createMethods_3(shapes)
+    intersect_all = methods['intersect_all']
+    ts = np.zeros(11)
+    assert intersect_all(0.,0.,0., 1.,0.,0., ts) == 10
+    expected = np.array([-0.2,-0.199, -0.1,-0.099, -0.025, 0.025, 0.099,0.1, 0.199,0.2, 0])
+    assert np.allclose(ts, expected)
+    return
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_forward_intersect_all():
     union = parse_file(os.path.join(thisdir, 'union_three_elements.xml'))[0]
     shapes = union.shapes

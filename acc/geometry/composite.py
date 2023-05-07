@@ -1,6 +1,6 @@
 from mcvine.acc.geometry.arrow_intersect import max_intersections
 
-def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_point):
+def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_point, **kwds):
     @cuda.jit(device=True)
     def _find_1st_hit(x,y,z, vx,vy,vz, ts):
         nIntersections = forward_intersect_all(x,y,z, vx,vy,vz, ts)
@@ -113,6 +113,20 @@ def createMethods_3(shapes):
     locate_2, intersect_2 = funcs_list[2]
 
     @cuda.jit(device=True)
+    def _intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2):
+        N0 = intersect_0(x,y,z, vx,vy,vz, ts0)
+        N1 = intersect_1(x,y,z, vx,vy,vz, ts1)
+        N2 = intersect_2(x,y,z, vx,vy,vz, ts2)
+        N = 0
+        for i in range(N0):
+            N = insert_into_sorted_list(ts0[i], ts, N)
+        for i in range(N1):
+            N = insert_into_sorted_list(ts1[i], ts, N)
+        for i in range(N2):
+            N = insert_into_sorted_list(ts2[i], ts, N)
+        return N
+
+    @cuda.jit(device=True)
     def _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2):
         N0 = intersect_0(x,y,z, vx,vy,vz, ts0)
         N1 = intersect_1(x,y,z, vx,vy,vz, ts1)
@@ -155,6 +169,12 @@ def createMethods_3(shapes):
 
     if test.USE_CUDASIM:
         @cuda.jit(device=True)
+        def intersect_all(x,y,z, vx,vy,vz, ts):
+            ts0 = np.zeros(max_intersections, dtype=float)
+            ts1 = np.zeros(max_intersections, dtype=float)
+            ts2 = np.zeros(max_intersections, dtype=float)
+            return _intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
+        @cuda.jit(device=True)
         def forward_intersect_all(x,y,z, vx,vy,vz, ts):
             ts0 = np.zeros(max_intersections, dtype=float)
             ts1 = np.zeros(max_intersections, dtype=float)
@@ -162,12 +182,19 @@ def createMethods_3(shapes):
             return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
     else:
         @cuda.jit(device=True)
+        def intersect_all(x,y,z, vx,vy,vz, ts):
+            ts0 = cuda.local.array(max_intersections, dtype=numba.float64)
+            ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
+            ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
+            return _intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
+        @cuda.jit(device=True)
         def forward_intersect_all(x,y,z, vx,vy,vz, ts):
             ts0 = cuda.local.array(max_intersections, dtype=numba.float64)
             ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
             ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
             return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
     return dict(
+        intersect_all = intersect_all,
         forward_intersect_all = forward_intersect_all,
         find_shape_containing_point = find_shape_containing_point,
         is_onborder = is_onborder,
