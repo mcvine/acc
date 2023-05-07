@@ -32,8 +32,6 @@ from ..config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 
 
-category = 'samples'
-
 def factory(shape, kernel, mcweights, packing_factor):
     w_absorption, w_scattering, w_transmission = mcweights
     from ..geometry import arrow_intersect
@@ -116,5 +114,6 @@ def factory(shape, kernel, mcweights, packing_factor):
             tmp_neutron = cuda.local.array(10, dtype=numba.float64)
             _interact_path1(threadindex, rng_states, neutron, tmp_neutron)
     return dict(
-        interact_path1 = interact_path1
+        interact_path1 = interact_path1,
+        calculate_attenuation = calculate_attenuation,
     )

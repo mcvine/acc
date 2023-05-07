@@ -5,7 +5,7 @@ import pytest
 from mcvine.acc import test
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
-def test():
+def test_homogeneous_scatterer():
     path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
     from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
     hs = loadFirstHomogeneousScatterer(path)
@@ -33,4 +33,13 @@ def test():
     absorbed/=N
     assert p<.8 and p>.7
     assert absorbed < 0.36 and absorbed > 0.3
+    return
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_scatter_func_factory():
+    path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
+    from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
+    hs = loadFirstHomogeneousScatterer(path)
+    from mcvine.acc.scatterers import scatter_func_factory
+    methods = scatter_func_factory.render(hs)
     return
