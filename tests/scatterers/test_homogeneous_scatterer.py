@@ -1,7 +1,10 @@
 import os
 thisdir = os.path.dirname(__file__)
 import numpy as np
+import pytest
+from mcvine.acc import test
 
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test():
     path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
     from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
