@@ -9,17 +9,12 @@ class ScatterFuncFactory:
         """
         return scatterer.identify(self)
 
-    def onCompositeKernel(self, composite):
+    def onCompositeScatterer(self, composite):
         elements = composite.elements()
-        weights = []
-        for element in elements:
-            weights.append(getattr(element, 'weight', 1.))
-            continue
-        s = sum(weights)
-        for w, element in zip(weights, elements):
-            element.weight = w/s
-        from .composite import makeKernelMethods
-        return makeKernelMethods(composite)
+        if len(elements) != 3:
+            raise NotImplementedError
+        from .composite_scatterer import factory_3
+        return factory_3(composite)
 
     def onHomogeneousScatterer(self, hs):
         from .homogeneous_scatterer import factory

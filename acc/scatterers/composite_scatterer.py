@@ -129,5 +129,6 @@ def factory_3(composite):
             tmp_neutron = cuda.local.array(10, dtype=numba.float64)
             return _calculate_attenuation(neutron, end, tmp_neutron)
     return dict(
-        interact_path1 = interact_path1
+        interact_path1 = interact_path1,
+        calculate_attenuation = calculate_attenuation,
     )
