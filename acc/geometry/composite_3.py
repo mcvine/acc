@@ -3,14 +3,14 @@ import os, numpy as np, numba
 from numba import cuda
 from mcvine.acc._numba import xoroshiro128p_uniform_float32
 from mcvine.acc import test
+from mcvine.acc.geometry import arrow_intersect
+from mcvine.acc.geometry.location import inside, onborder, outside
+from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_sorted_list
 
 def createMethods_3(shapes):
     "methods for a list of non-overlapping shapes"
     assert len(shapes)==3
     Nshapes = len(shapes)
-    from mcvine.acc.geometry import arrow_intersect
-    from mcvine.acc.geometry.location import inside, onborder
-    from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_sorted_list
     funcs_list = []
     for shape in shapes:
         intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
@@ -114,8 +114,6 @@ def createMethods_3(shapes):
 def createUnionLocateMethod_3(shapes):
     assert len(shapes)==3
     Nshapes = len(shapes)
-    from mcvine.acc.geometry import arrow_intersect
-    from mcvine.acc.geometry.location import inside, onborder, outside
     locates = []
     for shape in shapes:
         locate = arrow_intersect.locate_func_factory.render(shape)
