@@ -24,35 +24,35 @@ def createMethods_3(shapes):
     locate_2, intersect_2 = funcs_list[2]
 
     @cuda.jit(device=True)
-    def _intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2):
-        N0 = intersect_0(x,y,z, vx,vy,vz, ts0)
-        N1 = intersect_1(x,y,z, vx,vy,vz, ts1)
-        N2 = intersect_2(x,y,z, vx,vy,vz, ts2)
+    def _intersect_all(x,y,z, vx,vy,vz, ts, ts_):
         N = 0
-        for i in range(N0):
-            N = insert_into_sorted_list(ts0[i], ts, N)
-        for i in range(N1):
-            N = insert_into_sorted_list(ts1[i], ts, N)
-        for i in range(N2):
-            N = insert_into_sorted_list(ts2[i], ts, N)
+        N_ = intersect_0(x,y,z, vx,vy,vz, ts_)
+        for i in range(N_):
+            N = insert_into_sorted_list(ts_[i], ts, N)
+        N_ = intersect_1(x,y,z, vx,vy,vz, ts_)
+        for i in range(N_):
+            N = insert_into_sorted_list(ts_[i], ts, N)
+        N_ = intersect_2(x,y,z, vx,vy,vz, ts_)
+        for i in range(N_):
+            N = insert_into_sorted_list(ts_[i], ts, N)
         return N
 
     @cuda.jit(device=True)
-    def _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2):
-        N0 = intersect_0(x,y,z, vx,vy,vz, ts0)
-        N1 = intersect_1(x,y,z, vx,vy,vz, ts1)
-        N2 = intersect_2(x,y,z, vx,vy,vz, ts2)
+    def _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_):
         N = 0
-        for i in range(N0):
-            t = ts0[i]
+        N_ = intersect_0(x,y,z, vx,vy,vz, ts_)
+        for i in range(N_):
+            t = ts_[i]
             if t>0:
                 N = insert_into_sorted_list(t, ts, N)
-        for i in range(N1):
-            t = ts1[i]
+        N_ = intersect_1(x,y,z, vx,vy,vz, ts_)
+        for i in range(N_):
+            t = ts_[i]
             if t>0:
                 N = insert_into_sorted_list(t, ts, N)
-        for i in range(N2):
-            t = ts2[i]
+        N_ = intersect_2(x,y,z, vx,vy,vz, ts_)
+        for i in range(N_):
+            t = ts_[i]
             if t>0:
                 N = insert_into_sorted_list(t, ts, N)
         return N
@@ -81,29 +81,21 @@ def createMethods_3(shapes):
     if test.USE_CUDASIM:
         @cuda.jit(device=True)
         def intersect_all(x,y,z, vx,vy,vz, ts):
-            ts0 = np.zeros(max_intersections, dtype=float)
-            ts1 = np.zeros(max_intersections, dtype=float)
-            ts2 = np.zeros(max_intersections, dtype=float)
-            return _intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
+            ts_ = np.zeros(max_intersections, dtype=float)
+            return _intersect_all(x,y,z, vx,vy,vz, ts, ts_)
         @cuda.jit(device=True)
         def forward_intersect_all(x,y,z, vx,vy,vz, ts):
-            ts0 = np.zeros(max_intersections, dtype=float)
-            ts1 = np.zeros(max_intersections, dtype=float)
-            ts2 = np.zeros(max_intersections, dtype=float)
-            return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
+            ts_ = np.zeros(max_intersections, dtype=float)
+            return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_)
     else:
         @cuda.jit(device=True)
         def intersect_all(x,y,z, vx,vy,vz, ts):
-            ts0 = cuda.local.array(max_intersections, dtype=numba.float64)
-            ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
-            ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
-            return _intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
+            ts_ = cuda.local.array(max_intersections, dtype=numba.float64)
+            return _intersect_all(x,y,z, vx,vy,vz, ts, ts_)
         @cuda.jit(device=True)
         def forward_intersect_all(x,y,z, vx,vy,vz, ts):
-            ts0 = cuda.local.array(max_intersections, dtype=numba.float64)
-            ts1 = cuda.local.array(max_intersections, dtype=numba.float64)
-            ts2 = cuda.local.array(max_intersections, dtype=numba.float64)
-            return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts0, ts1, ts2)
+            ts_ = cuda.local.array(max_intersections, dtype=numba.float64)
+            return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_)
     return dict(
         intersect_all = intersect_all,
         forward_intersect_all = forward_intersect_all,
