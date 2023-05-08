@@ -45,7 +45,8 @@ def test_scatter_func_factory():
     methods = scatter_func_factory.render(hs)
     return
 
-def get_interact_path1():
+@pytest.mark.skipif(not test.USE_CUDA, reason='no CUDA')
+def test_homogeneous_scatterer_cuda():
     path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
     from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
     hs = loadFirstHomogeneousScatterer(path)
@@ -55,11 +56,7 @@ def get_interact_path1():
     packing_factor = 0.6
     from mcvine.acc.scatterers.homogeneous_scatterer import factory
     methods = factory(shape, kernel, mcweights, packing_factor)
-    return methods['interact_path1']
-interact_path1 = get_interact_path1()
-
-@pytest.mark.skipif(not test.USE_CUDA, reason='no CUDA')
-def test_homogeneous_scatterer_cuda():
+    interact_path1 = methods['interact_path1']
     @cuda.jit
     def interact_path1_kernel(rng_states, neutrons, n_neutrons_per_thread):
         N = len(neutrons)
