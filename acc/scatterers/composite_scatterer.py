@@ -30,11 +30,11 @@ def factory_3(composite):
     from ..geometry import arrow_intersect
     intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
     locate = arrow_intersect.locate_func_factory.render(shape)
+    del shape
     propagate_methods = makePropagateMethods(intersect, locate)
-    propagate_to_next_incident_surface = propagate_methods['propagate_to_next_incident_surface']
+    del intersect
     propagate_to_next_exiting_surface = propagate_methods['propagate_to_next_exiting_surface']
-    tof_before_first_exit = propagate_methods['tof_before_first_exit']
-    forward_distance_in_shape = propagate_methods["forward_distance_in_shape"]
+    del propagate_methods
     # elements
     elements = composite.elements()
     nelements = len(elements)
@@ -43,6 +43,7 @@ def factory_3(composite):
     shapes = [e.shape() for e in elements]
     from mcvine.acc.geometry.composite import createMethods_3, make_find_1st_hit
     methods = createMethods_3(shapes)
+    del shapes
     find_1st_hit = make_find_1st_hit(**methods)
     # methods for element scatterers
     from . import scatter_func_factory
@@ -51,13 +52,16 @@ def factory_3(composite):
     for e in elements:
         m = scatter_func_factory.render(e)
         element_scatter_methods.append(m)
+    del scatter_func_factory
     element0_interact_path1 = element_scatter_methods[0]['interact_path1']
     element1_interact_path1 = element_scatter_methods[1]['interact_path1']
     element2_interact_path1 = element_scatter_methods[2]['interact_path1']
     element0_calculate_attenuation = element_scatter_methods[0]['calculate_attenuation']
     element1_calculate_attenuation = element_scatter_methods[1]['calculate_attenuation']
     element2_calculate_attenuation = element_scatter_methods[2]['calculate_attenuation']
+    del elements, element_scatter_methods
 
+    @cuda.jit(device=True)
     def _interact_path1(threadindex, rng_states, neutron, tmp_neutron):
         x,y,z = neutron[:3]
         vx,vy,vz = neutron[3:6]
@@ -76,20 +80,24 @@ def factory_3(composite):
         # nothing happened
         if interaction == none:
             # if neutron is not inside, we are done
-            if locate(neutron)!=inside:
+            x,y,z = neutron[:3]
+            if locate(x,y,z)!=inside:
                 return interaction
             # otherwise, interact again
-            return _interact_path1(threadindex, rng_states, neutron, tmp_neutron)
+            # return _interact_path1(threadindex, rng_states, neutron, tmp_neutron)
+            return interaction
         # interaction must be scatter
         clone(neutron, tmp_neutron)
         # propagate to surface if necessary
-        if locate(*neutron[:3]) == inside:
+        x,y,z = neutron[:3]
+        if locate(x,y,z) == inside:
             propagate_to_next_exiting_surface(neutron)
         # apply attenuation
         att = calculate_attenuation(tmp_neutron, neutron[:3])
         neutron[-1] *= att
         return scattering
 
+    @cuda.jit(device=True)
     def _calculate_attenuation(neutron, end, tmp_neutron):
         ret = 1.0
         for i in range(nelements):
@@ -98,6 +106,7 @@ def factory_3(composite):
             ret *= element_calculate_attenuation(neutron, end, i)
         return ret
 
+    @cuda.jit(device=True)
     def element_interact_path1(threadindex, rng_states, neutron, element_index):
         if element_index == 0:
             return element0_interact_path1(threadindex, rng_states, neutron)
@@ -105,7 +114,9 @@ def factory_3(composite):
             return element1_interact_path1(threadindex, rng_states, neutron)
         if element_index == 2:
             return element2_interact_path1(threadindex, rng_states, neutron)
+        return none
 
+    @cuda.jit(device=True)
     def element_calculate_attenuation(neutron, end, element_index):
         if element_index == 0:
             return element0_calculate_attenuation(neutron, end)
@@ -113,18 +124,23 @@ def factory_3(composite):
             return element1_calculate_attenuation(neutron, end)
         if element_index == 2:
             return element2_calculate_attenuation(neutron, end)
+        return 1.0
 
     if test.USE_CUDASIM:
+        @cuda.jit(device=True, inline=True)
         def interact_path1(threadindex, rng_states, neutron):
             tmp_neutron = np.zeros(10, dtype=float)
             return _interact_path1(threadindex, rng_states, neutron, tmp_neutron)
+        @cuda.jit(device=True, inline=True)
         def calculate_attenuation(neutron, end):
             tmp_neutron = np.zeros(10, dtype=float)
             return _calculate_attenuation(neutron, end, tmp_neutron)
     else:
+        @cuda.jit(device=True, inline=True)
         def interact_path1(threadindex, rng_states, neutron):
             tmp_neutron = cuda.local.array(10, dtype=numba.float64)
             return _interact_path1(threadindex, rng_states, neutron, tmp_neutron)
+        @cuda.jit(device=True, inline=True)
         def calculate_attenuation(neutron, end):
             tmp_neutron = cuda.local.array(10, dtype=numba.float64)
             return _calculate_attenuation(neutron, end, tmp_neutron)

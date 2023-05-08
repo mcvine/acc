@@ -1,3 +1,4 @@
+import numba
 from mcvine.acc.geometry.arrow_intersect import max_intersections
 
 def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_point, **kwds):
