@@ -2,6 +2,7 @@ import os, numpy as np, numba
 from numba import cuda
 from mcvine.acc.geometry.arrow_intersect import max_intersections
 from mcvine.acc import test
+from .._numba import coder
 
 def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_point, **kwds):
     @cuda.jit(device=True)
@@ -76,18 +77,44 @@ def makeMethods(shapes):
     m = imp.load_source('mod', mod)
     return m.createKernelMethods(composite)
 
-def makeModule(shapes):
-    "make cuda device methods for shapes"
+def makeModule(N, overwrite=False):
+    "make cuda device methods for composite with N elements"
     from .._numba import coder
-    nshapes = len(shapes)
-    modulepath = coder.getModule("shapes", nshapes)
-    if os.path.exists(modulepath):
+    modulepath = coder.getModule("composite_shape", N)
+    if os.path.exists(modulepath) and not overwrite:
         return modulepath
     indent = 4*' '
     add_indent = lambda lines, n: [indent*n+l for l in lines]
-    element_scatter_method_defs = [
-        f'scatter_{ik}, scattering_coeff_{ik}, absorb_{ik}, absorption_coeff_{ik} = kernel_funcs_list[{ik}]'
-        for ik in range(nkernels)
+    _intersect_all = _create__intersect_all_method(N, indent=indent)
+    lines = _intersect_all
+    with open(modulepath, 'wt') as ostream:
+        ostream.write("\n".join(lines))
+
+def _create__intersect_all_method(N, indent=4*' '):
+    header = [
+        "@cuda.jit(device=True)",
+        "def _intersect_all(x,y,z, vx,vy,vz, ts, ts_):",
     ]
+    loop = coder.unrollLoop(
+        N = N,
+        indent = indent,
+        before_loop = ["N=0"],
+        in_loop     = [
+            "N_ = intersect_{i}(x,y,z, vx,vy,vz, ts_)",
+            "for i in range(N_):",
+            indent + "N = insert_into_sorted_list(ts_[i], ts, N)",
+        ],
+        after_loop  = ["return N"]
+    )
+    return header + loop
 
+module_code_template = """
+import os, numpy as np, numba
+from numba import cuda
+from mcvine.acc._numba import xoroshiro128p_uniform_float32
+from mcvine.acc import test
+from mcvine.acc.geometry import arrow_intersect
+from mcvine.acc.geometry.location import inside, onborder, outside
+from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_sorted_list
 
+"""
