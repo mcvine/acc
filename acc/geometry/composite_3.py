@@ -11,13 +11,13 @@ def createMethods_3(shapes):
     "methods for a list of non-overlapping shapes"
     assert len(shapes)==3
     Nshapes = len(shapes)
-    funcs_list = []
-    for shape in shapes:
-        intersect = arrow_intersect.arrow_intersect_func_factory.render(shape)
-        locate = arrow_intersect.locate_func_factory.render(shape)
-        funcs = locate, intersect
-        funcs_list.append(funcs)
-        continue
+    funcs_list = [
+        (
+            arrow_intersect.locate_func_factory.render(shape),
+            arrow_intersect.arrow_intersect_func_factory.render(shape),
+        )
+        for shape in shapes
+    ]
 
     locate_0, intersect_0 = funcs_list[0]
     locate_1, intersect_1 = funcs_list[1]
@@ -114,12 +114,10 @@ def createMethods_3(shapes):
 def createUnionLocateMethod_3(shapes):
     assert len(shapes)==3
     Nshapes = len(shapes)
-    locates = []
-    for shape in shapes:
-        locate = arrow_intersect.locate_func_factory.render(shape)
-        locates.append(locate)
-        continue
-
+    locates = [
+        arrow_intersect.locate_func_factory.render(shape)
+        for shape in shapes
+    ]
     locate_0 = locates[0]
     locate_1 = locates[1]
     locate_2 = locates[2]
