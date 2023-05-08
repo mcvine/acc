@@ -76,7 +76,7 @@ def test_homogeneous_scatterer_cuda():
         from mcvine.acc.config import rng_seed
         rng_states = create_xoroshiro128p_states(actual_nthreads, seed=rng_seed)
         interact_path1_kernel[nblocks, threads_per_block](rng_states, neutrons, n_neutrons_per_thread)
-    N = 100
+    N = int(1e5)
     neutrons = np.zeros((N, 10))
     neutron = np.array([0.0,0,0, 0,0,1000, 0,0, 0, 1.])
     neutrons[:] = neutron
