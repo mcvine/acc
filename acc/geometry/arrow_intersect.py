@@ -29,7 +29,7 @@ class ArrowIntersectFuncFactory:
         nelements = len(u.shapes)
         if nelements == 2: return self.onUnion2(u)
         if nelements == 3:
-            from .composite import createMethods_3
+            from .composite_3 import createMethods_3
             return createMethods_3(u.shapes)['intersect_all']
         raise NotImplementedError(f"locate for union of {nelements} elements")
 

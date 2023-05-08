@@ -15,7 +15,7 @@ class LocateFuncFactory:
         nelements = len(u.shapes)
         if nelements == 2: return self.onUnion2(u)
         if nelements == 3:
-            from .composite import createUnionLocateMethod_3
+            from .composite_3 import createUnionLocateMethod_3
             return createUnionLocateMethod_3(u.shapes)
         raise NotImplementedError(f"locate for union of {nelements} elements")
 
@@ -51,7 +51,6 @@ class LocateFuncFactory:
         @cuda.jit(device=True, inline=True)
         def locateWrtBlock(x, y, z):
             return cu_device_locate_wrt_box(x, y, z, W, H, D)
-
         return locateWrtBlock
 
     def onTranslation(self, t):

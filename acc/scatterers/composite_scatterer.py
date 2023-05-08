@@ -41,7 +41,8 @@ def factory_3(composite):
     assert nelements == 3
     # find_1st_hit
     shapes = [e.shape() for e in elements]
-    from mcvine.acc.geometry.composite import createMethods_3, make_find_1st_hit
+    from mcvine.acc.geometry.composite import make_find_1st_hit
+    from mcvine.acc.geometry.composite_3 import createMethods_3
     methods = createMethods_3(shapes)
     del shapes
     find_1st_hit = make_find_1st_hit(**methods)

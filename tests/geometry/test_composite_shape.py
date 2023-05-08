@@ -7,7 +7,8 @@ from numba import cuda
 from instrument.nixml import parse_file
 from mcvine.acc import test
 from mcvine.acc.geometry import locate, location, arrow_intersect
-from mcvine.acc.geometry.composite import createMethods_3, make_find_1st_hit
+from mcvine.acc.geometry.composite_3 import createMethods_3, createUnionLocateMethod_3
+from mcvine.acc.geometry.composite import make_find_1st_hit
 
 thisdir = os.path.dirname(__file__)
 
@@ -16,7 +17,6 @@ thisdir = os.path.dirname(__file__)
 def test_locate():
     union = parse_file(os.path.join(thisdir, 'union_three_elements.xml'))[0]
     shapes = union.shapes
-    from mcvine.acc.geometry.composite import createUnionLocateMethod_3
     locate_u3 =  createUnionLocateMethod_3(shapes)
     assert locate_u3(0, 0, 0) == locate.inside
     assert locate_u3(0.025, 0, 0) == locate.onborder
