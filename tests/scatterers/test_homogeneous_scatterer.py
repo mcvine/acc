@@ -5,18 +5,24 @@ from numba import cuda
 import pytest
 from mcvine.acc import test
 
-@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
-def test_homogeneous_scatterer():
+@pytest.fixture
+def hs_example():
     path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
     from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
-    hs = loadFirstHomogeneousScatterer(path)
-    shape = hs.shape()
-    kernel = hs.kernel()
+    return loadFirstHomogeneousScatterer(path)
+
+@pytest.fixture
+def hs_example_interact_path1(hs_example):
+    shape = hs_example.shape()
+    kernel = hs_example.kernel()
     mcweights = 1., 1., 1.
     packing_factor = 0.6
     from mcvine.acc.scatterers.homogeneous_scatterer import factory
     methods = factory(shape, kernel, mcweights, packing_factor)
-    interact_path1 = methods['interact_path1']
+    return methods['interact_path1']
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_homogeneous_scatterer(hs_example_interact_path1):
     threadindex = 0
     rng_states = None
     N = 10000
@@ -24,7 +30,7 @@ def test_homogeneous_scatterer():
     absorbed = 0
     for i in range(N):
         neutron = np.array([0.0,0,0, 0,0,1000, 0,0, 0, 1.])
-        interact_path1(threadindex, rng_states, neutron)
+        hs_example_interact_path1(threadindex, rng_states, neutron)
         p1 = neutron[-1]
         if p1>0:
             p+=p1
@@ -37,26 +43,13 @@ def test_homogeneous_scatterer():
     return
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
-def test_scatter_func_factory():
-    path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
-    from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
-    hs = loadFirstHomogeneousScatterer(path)
+def test_scatter_func_factory(hs_example):
     from mcvine.acc.scatterers import scatter_func_factory
-    methods = scatter_func_factory.render(hs)
+    methods = scatter_func_factory.render(hs_example)
     return
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='no CUDA')
-def test_homogeneous_scatterer_cuda():
-    path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
-    from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
-    hs = loadFirstHomogeneousScatterer(path)
-    shape = hs.shape()
-    kernel = hs.kernel()
-    mcweights = 1., 1., 1.
-    packing_factor = 0.6
-    from mcvine.acc.scatterers.homogeneous_scatterer import factory
-    methods = factory(shape, kernel, mcweights, packing_factor)
-    interact_path1 = methods['interact_path1']
+def test_homogeneous_scatterer_cuda(hs_example_interact_path1):
     @cuda.jit
     def interact_path1_kernel(rng_states, neutrons, n_neutrons_per_thread):
         N = len(neutrons)
@@ -64,7 +57,7 @@ def test_homogeneous_scatterer_cuda():
         start_index = thread_index*n_neutrons_per_thread
         end_index = min(start_index+n_neutrons_per_thread, N)
         for i in range(start_index, end_index):
-            interact_path1(thread_index, rng_states, neutrons[i])
+            hs_example_interact_path1(thread_index, rng_states, neutrons[i])
     def run(neutrons):
         N = len(neutrons)
         threads_per_block = 512
