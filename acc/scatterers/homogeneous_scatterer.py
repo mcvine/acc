@@ -44,12 +44,14 @@ def factory(shape, kernel, mcweights, packing_factor):
     forward_distance_in_shape = propagate_methods["forward_distance_in_shape"]
     from ..kernels import scatter_func_factory
     scatter, calc_scattering_coeff, absorb, calc_absorption_coeff = scatter_func_factory.render(kernel)
+    @cuda.jit(device=True)
     def calculate_attenuation(neutron, end):
         length = forward_distance_in_shape(neutron, end)
         sigma = calc_scattering_coeff(neutron) * packing_factor
         mu = calc_absorption_coeff(neutron) * packing_factor
         return exp( - (mu+sigma) * length )
 
+    @cuda.jit(device=True)
     def _interact_path1(threadindex, rng_states, neutron, tmp_neutron):
         x, y, z, vx, vy, vz = neutron[:6]
         loc = locate(x,y,z)
@@ -106,10 +108,12 @@ def factory(shape, kernel, mcweights, packing_factor):
         neutron[-1] *= atten2;
         return scattering
     if test.USE_CUDASIM:
+        @cuda.jit(device=True, inline=True)
         def interact_path1(threadindex, rng_states, neutron):
             tmp_neutron = np.zeros(10, dtype=float)
             _interact_path1(threadindex, rng_states, neutron, tmp_neutron)
     else:
+        @cuda.jit(device=True, inline=True)
         def interact_path1(threadindex, rng_states, neutron):
             tmp_neutron = cuda.local.array(10, dtype=numba.float64)
             _interact_path1(threadindex, rng_states, neutron, tmp_neutron)

@@ -191,6 +191,7 @@ def makePropagateMethods(intersect, locate):
             continue
         return t
 
+    @cuda.jit(device=True)
     def _forward_distance_in_shape(neutron, end, ts):
         "distance to travel in shape to get to `end`. `end` must be on the path of the neutron"
         start = neutron[:3]

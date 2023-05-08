@@ -1,6 +1,7 @@
 import os
 thisdir = os.path.dirname(__file__)
-import numpy as np
+import math, numpy as np
+from numba import cuda
 import pytest
 from mcvine.acc import test
 
@@ -43,3 +44,45 @@ def test_scatter_func_factory():
     from mcvine.acc.scatterers import scatter_func_factory
     methods = scatter_func_factory.render(hs)
     return
+
+def get_interact_path1():
+    path = os.path.join(thisdir, "sampleassemblies", 'isotropic_sphere', 'sampleassembly.xml')
+    from mcvine.acc.components.samples import loadFirstHomogeneousScatterer
+    hs = loadFirstHomogeneousScatterer(path)
+    shape = hs.shape()
+    kernel = hs.kernel()
+    mcweights = 1., 1., 1.
+    packing_factor = 0.6
+    from mcvine.acc.scatterers.homogeneous_scatterer import factory
+    methods = factory(shape, kernel, mcweights, packing_factor)
+    return methods['interact_path1']
+interact_path1 = get_interact_path1()
+
+@pytest.mark.skipif(not test.USE_CUDA, reason='no CUDA')
+def test_homogeneous_scatterer_cuda():
+    @cuda.jit
+    def interact_path1_kernel(rng_states, neutrons, n_neutrons_per_thread):
+        N = len(neutrons)
+        thread_index = cuda.grid(1)
+        start_index = thread_index*n_neutrons_per_thread
+        end_index = min(start_index+n_neutrons_per_thread, N)
+        for i in range(start_index, end_index):
+            interact_path1(thread_index, rng_states, neutrons[i])
+    def run(neutrons):
+        N = len(neutrons)
+        threads_per_block = 512
+        ntotthreads = int(1e5)
+        nblocks = math.ceil(ntotthreads / threads_per_block)
+        actual_nthreads = threads_per_block * nblocks
+        n_neutrons_per_thread = math.ceil(N / actual_nthreads)
+        from numba.cuda.random import create_xoroshiro128p_states
+        from mcvine.acc.config import rng_seed
+        rng_states = create_xoroshiro128p_states(actual_nthreads, seed=rng_seed)
+        interact_path1_kernel[nblocks, threads_per_block](rng_states, neutrons, n_neutrons_per_thread)
+    N = 100
+    neutrons = np.zeros((N, 10))
+    neutron = np.array([0.0,0,0, 0,0,1000, 0,0, 0, 1.])
+    neutrons[:] = neutron
+    run(neutrons)
+    return
+
