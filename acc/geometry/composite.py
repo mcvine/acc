@@ -84,12 +84,83 @@ def makeModule(N, overwrite=False):
     if os.path.exists(modulepath) and not overwrite:
         return modulepath
     indent = 4*' '
-    lines = _create_createMethods(N, indent)
+    imports = """import os, numpy as np, numba
+from numba import cuda
+from mcvine.acc._numba import xoroshiro128p_uniform_float32
+from mcvine.acc import test
+from mcvine.acc.geometry import arrow_intersect
+from mcvine.acc.geometry.location import inside, onborder, outside
+from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_sorted_list
+""".splitlines()
+    createMethods = Coder_createMethods(N, indent)()
+    createUnionLocateMethod = Coder_createUnionLocateMethod(N, indent)()
+    lines = imports + [''] + createMethods + createUnionLocateMethod
     with open(modulepath, 'wt') as ostream:
         ostream.write("\n".join(lines))
 
-def _create_createMethods(N, indent=4*' '):
-    header = f"""assert len(shapes)=={N}
+class Coder_createUnionLocateMethod:
+
+    def __init__(self, N, indent=4*' '):
+        self.N = N
+        self.indent = indent
+        return
+
+    def __call__(self):
+        N, indent = self.N, self.indent
+        header = f"""assert len(shapes)=={N}
+locates = [
+    arrow_intersect.locate_func_factory.render(shape)
+    for shape in shapes
+]
+""".splitlines()
+        locate_loop = coder.unrollLoop(
+            N = N,
+            indent = '',
+            in_loop = ["locate_{i} = locates[{i}]"],
+        )
+        body = header + locate_loop + [''] + self.locate()
+        add_indent = lambda lines, n: [indent*n+l for l in lines]
+        return (
+            ["def createUnionLocateMethod(shapes):"]
+            + add_indent(body, 1)
+            + [indent+'return locate']
+        )
+
+    def locate(self):
+        N, indent = self.N, self.indent
+        header = [
+            "@cuda.jit(device=True)",
+            "def locate(x,y,z):",
+        ]
+        assign_loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            in_loop = ["loc{i} = locate_{i}(x,y,z)"],
+        )
+        inside_loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            in_loop = ["if loc{i} == inside: return inside"],
+        )
+        onborder_loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            in_loop = ["if loc{i} == onborder: return onborder"],
+            after_loop = ['return outside']
+        )
+        return header + assign_loop + inside_loop + onborder_loop
+
+
+class Coder_createMethods:
+
+    def __init__(self, N, indent=4*' '):
+        self.N = N
+        self.indent = indent
+        return
+
+    def __call__(self):
+        N, indent = self.N, self.indent
+        header = f"""assert len(shapes)=={N}
 funcs_list = [
     (
     arrow_intersect.locate_func_factory.render(shape),
@@ -97,13 +168,13 @@ funcs_list = [
     )
     for shape in shapes
 ]
-""".splitlines()
-    funcs_loop = coder.unrollLoop(
-        N = N,
-        indent = '',
-        in_loop     = ["locate_{i}, intersect_{i} = funcs_list[{i}]"],
-    )
-    end = """
+    """.splitlines()
+        funcs_loop = coder.unrollLoop(
+            N = N,
+            indent = '',
+            in_loop     = ["locate_{i}, intersect_{i} = funcs_list[{i}]"],
+        )
+        end = """
 if test.USE_CUDASIM:
     @cuda.jit(device=True)
     def intersect_all(x,y,z, vx,vy,vz, ts):
@@ -128,88 +199,92 @@ return dict(
     find_shape_containing_point = find_shape_containing_point,
     is_onborder = is_onborder,
 )
-    """.splitlines()
-    body = (
-        header + funcs_loop + ['']
-        + _create__intersect_all(N, indent)
-        + _create__forward_intersect_all(N, indent)
-        + _create_find_shape_containing_point(N, indent)
-        + _create_is_onborder(N, indent)
-        + end
-    )
-    add_indent = lambda lines, n: [indent*n+l for l in lines]
-    return ["def createMethods(shapes):"] + add_indent(body, 1)
+        """.splitlines()
+        body = (
+            header + funcs_loop + ['']
+            + self._intersect_all()
+            + self._forward_intersect_all()
+            + self.find_shape_containing_point()
+            + self.is_onborder()
+            + end
+        )
+        add_indent = lambda lines, n: [indent*n+l for l in lines]
+        return ["def createMethods(shapes):"] + add_indent(body, 1)
 
 
-def _create__intersect_all(N, indent=4*' '):
-    header = [
-        "@cuda.jit(device=True)",
-        "def _intersect_all(x,y,z, vx,vy,vz, ts, ts_):",
-    ]
-    loop = coder.unrollLoop(
-        N = N,
-        indent = indent,
-        before_loop = ["N=0"],
-        in_loop     = [
-            "N_ = intersect_{i}(x,y,z, vx,vy,vz, ts_)",
-            "for i in range(N_):",
-            indent + "N = insert_into_sorted_list(ts_[i], ts, N)",
-        ],
-        after_loop  = ["return N"]
-    )
-    return header + loop
+    def _intersect_all(self):
+        N, indent = self.N, self.indent
+        header = [
+            "@cuda.jit(device=True)",
+            "def _intersect_all(x,y,z, vx,vy,vz, ts, ts_):",
+        ]
+        loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            before_loop = ["N=0"],
+            in_loop     = [
+                "N_ = intersect_{i}(x,y,z, vx,vy,vz, ts_)",
+                "for i in range(N_):",
+                indent + "N = insert_into_sorted_list(ts_[i], ts, N)",
+            ],
+            after_loop  = ["return N"]
+        )
+        return header + loop
 
-def _create__forward_intersect_all(N, indent=4*' '):
-    header = [
-        "@cuda.jit(device=True)",
-        "def _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_):",
-    ]
-    loop = coder.unrollLoop(
-        N = N,
-        indent = indent,
-        before_loop = ["N=0"],
-        in_loop     = [
-            "N_ = intersect_{i}(x,y,z, vx,vy,vz, ts_)",
-            "for i in range(N_):",
-            indent + "t = ts_[i]",
-            indent + "if t>0:",
-            indent*2 + "N = insert_into_sorted_list(t, ts, N)",
-        ],
-        after_loop  = ["return N"]
-    )
-    return header + loop
+    def _forward_intersect_all(self):
+        N, indent = self.N, self.indent
+        header = [
+            "@cuda.jit(device=True)",
+            "def _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_):",
+        ]
+        loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            before_loop = ["N=0"],
+            in_loop     = [
+                "N_ = intersect_{i}(x,y,z, vx,vy,vz, ts_)",
+                "for i in range(N_):",
+                indent + "t = ts_[i]",
+                indent + "if t>0:",
+                indent*2 + "N = insert_into_sorted_list(t, ts, N)",
+            ],
+            after_loop  = ["return N"]
+        )
+        return header + loop
 
-def _create_find_shape_containing_point(N, indent=4*' '):
-    header = [
-        "@cuda.jit(device=True)",
-        "def find_shape_containing_point(x,y,z):",
-    ]
-    loop = coder.unrollLoop(
-        N = N,
-        indent = indent,
-        in_loop     = [
-            "if locate_{i}(x,y,z) == inside:",
-            indent + "return {i}",
-        ],
-        after_loop  = ["return -1"]
-    )
-    return header + loop
+    def find_shape_containing_point(self):
+        N, indent = self.N, self.indent
+        header = [
+            "@cuda.jit(device=True)",
+            "def find_shape_containing_point(x,y,z):",
+        ]
+        loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            in_loop     = [
+                "if locate_{i}(x,y,z) == inside:",
+                indent + "return {i}",
+            ],
+            after_loop  = ["return -1"]
+        )
+        return header + loop
 
-def _create_is_onborder(N, indent=4*' '):
-    header = [
-        "@cuda.jit(device=True)",
-        "def is_onborder(x,y,z):",
-    ]
-    loop = coder.unrollLoop(
-        N = N,
-        indent = indent,
-        in_loop     = [
-            "if locate_{i}(x,y,z) == onborder:",
-            indent + "return True",
-        ],
-        after_loop  = ["return False"]
-    )
-    return header + loop
+    def is_onborder(self):
+        N, indent = self.N, self.indent
+        header = [
+            "@cuda.jit(device=True)",
+            "def is_onborder(x,y,z):",
+        ]
+        loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            in_loop     = [
+                "if locate_{i}(x,y,z) == onborder:",
+                indent + "return True",
+            ],
+            after_loop  = ["return False"]
+        )
+        return header + loop
 
 module_code_template = """
 import os, numpy as np, numba
