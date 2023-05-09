@@ -71,11 +71,10 @@ def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_
     return find_1st_hit
 
 
-def makeMethods(shapes):
-    mod = makeModule(shapes)
+def importModule(N):
+    mod = makeModule(N)
     import imp
-    m = imp.load_source('mod', mod)
-    return m.createKernelMethods(composite)
+    return imp.load_source('mod', mod)
 
 def makeModule(N, overwrite=False):
     "make cuda device methods for composite with N elements"
@@ -97,6 +96,7 @@ from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_s
     lines = imports + [''] + createMethods + createUnionLocateMethod
     with open(modulepath, 'wt') as ostream:
         ostream.write("\n".join(lines))
+    return modulepath
 
 class Coder_createUnionLocateMethod:
 
