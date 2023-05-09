@@ -130,7 +130,7 @@ return dict(
 )
     """.splitlines()
     body = (
-        header + funcs_loop
+        header + funcs_loop + ['']
         + _create__intersect_all(N, indent)
         + _create__forward_intersect_all(N, indent)
         + _create_find_shape_containing_point(N, indent)
