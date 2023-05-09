@@ -84,13 +84,64 @@ def makeModule(N, overwrite=False):
     if os.path.exists(modulepath) and not overwrite:
         return modulepath
     indent = 4*' '
-    add_indent = lambda lines, n: [indent*n+l for l in lines]
-    _intersect_all = _create__intersect_all_method(N, indent=indent)
-    lines = _intersect_all
+    lines = _create_createMethods(N, indent)
     with open(modulepath, 'wt') as ostream:
         ostream.write("\n".join(lines))
 
-def _create__intersect_all_method(N, indent=4*' '):
+def _create_createMethods(N, indent=4*' '):
+    header = f"""assert len(shapes)=={N}
+funcs_list = [
+    (
+    arrow_intersect.locate_func_factory.render(shape),
+    arrow_intersect.arrow_intersect_func_factory.render(shape),
+    )
+    for shape in shapes
+]
+""".splitlines()
+    funcs_loop = coder.unrollLoop(
+        N = N,
+        indent = '',
+        in_loop     = ["locate_{i}, intersect_{i} = funcs_list[{i}]"],
+    )
+    end = """
+if test.USE_CUDASIM:
+    @cuda.jit(device=True)
+    def intersect_all(x,y,z, vx,vy,vz, ts):
+        ts_ = np.zeros(max_intersections, dtype=float)
+        return _intersect_all(x,y,z, vx,vy,vz, ts, ts_)
+    @cuda.jit(device=True)
+    def forward_intersect_all(x,y,z, vx,vy,vz, ts):
+        ts_ = np.zeros(max_intersections, dtype=float)
+        return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_)
+else:
+    @cuda.jit(device=True)
+    def intersect_all(x,y,z, vx,vy,vz, ts):
+        ts_ = cuda.local.array(max_intersections, dtype=numba.float64)
+        return _intersect_all(x,y,z, vx,vy,vz, ts, ts_)
+    @cuda.jit(device=True)
+    def forward_intersect_all(x,y,z, vx,vy,vz, ts):
+        ts_ = cuda.local.array(max_intersections, dtype=numba.float64)
+        return _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_)
+return dict(
+    intersect_all = intersect_all,
+    forward_intersect_all = forward_intersect_all,
+    find_shape_containing_point = find_shape_containing_point,
+    is_onborder = is_onborder,
+)
+    """.splitlines()
+    body = (
+        header + funcs_loop
+        + _create__intersect_all(N, indent)
+        + _create__forward_intersect_all(N, indent)
+        + _create_find_shape_containing_point(N, indent)
+        + _create_is_onborder(N, indent)
+        + end
+    )
+    add_indent = lambda lines, n: [indent*n+l for l in lines]
+    return ["def createMethods(shapes):"] + add_indent(body, 1)
+
+
+def _create__intersect_all(N, indent=4*' '):
     header = [
         "@cuda.jit(device=True)",
         "def _intersect_all(x,y,z, vx,vy,vz, ts, ts_):",
@@ -105,6 +156,58 @@ def _create__intersect_all_method(N, indent=4*' '):
             indent + "N = insert_into_sorted_list(ts_[i], ts, N)",
         ],
         after_loop  = ["return N"]
+    )
+    return header + loop
+
+def _create__forward_intersect_all(N, indent=4*' '):
+    header = [
+        "@cuda.jit(device=True)",
+        "def _forward_intersect_all(x,y,z, vx,vy,vz, ts, ts_):",
+    ]
+    loop = coder.unrollLoop(
+        N = N,
+        indent = indent,
+        before_loop = ["N=0"],
+        in_loop     = [
+            "N_ = intersect_{i}(x,y,z, vx,vy,vz, ts_)",
+            "for i in range(N_):",
+            indent + "t = ts_[i]",
+            indent + "if t>0:",
+            indent*2 + "N = insert_into_sorted_list(t, ts, N)",
+        ],
+        after_loop  = ["return N"]
+    )
+    return header + loop
+
+def _create_find_shape_containing_point(N, indent=4*' '):
+    header = [
+        "@cuda.jit(device=True)",
+        "def find_shape_containing_point(x,y,z):",
+    ]
+    loop = coder.unrollLoop(
+        N = N,
+        indent = indent,
+        in_loop     = [
+            "if locate_{i}(x,y,z) == inside:",
+            indent + "return {i}",
+        ],
+        after_loop  = ["return -1"]
+    )
+    return header + loop
+
+def _create_is_onborder(N, indent=4*' '):
+    header = [
+        "@cuda.jit(device=True)",
+        "def is_onborder(x,y,z):",
+    ]
+    loop = coder.unrollLoop(
+        N = N,
+        indent = indent,
+        in_loop     = [
+            "if locate_{i}(x,y,z) == onborder:",
+            indent + "return True",
+        ],
+        after_loop  = ["return False"]
     )
     return header + loop
 

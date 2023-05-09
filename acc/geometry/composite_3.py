@@ -10,7 +10,6 @@ from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_s
 def createMethods_3(shapes):
     "methods for a list of non-overlapping shapes"
     assert len(shapes)==3
-    Nshapes = len(shapes)
     funcs_list = [
         (
             arrow_intersect.locate_func_factory.render(shape),
@@ -105,7 +104,6 @@ def createMethods_3(shapes):
 
 def createUnionLocateMethod_3(shapes):
     assert len(shapes)==3
-    Nshapes = len(shapes)
     locates = [
         arrow_intersect.locate_func_factory.render(shape)
         for shape in shapes
