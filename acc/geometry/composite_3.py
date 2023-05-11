@@ -1,4 +1,5 @@
-# Example code
+# Example code that would be generated automatically
+
 import os, numpy as np, numba
 from numba import cuda
 from mcvine.acc._numba import xoroshiro128p_uniform_float32
