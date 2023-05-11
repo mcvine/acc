@@ -13,7 +13,7 @@ class ScatterFuncFactory:
         elements = composite.elements()
         if len(elements) != 3:
             raise NotImplementedError
-        from .composite_scatterer import factory_3
+        from .composite_3 import factory_3
         return factory_3(composite)
 
     def onHomogeneousScatterer(self, hs):
