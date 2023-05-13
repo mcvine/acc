@@ -46,9 +46,8 @@ def _createRayTracingMethods(composite):
 def factory(composite):
     elements = composite.elements()
     N = len(elements)
-    assert N==3
-    from .composite_3 import createHelperMethodsForScatter
-    element_methods = createHelperMethodsForScatter(composite)
+    mod = _importModule(N)
+    element_methods = mod.createHelperMethodsForScatter(composite)
     element_interact_path1 = element_methods["element_interact_path1"]
     element_calculate_attenuation = element_methods["element_calculate_attenuation"]
     rt_methods = _createRayTracingMethods(composite)
@@ -162,7 +161,7 @@ class _Coder_createHelperMethodsForScatter:
 elements = composite.elements()
 nelements = len(elements)
 # methods for element scatterers
-from . import scatter_func_factory
+from mcvine.acc.scatterers import scatter_func_factory
 element_scatter_methods = [
     scatter_func_factory.render(e)
     for e in elements
@@ -176,7 +175,7 @@ element_scatter_methods = [
         calculate_attenuation_loop = coder.unrollLoop(
             N = N,
             indent = '',
-            in_loop = ["element{i}_calcualte_attenuation = element_scatter_methods[{i}]['calculate_attenuation']"],
+            in_loop = ["element{i}_calculate_attenuation = element_scatter_methods[{i}]['calculate_attenuation']"],
         )
         footer = """
 return dict(
