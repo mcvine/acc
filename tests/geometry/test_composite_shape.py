@@ -7,20 +7,22 @@ from numba import cuda
 from instrument.nixml import parse_file
 from mcvine.acc import test
 from mcvine.acc.geometry import locate
-from mcvine.acc.geometry.composite import makeModule, importModule, make_find_1st_hit
+from mcvine.acc.geometry.composite import _make_find_1st_hit
 
 thisdir = os.path.dirname(__file__)
 
 def test_makeModule():
-    makeModule(4, overwrite=True)
+    from mcvine.acc.geometry.composite import _makeModule
+    _makeModule(4, overwrite=True)
     return
 
 @pytest.fixture
 def ray_tracing_methods():
+    from mcvine.acc.geometry.composite import _importModule
     union = parse_file(os.path.join(thisdir, 'union_three_elements.xml'))[0]
     shapes = union.shapes
-    mod = importModule(len(shapes))
-    methods = mod.createMethods(shapes)
+    mod = _importModule(len(shapes))
+    methods = mod.createRayTracingMethods_NonOverlappingShapes(shapes)
     methods['union_locate'] = mod.createUnionLocateMethod(shapes)
     return methods
 
@@ -57,7 +59,7 @@ def test_forward_intersect_all(ray_tracing_methods):
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_find_1st_hit(ray_tracing_methods):
-    find_1st_hit = make_find_1st_hit(**ray_tracing_methods)
+    find_1st_hit = _make_find_1st_hit(**ray_tracing_methods)
     assert find_1st_hit(-0.25,0.,0., 1.,0.,0.) == 0
     assert find_1st_hit(-0.15,0.,0., 1.,0.,0.) == 1
     assert find_1st_hit(-0.05,0.,0., 1.,0.,0.) == 2
@@ -67,7 +69,7 @@ def test_find_1st_hit(ray_tracing_methods):
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='no CUDA')
 def test_cuda(ray_tracing_methods):
-    find_1st_hit = make_find_1st_hit(**ray_tracing_methods)
+    find_1st_hit = _make_find_1st_hit(**ray_tracing_methods)
     @cuda.jit
     def find_1st_hit_kernel(neutrons, out, n_neutrons_per_thread):
         N = len(neutrons)

@@ -4,7 +4,18 @@ from mcvine.acc.geometry.arrow_intersect import max_intersections
 from mcvine.acc import test
 from .._numba import coder
 
-def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_point, **kwds):
+def get_find_1st_hit(shapes):
+    N = len(shapes)
+    mod = _importModule(N)
+    methods = mod.createRayTracingMethods_NonOverlappingShapes(shapes)
+    return _make_find_1st_hit(**methods)
+
+def get_union_locate(shapes):
+    N = len(shapes)
+    mod = _importModule(N)
+    return mod.createUnionLocateMethod(shapes)
+
+def _make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_point, **kwds):
     @cuda.jit(device=True)
     def _find_1st_hit(x,y,z, vx,vy,vz, ts):
         nIntersections = forward_intersect_all(x,y,z, vx,vy,vz, ts)
@@ -71,12 +82,12 @@ def make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing_
     return find_1st_hit
 
 
-def importModule(N):
-    mod = makeModule(N)
+def _importModule(N):
+    mod = _makeModule(N)
     import imp
     return imp.load_source('mod', mod)
 
-def makeModule(N, overwrite=False):
+def _makeModule(N, overwrite=False):
     "make cuda device methods for composite with N elements"
     from .._numba import coder
     modulepath = coder.getModule("composite_shape", N)
@@ -91,14 +102,14 @@ from mcvine.acc.geometry import arrow_intersect
 from mcvine.acc.geometry.location import inside, onborder, outside
 from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_sorted_list
 """.splitlines()
-    createMethods = Coder_createMethods(N, indent)()
-    createUnionLocateMethod = Coder_createUnionLocateMethod(N, indent)()
-    lines = imports + [''] + createMethods + createUnionLocateMethod
+    createRTMethods = _Coder_createRTMethods(N, indent)()
+    createUnionLocateMethod = _Coder_createUnionLocateMethod(N, indent)()
+    lines = imports + [''] + createRTMethods + createUnionLocateMethod
     with open(modulepath, 'wt') as ostream:
         ostream.write("\n".join(lines))
     return modulepath
 
-class Coder_createUnionLocateMethod:
+class _Coder_createUnionLocateMethod:
 
     def __init__(self, N, indent=4*' '):
         self.N = N
@@ -151,7 +162,7 @@ locates = [
         return header + assign_loop + inside_loop + onborder_loop
 
 
-class Coder_createMethods:
+class _Coder_createRTMethods:
 
     def __init__(self, N, indent=4*' '):
         self.N = N
@@ -209,7 +220,7 @@ return dict(
             + end
         )
         add_indent = lambda lines, n: [indent*n+l for l in lines]
-        return ["def createMethods(shapes):"] + add_indent(body, 1)
+        return ["def createRayTracingMethods_NonOverlappingShapes(shapes):"] + add_indent(body, 1)
 
 
     def _intersect_all(self):
