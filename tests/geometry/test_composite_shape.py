@@ -17,10 +17,13 @@ def test_makeModule():
     return
 
 @pytest.fixture
-def ray_tracing_methods():
-    from mcvine.acc.geometry.composite import _importModule
+def shapes():
     union = parse_file(os.path.join(thisdir, 'union_three_elements.xml'))[0]
-    shapes = union.shapes
+    return union.shapes
+
+@pytest.fixture
+def ray_tracing_methods(shapes):
+    from mcvine.acc.geometry.composite import _importModule
     mod = _importModule(len(shapes))
     methods = mod.createRayTracingMethods_NonOverlappingShapes(shapes)
     methods['union_locate'] = mod.createUnionLocateMethod(shapes)
@@ -96,3 +99,11 @@ def test_cuda(ray_tracing_methods):
     run(neutrons, first_hit)
     print(first_hit)
     return
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_public_methods(shapes):
+    from mcvine.acc.geometry.composite import get_find_1st_hit, get_union_locate
+    get_find_1st_hit(shapes)
+    get_union_locate(shapes)
+    return
+
