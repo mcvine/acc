@@ -15,8 +15,8 @@ class LocateFuncFactory:
         nelements = len(u.shapes)
         if nelements == 2: return self.onUnion2(u)
         if nelements == 3:
-            from .composite_3 import createUnionLocateMethod_3
-            return createUnionLocateMethod_3(u.shapes)
+            from .composite_3 import createUnionLocateMethod
+            return createUnionLocateMethod(u.shapes)
         raise NotImplementedError(f"locate for union of {nelements} elements")
 
     def onUnion2(self, u):

@@ -29,8 +29,8 @@ class ArrowIntersectFuncFactory:
         nelements = len(u.shapes)
         if nelements == 2: return self.onUnion2(u)
         if nelements == 3:
-            from .composite_3 import createMethods_3
-            return createMethods_3(u.shapes)['intersect_all']
+            from .composite_3 import createRayTracingMethods_NonOverlappingShapes as createMethods
+            return createMethods(u.shapes)['intersect_all']
         raise NotImplementedError(f"locate for union of {nelements} elements")
 
     def onUnion2(self, u):
