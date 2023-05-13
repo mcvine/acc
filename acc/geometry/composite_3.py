@@ -8,7 +8,7 @@ from mcvine.acc.geometry import arrow_intersect
 from mcvine.acc.geometry.location import inside, onborder, outside
 from mcvine.acc.geometry.arrow_intersect import max_intersections, insert_into_sorted_list
 
-def createRayTracingMethods_3_NonOverlappingShapes(shapes):
+def createRayTracingMethods_NonOverlappingShapes(shapes):
     "methods for a list of non-overlapping shapes"
     assert len(shapes)==3
     funcs_list = [
@@ -103,7 +103,7 @@ def createRayTracingMethods_3_NonOverlappingShapes(shapes):
         is_onborder = is_onborder,
     )
 
-def createUnionLocateMethod_3(shapes):
+def createUnionLocateMethod(shapes):
     assert len(shapes)==3
     locates = [
         arrow_intersect.locate_func_factory.render(shape)
