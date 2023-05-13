@@ -10,8 +10,8 @@ def composite_example_interact_path1():
     path = os.path.join(thisdir, "sampleassemblies", 'sample+2cylinders', 'sampleassembly.xml')
     from mcvine.acc.components.samples import loadScattererComposite
     composite = loadScattererComposite(path)
-    from mcvine.acc.scatterers.composite_3 import factory_3
-    methods = factory_3(composite)
+    from mcvine.acc.scatterers.composite_scatterer import factory
+    methods = factory(composite)
     return methods['interact_path1']
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
