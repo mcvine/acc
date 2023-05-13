@@ -3,6 +3,7 @@
 # Jiao Lin <jiao.lin@gmail.com>
 #
 
+import os
 from math import sqrt, exp
 import numpy as np, numba
 from numba import cuda
@@ -121,3 +122,113 @@ def factory(composite):
         interact_path1 = interact_path1,
         calculate_attenuation = calculate_attenuation,
     )
+
+
+def _importModule(N):
+    mod = _makeModule(N)
+    import imp
+    return imp.load_source(f"scatterer_composite_{N}", mod)
+
+def _makeModule(N, overwrite=False):
+    "make a python module for cuda device methods for composite scatterer with N elements"
+    modulepath = coder.getModule("composite_scatterer", N)
+    if os.path.exists(modulepath) and not overwrite:
+        return modulepath
+    indent = 4*' '
+    imports = """import os, numpy as np, numba
+from numba import cuda
+from numba.core import config
+
+from mcvine.acc.scatterers.interaction_types import none
+from mcvine.acc import test
+""".splitlines()
+    createHelperMethodsForScatter = _Coder_createHelperMethodsForScatter(N, indent)()
+    lines = imports + [''] + createHelperMethodsForScatter
+    with open(modulepath, 'wt') as ostream:
+        ostream.write("\n".join(lines))
+    return modulepath
+
+from .._numba import coder
+class _Coder_createHelperMethodsForScatter:
+
+    def __init__(self, N, indent=4*' '):
+        self.N = N
+        self.indent = indent
+        return
+
+    def __call__(self):
+        N, indent = self.N, self.indent
+        header = f"""# elements
+elements = composite.elements()
+nelements = len(elements)
+# methods for element scatterers
+from . import scatter_func_factory
+element_scatter_methods = [
+    scatter_func_factory.render(e)
+    for e in elements
+]
+""".splitlines()
+        interact_path1_loop = coder.unrollLoop(
+            N = N,
+            indent = '',
+            in_loop = ["element{i}_interact_path1 = element_scatter_methods[{i}]['interact_path1']"],
+        )
+        calculate_attenuation_loop = coder.unrollLoop(
+            N = N,
+            indent = '',
+            in_loop = ["element{i}_calcualte_attenuation = element_scatter_methods[{i}]['calculate_attenuation']"],
+        )
+        footer = """
+return dict(
+    element_interact_path1 = element_interact_path1,
+    element_calculate_attenuation = element_calculate_attenuation,
+)
+""".splitlines()
+        body = (
+            header
+            + interact_path1_loop
+            + calculate_attenuation_loop
+            + ['']
+            + self.element_interact_path1()
+            + self.element_calculate_attenuation()
+            + footer
+        )
+        add_indent = lambda lines, n: [indent*n+l for l in lines]
+        return (
+            ["def createHelperMethodsForScatter(composite):"]
+            + add_indent(body, 1)
+        )
+
+    def element_interact_path1(self):
+        N, indent = self.N, self.indent
+        header = [
+            "@cuda.jit(device=True)",
+            "def element_interact_path1(threadindex, rng_states, neutron, element_index):"
+        ]
+        loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            in_loop = [
+                "if element_index == {i}:",
+                indent + "return element{i}_interact_path1(threadindex, rng_states, neutron)",
+            ]
+        )
+        return header + loop + [indent + 'return none']
+
+    def element_calculate_attenuation(self):
+        N, indent = self.N, self.indent
+        header = [
+            "@cuda.jit(device=True)",
+            "def element_calculate_attenuation(neutron, end, element_index):"
+        ]
+        loop = coder.unrollLoop(
+            N = N,
+            indent = indent,
+            in_loop = [
+                "if element_index == {i}:",
+                indent + "return element{i}_calculate_attenuation(neutron, end)",
+            ]
+        )
+        return header + loop + [indent + 'return 1.0']
+
+

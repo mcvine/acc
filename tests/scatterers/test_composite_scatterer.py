@@ -66,3 +66,7 @@ def test_cuda(composite_example_interact_path1):
     run(neutrons)
     print(neutrons)
     return
+
+def test_makeModule():
+    from mcvine.acc.scatterers.composite_scatterer import _makeModule
+    _makeModule(4, overwrite=True)

@@ -85,7 +85,7 @@ def _make_find_1st_hit(forward_intersect_all, is_onborder, find_shape_containing
 def _importModule(N):
     mod = _makeModule(N)
     import imp
-    return imp.load_source('mod', mod)
+    return imp.load_source(f'geometry_composite_{N}', mod)
 
 def _makeModule(N, overwrite=False):
     "make cuda device methods for composite with N elements"
