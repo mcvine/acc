@@ -61,8 +61,7 @@ def mXv(mat, vec, outvec):
 
 # cs_rot * ( r - cs_pos )
 @cuda.jit(device=True, inline=True)
-def abs2rel(vec, rotmat, offset, vecout):
-    tmp = cuda.local.array(3, dtype=NB_FLOAT)
+def _abs2rel(vec, rotmat, offset, vecout, tmp):
     subtract(vec, offset, tmp)
     mXv(rotmat, tmp, vecout)
     return
@@ -107,6 +106,12 @@ if test.USE_CUDASIM:
         v_pp_r = np.zeros(3, dtype=float)
         return _rotate(
             v, c, angle, c1, v_pl, v_pp, e3, v_pp_r, epsilon)
+
+    @cuda.jit(device=True, inline=True)
+    def abs2rel(vec, rotmat, offset, vecout):
+        tmp = np.zeros(3, dtype=float)
+        _abs2rel(vec, rotmat, offset, vecout, tmp)
+        return
 else:
     @cuda.jit(device=True, inline=True)
     def rotate(v, c, angle, epsilon=1e-7):
@@ -117,3 +122,9 @@ else:
         v_pp_r = cuda.local.array(3, dtype=numba.float64)
         return _rotate(
             v, c, angle, c1, v_pl, v_pp, e3, v_pp_r, epsilon)
+
+    @cuda.jit(device=True, inline=True)
+    def abs2rel(vec, rotmat, offset, vecout):
+        tmp = cuda.local.array(3, dtype=NB_FLOAT)
+        _abs2rel(vec, rotmat, offset, vecout, tmp)
+        return
