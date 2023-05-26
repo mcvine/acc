@@ -6,7 +6,7 @@ import mcvine
 from mcvine.acc import test
 from mcvine.acc.components.optics.arm import Arm
 from mcvine.acc.run_script import calcTransformations
-from mcvine.acc.neutron import abs2rel
+from mcvine.acc.neutron import applyTransformation
 
 def createTestInstrument():
     instrument = mcvine.instrument()
@@ -25,25 +25,25 @@ def test():
     instrument = createTestInstrument()
     offsets, rotmats = calcTransformations(instrument)
     assert len(rotmats) == len(offsets) == len(instrument.components)-1
-    # tmp arrays required by abs2rel
+    # tmp arrays required by applyTransformation
     tmp_position = np.array([0., 0., 0.])
     tmp_velocity = np.array([0., 0., 0.])
     # translation only between comp1 and comp2
     position = np.array([0., 0., 0.])
     velocity = np.array([0., 0., 1.])
-    abs2rel(position, velocity, rotmats[0], offsets[0], tmp_position, tmp_velocity)
+    applyTransformation(position, velocity, rotmats[0], offsets[0], tmp_position, tmp_velocity)
     assert np.allclose(position, [0,0,-1])
     assert np.allclose(velocity, [0,0,1])
     # rotation only between comp2 and comp3
     position = np.array([0., 0., -1.])
     velocity = np.array([0., 0., 1.])
-    abs2rel(position, velocity, rotmats[1], offsets[1], tmp_position, tmp_velocity)
+    applyTransformation(position, velocity, rotmats[1], offsets[1], tmp_position, tmp_velocity)
     assert np.allclose(position, [1,0,0])
     assert np.allclose(velocity, [-1,0,0])
     # translation and rotation between comp3 and comp4 (indirectly thru comp2)
     position = np.array([0., 0., 0])
     velocity = np.array([0., 0., 1.])
-    abs2rel(position, velocity, rotmats[2], offsets[2], tmp_position, tmp_velocity)
+    applyTransformation(position, velocity, rotmats[2], offsets[2], tmp_position, tmp_velocity)
     assert np.allclose(position, [0,0,-1])
     assert np.allclose(velocity, [0,-1,0])
     return
