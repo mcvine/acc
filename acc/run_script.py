@@ -72,14 +72,14 @@ Parameters:
         if ms_loop:
             # TODO: fix for > 1 MS components
             if i>0:
-                line = "{}abs2rel(out_neutrons[ms{}][:3], out_neutrons[ms{}][3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, ms_loop_ind, ms_loop_ind, i-1, i-1)
+                line = "{}applyTransformation(out_neutrons[ms{}][:3], out_neutrons[ms{}][3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, ms_loop_ind, ms_loop_ind, i-1, i-1)
                 body.append(line)
             line = "{}propagate{}({} out_neutrons[ms{}], *args{})".format(
                 ' '*ms_indent, i, prefix, ms_loop_ind, i)
             body.append(line)
         else:
             if i>0:
-                body.append("{}abs2rel(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, i-1, i-1))
+                body.append("{}applyTransformation(neutron[:3], neutron[3:6], rotmats[{}], offsets[{}], r, v)".format(' '*ms_indent, i-1, i-1))
             n_ms = f'num_ms{i} = ' if comp.is_multiplescattering else ''
             body.append("{}{}propagate{}({} neutron, *args{})".format(
                 ' '*ms_indent, n_ms, i, prefix, i))
@@ -170,7 +170,7 @@ from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonit
 from numba import cuda
 import numpy as np, numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
-from mcvine.acc.neutron import abs2rel
+from mcvine.acc.neutron import applyTransformation
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
@@ -227,7 +227,7 @@ from mcvine.acc.run_script import loadInstrument, calcTransformations, saveMonit
 from numba import cuda
 import numpy as np, numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
-from mcvine.acc.neutron import abs2rel
+from mcvine.acc.neutron import applyTransformation
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 

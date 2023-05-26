@@ -20,6 +20,7 @@ def abs2rel(r, v, rotmat, offset, rtmp, vtmp):
     vec3.copy(r, rtmp); vec3.copy(v, vtmp)
     vec3.abs2rel(rtmp, rotmat, offset, r)
     vec3.mXv(rotmat, vtmp, v)
+applyTransformation = abs2rel
 
 @cuda.jit(void(NB_FLOAT[:]),
           device=True, inline=True)
