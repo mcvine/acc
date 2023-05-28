@@ -18,6 +18,8 @@ def createTestInstrument():
     instrument.append(comp3, position=(0,0,0.), orientation=(0, 90, 0), relativeTo=comp2)
     comp4 = Arm('comp4')
     instrument.append(comp4, position=(0,0,1.), orientation=(0, 0, 90), relativeTo=comp2)
+    comp5 = Arm('comp5')
+    instrument.append(comp5, position=(1,0,0.), orientation=(90, 0, 0), relativeTo=comp4)
     return instrument
 
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='No CUDASIM')
@@ -46,4 +48,10 @@ def test():
     applyTransformation(position, velocity, rotmats[2], offsets[2], tmp_position, tmp_velocity)
     assert np.allclose(position, [0,0,-1])
     assert np.allclose(velocity, [0,-1,0])
+    # translation and rotation between comp4 and comp5
+    position = np.array([0., 1., 0])
+    velocity = np.array([0., 0., 1.])
+    applyTransformation(position, velocity, rotmats[3], offsets[3], tmp_position, tmp_velocity)
+    assert np.allclose(position, [-1,0,-1])
+    assert np.allclose(velocity, [0,1,0])
     return
