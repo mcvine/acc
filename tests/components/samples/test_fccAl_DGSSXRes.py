@@ -70,9 +70,9 @@ def test_compare_mcvine(num_neutrons=int(1024), debug=False, interactive=False):
         gpu_r = np.linalg.norm(neutrons_gpu[i].state.position)
         gpu_v = np.linalg.norm(neutrons_gpu[i].state.velocity)
 
-        assert np.isclose(cpu_r, gpu_r, atol=0.1)
-        assert np.isclose(cpu_v, gpu_v, rtol=1.5e-2)
-        assert np.isclose(neutrons[i].time, neutrons_gpu[i].time, atol=1e-4)
+        assert np.isclose(cpu_r, gpu_r, atol=1e-7)
+        assert np.isclose(cpu_v, gpu_v, rtol=1e-7)
+        assert np.isclose(neutrons[i].time, neutrons_gpu[i].time, atol=1e-7)
 
 
 def main():

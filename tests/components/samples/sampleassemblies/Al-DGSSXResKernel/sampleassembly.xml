@@ -6,7 +6,7 @@
 
   <PowderSample name="Al-plate" type="sample">
     <Shape>
-      <block width="6*cm" height="10*cm" thickness="1*cm" />
+      <block width="6*cm" height="10*cm" thickness="1e-5*cm" />
     </Shape>
     <Phase type="crystal">
       <ChemicalFormula>Al</ChemicalFormula>
