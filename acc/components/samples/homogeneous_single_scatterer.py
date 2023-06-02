@@ -96,6 +96,7 @@ def factory(shape, kernel):
             x, y, z, vx, vy, vz = neutron[:6]
             ninter = intersect(x,y,z, vx,vy,vz, ts)
             dt3 = total_time_in_shape(ts, ninter)
+            prop_dt_inplace(neutron, dt3)
             sigma = calc_scattering_coeff(neutron)
             mu = calc_absorption_coeff(neutron)
             atten2 = exp( -(mu+sigma) * v * dt3 )
