@@ -9,15 +9,15 @@ thisdir = os.path.dirname(__file__)
 
 
 def test_1():
-    instr = os.path.join(thisdir, "test_instrument_source_composite_monitor.py")
-    samplexml = ""
+    instr = os.path.join(thisdir, "test_instrument_with_samplefromxml.py")
+    samplexml = "sampleassemblies/isotropic_sphere/sampleassembly.xml"
     outdir = 'out.test_instrument_source_composite_monitor_isotropic_sphere'
     if os.path.exists(outdir): shutil.rmtree(outdir)
     ncount = 1e5
     run_script.run1(
         instr, outdir,
         ncount=ncount,
-        samplexml = "sampleassemblies/isotropic_sphere/sampleassembly.xml",
+        samplexml = samplexml,
         factory = "mcvine.acc.components.samples.composite.sampleassembly_from_xml",
     )
     return
@@ -27,7 +27,8 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
-    instr = os.path.join(thisdir, "isotropic_sphere_instrument.py")
+    instr = os.path.join(thisdir, "test_instrument_with_samplefromxml.py")
+    samplexml = "sampleassemblies/isotropic_sphere/sampleassembly.xml",
     from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
     compare_acc_nonacc(
         "isotropic_sphere",
@@ -36,8 +37,14 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
         num_neutrons, debug,
         instr = instr,
         interactive=interactive,
-        acc_component_spec = dict(is_acc=True),
-        nonacc_component_spec = dict(is_acc=False),
+        acc_component_spec = dict(
+            samplexml=samplexml,
+            factory = "mcvine.acc.components.samples.composite.sampleassembly_from_xml",
+        ),
+        nonacc_component_spec = dict(
+            samplexml=samplexml,
+            factory="mcvine.components.samples.SampleAssemblyFromXml",
+        ),
     )
 
 def psd_monitor_4pi():

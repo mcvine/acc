@@ -5,7 +5,7 @@ thisdir = os.path.dirname(__file__)
 
 from test_sample_instrument_factory import construct
 
-def instrument(samplexml, factory):
+def instrument(samplexml, factory="mcvine.components.samples.SampleAssemblyFromXml"):
     tokens = factory.split('.')
     module = '.'.join(tokens[:-1])
     method = tokens[-1]
