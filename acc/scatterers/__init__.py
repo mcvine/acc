@@ -11,8 +11,6 @@ class ScatterFuncFactory:
 
     def onCompositeScatterer(self, composite):
         elements = composite.elements()
-        if len(elements) != 3:
-            raise NotImplementedError
         from .composite_scatterer import factory
         return factory(composite)
 
