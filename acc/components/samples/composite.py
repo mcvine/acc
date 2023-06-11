@@ -9,6 +9,12 @@ from .SampleBase import SampleBase
 
 category = 'samples'
 
+def sampleassembly_from_xml(name, samplexml):
+    from . import loadScattererComposite
+    composite = loadScattererComposite(samplexml)
+    component = factory(composite)
+    return component(name)
+
 def factory(composite):
     from ...scatterers import scatter_func_factory
     methods = scatter_func_factory.render(composite)

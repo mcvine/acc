@@ -17,7 +17,8 @@ def test_1():
     run_script.run1(
         instr, outdir,
         ncount=ncount,
-        samplexml = "sampleassemblies/isotropic_sphere/sampleassembly.xml"
+        samplexml = "sampleassemblies/isotropic_sphere/sampleassembly.xml",
+        factory = "mcvine.acc.components.samples.composite.sampleassembly_from_xml",
     )
     return
 

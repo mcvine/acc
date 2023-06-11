@@ -5,13 +5,12 @@ thisdir = os.path.dirname(__file__)
 
 from test_sample_instrument_factory import construct
 
-def instrument(samplexml, is_acc=True):
-    if is_acc:
-        from mcvine.acc.components.samples import loadScattererComposite
-        composite = loadScattererComposite(samplexml)
-        from mcvine.acc.components.samples.composite import factory
-        target = factory(composite)("sample")
-    else:
-        import mcvine.components as mc
-        target = mc.samples.SampleAssemblyFromXml("sample", samplexml)
+def instrument(samplexml, factory):
+    tokens = factory.split('.')
+    module = '.'.join(tokens[:-1])
+    method = tokens[-1]
+    import importlib
+    module = importlib.import_module(module)
+    factory = getattr(module, method)
+    target = factory(name="sample", samplexml=samplexml)
     return construct(target, size=0.)
