@@ -18,8 +18,8 @@ class ScatterFuncFactory:
         from .homogeneous_scatterer import factory
         shape = hs.shape()
         kernel = hs.kernel()
-        mcweights = hs.mcweights
-        packing_factor = hs.packing_factor
+        mcweights = [float(w) for w in hs.mcweights]
+        packing_factor = float(hs.packing_factor)
         methods = factory(shape, kernel, mcweights, packing_factor)
         return methods
 
