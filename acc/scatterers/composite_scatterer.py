@@ -6,8 +6,9 @@
 import os
 from math import sqrt, exp
 import numpy as np, numba
-from numba import cuda
+from numba import cuda, void, int64
 from numba.core import config
+from numba.cuda.random import xoroshiro128p_type
 
 from .. import test
 from .._numba import xoroshiro128p_uniform_float32
@@ -139,7 +140,10 @@ def factory(composite):
         def calculate_attenuation(neutron, end):
             tmp_neutron = cuda.local.array(10, dtype=numba.float64)
             return _calculate_attenuation(neutron, end, tmp_neutron)
-        @cuda.jit(device=True, inline=True)
+        @cuda.jit(
+            void(int64, xoroshiro128p_type[:], NB_FLOAT[:]),
+            device=True, inline=True
+        )
         def scatter(threadindex, rng_states, neutron):
             tmp_neutron = cuda.local.array(10, dtype=numba.float64)
             tmp_ts = cuda.local.array(max_intersections, dtype=numba.float64)
@@ -290,5 +294,3 @@ return dict(
             ]
         )
         return header + loop + [indent + 'return 1.0']
-
-
