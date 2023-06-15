@@ -1,5 +1,5 @@
 import os
-import numpy as np
+import numpy as np, numba
 from numba import cuda, void, int64
 from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
 from ...config import get_numba_floattype
@@ -9,11 +9,14 @@ from .SampleBase import SampleBase
 
 category = 'samples'
 
-def sampleassembly_from_xml(name, samplexml):
+def SampleAssemblyFromXml(samplexml):
     from . import loadScattererComposite
     composite = loadScattererComposite(samplexml)
-    component = factory(composite)
-    return component(name)
+    return factory(composite)
+
+def sampleassembly_from_xml(name, samplexml):
+    klass = SampleAssemblyFromXml(samplexml)
+    return klass(name)
 
 def factory(composite):
     from ...scatterers import scatter_func_factory
@@ -32,9 +35,11 @@ def factory(composite):
             self.process(neutrons)
 
         @cuda.jit(
-            void(int64, xoroshiro128p_type[:], NB_FLOAT[:],
-        ) , device=True)
+            void(int64, xoroshiro128p_type[:], NB_FLOAT[:]),
+            device=True, inline=True,
+        )
         def propagate(threadindex, rng_states, neutron):
-            return scatter(threadindex, rng_states, neutron)
-
+            return
+    Composite.propagate = scatter
+    Composite.register_propagate_method(scatter)
     return Composite
