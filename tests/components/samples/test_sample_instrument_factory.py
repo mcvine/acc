@@ -17,12 +17,14 @@ def construct(
 
     # instrument
     if save_neutrons_before:
+        import mcvine.components as mc
         before = mc.monitors.NeutronToStorage(
             name=f"before_{component.name}",
             path=f"before_{component.name}.mcv")
         builder.add(before, gap=0)
     builder.add(component, gap=0)
     if save_neutrons_after:
+        import mcvine.components as mc
         after = mc.monitors.NeutronToStorage(
             name=f"after_{component.name}",
             path=f"after_{component.name}.mcv")

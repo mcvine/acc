@@ -19,6 +19,14 @@ def cross(v1, v2, vout):
 def length(v):
     return math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])
 
+
+@cuda.jit(device=True, inline=True)
+def length2(v):
+    """
+    Returns squared magnitude of v
+    """
+    return v[0]*v[0]+v[1]*v[1]+v[2]*v[2]
+
 @cuda.jit(device=True, inline=True)
 def normalize(v):
     l = length(v)

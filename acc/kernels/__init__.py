@@ -1,4 +1,5 @@
 import numba
+import numpy as np
 from numba import cuda
 from mcni import units
 
@@ -118,6 +119,23 @@ class ScatterFuncFactory:
             return S(threadindex, rng_states, neutron)
         return scatter, None, None, None
 
+    def onDGSSXResKernel(self, kernel):
+        from ..components.samples import getAbsScttCoeffs
+        mu, sigma = getAbsScttCoeffs(kernel)
+
+        target_position = _units_remover.remove_unit(kernel.target_position, units.length.meter)
+        target_radius = _units_remover.remove_unit(kernel.target_radius, units.length.meter)
+        tof_target = _units_remover.remove_unit(kernel.tof_at_target, units.time.second)
+        dtof = _units_remover.remove_unit(kernel.dtof, units.time.second)
+
+        target_position = np.asarray(target_position, dtype=float)
+        from .DGSSXResKernel import scatter
+
+        @cuda.jit(device=True)
+        def dgssxres_scatter(threadindex, rng_states, neutron):
+            neutron[-1] *= sigma
+            return scatter(threadindex, rng_states, neutron, target_position, target_radius, tof_target, dtof)
+        return dgssxres_scatter, None, None, None
 
 scatter_func_factory = ScatterFuncFactory()
 
