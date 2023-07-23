@@ -105,14 +105,13 @@ class ScatterFuncFactory:
         from ..components.samples import getAbsScttCoeffs
         mu, sigma = getAbsScttCoeffs(kernel)
 
-        S_QxQy = np.load(kernel.S_QxQy)
         Qx_min = _units_remover.remove_unit(kernel.Qx_min, 1/units.length.angstrom)
         Qx_max = _units_remover.remove_unit(kernel.Qx_max, 1/units.length.angstrom)
         Qy_min = _units_remover.remove_unit(kernel.Qy_min, 1/units.length.angstrom)
         Qy_max = _units_remover.remove_unit(kernel.Qy_max, 1/units.length.angstrom)
 
-        from .E_Q import makeS
-        S = makeS(S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max)
+        from .SANS2D_ongrid import makeS #, _S
+        S = makeS(kernel.S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max)
         @cuda.jit(device=True)
         def scatter(threadindex, rng_states, neutron):
             neutron[-1] *= sigma

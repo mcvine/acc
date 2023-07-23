@@ -12,8 +12,9 @@ class SANS2D_ongrid_Kernel(base):
         Qx_max = self._parse( kwds['Qx_max'] )
         Qy_min = self._parse( kwds['Qy_min'] )
         Qy_max = self._parse( kwds['Qy_max'] )
-        S_QxQy = self._parse( kwds['S_QxQy'] )
-        from ...SANS2d_ongrid import SANS2d_ongrid_Kernel as f
+        import numpy as np
+        S_QxQy = np.load( kwds['S_QxQy'] )
+        from ...SANS2D_ongrid import SANS2D_ongrid_Kernel as f
         return f(S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max)
 
     pass # end of SANS2D_ongrid_Kernel
