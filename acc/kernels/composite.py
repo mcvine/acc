@@ -114,9 +114,9 @@ def _create_select_kernel_func_lines(nkernels, method, args, indent=4*' '):
             'r = xoroshiro128p_uniform_float32(rng_states, threadindex)'
         ],
         in_loop = [
-            'if r < cumulative_weights[{i}]:',
+            'if r < device_cumulative_weights[{i}]:',
             f'    ret = {method}_'+'{i}'+f'({args})',
-            '    neutron[-1]/=weights[{i}]',
+            '    neutron[-1]/=device_weights[{i}]',
             '    return ret'
         ],
         after_loop = []
@@ -135,7 +135,9 @@ def createKernelMethods(composite):
     for w in weights[1:]:
         cumulative_weights.append(w+cumulative_weights[-1])
     cumulative_weights = np.array(cumulative_weights)
+    device_cumulative_weights = cuda.to_device(cumulative_weights)
     weights = np.array(weights)
+    device_weights = cuda.to_device(weights)
     scale_scattering_coeff = 1./Nkernels if composite.average else 1
 
     # create cuda functions for kernels
@@ -172,7 +174,9 @@ def createKernelMethods(composite):
     for w in weights[1:]:
         cumulative_weights.append(w+cumulative_weights[-1])
     cumulative_weights = np.array(cumulative_weights)
+    device_cumulative_weights = cuda.to_device(cumulative_weights)
     weights = np.array(weights)
+    device_weights = cuda.to_device(weights)
     scale_scattering_coeff = 1./Nkernels if composite.average else 1
 
     # create cuda functions for kernels
@@ -189,25 +193,25 @@ def createKernelMethods(composite):
     @cuda.jit(device=True)
     def scatter(threadindex, rng_states, neutron):
         r = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        if r < cumulative_weights[0]:
+        if r < device_cumulative_weights[0]:
             ret = scatter_0(threadindex, rng_states, neutron)
-            neutron[-1]/=weights[0]
+            neutron[-1]/=device_weights[0]
             return ret
-        if r < cumulative_weights[1]:
+        if r < device_cumulative_weights[1]:
             ret = scatter_1(threadindex, rng_states, neutron)
-            neutron[-1]/=weights[1]
+            neutron[-1]/=device_weights[1]
             return ret
 
     @cuda.jit(device=True)
     def absorb(threadindex, rng_states, neutron):
         r = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        if r < cumulative_weights[0]:
+        if r < device_cumulative_weights[0]:
             ret = absorb_0(threadindex, rng_states, neutron)
-            neutron[-1]/=weights[0]
+            neutron[-1]/=device_weights[0]
             return ret
-        if r < cumulative_weights[1]:
+        if r < device_cumulative_weights[1]:
             ret = absorb_1(threadindex, rng_states, neutron)
-            neutron[-1]/=weights[1]
+            neutron[-1]/=device_weights[1]
             return ret
 
     @cuda.jit(device=True)

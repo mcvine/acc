@@ -20,6 +20,7 @@ def abs2rel(r, v, rotmat, offset, rtmp, vtmp):
     vec3.copy(r, rtmp); vec3.copy(v, vtmp)
     vec3.abs2rel(rtmp, rotmat, offset, r)
     vec3.mXv(rotmat, vtmp, v)
+applyTransformation = abs2rel
 
 @cuda.jit(void(NB_FLOAT[:]),
           device=True, inline=True)
@@ -69,6 +70,9 @@ def prop_z0(neutron):
 def v2e(v):
     return v * v * conversion.VS2E
 
+@cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
+def v2k(v):
+    return v * conversion.V2K
 
 @cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
 def e2v(e):

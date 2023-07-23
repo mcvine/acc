@@ -40,6 +40,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
           channels: mcvine,conda-forge
 
+      # use mamba solver
+      - name: use mamba solver in conda
+        shell: pwsh
+        run: |
+          # conda update -n base conda
+          conda install -n base conda-libmamba-solver
+          conda config --set solver libmamba
+
       # install deps and build
       - name: install / build
         shell: pwsh
@@ -48,6 +56,7 @@ jobs:
           python -c "import matplotlib; import mantid"
           mcvine
           conda install numba=0.53.1 cupy cudatoolkit=11.2.2
+          python .github/workflows/patch_numba.py
           python setup.py sdist
           pip install --no-deps .
       # test
