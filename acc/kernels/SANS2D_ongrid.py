@@ -20,7 +20,6 @@ def bilinear_interp(x, y, f00, f01, f10, f11):
     a11 = f11 - f10 - f01 + f00
     return a00+a10*x+a01*y+a11*x*y
 
-
 def makeS(S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max):
     @cuda.jit(device=True)
     def S(threadindex, rng_states, neutron):
@@ -55,10 +54,10 @@ def makeS(S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max):
         prob = bilinear_interp(x_fractional, y_fractional, f00, f01, f10, f11)
         neutron[-1] *= prob
         return
-
     return S
 
-class SANS_ongrid_Kernel:
+from mccomponents.homogeneous_scatterer.Kernel import Kernel
+class SANS2D_ongrid_Kernel(Kernel):
 
     def __init__(self, S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max):
         self.S_QxQy = S_QxQy
@@ -66,4 +65,4 @@ class SANS_ongrid_Kernel:
         self.Qy_min, self.Qy_max = Qy_min, Qy_max
 
     def identify(self, visitor):
-        return visitor.onSANS_ongrid_Kernel(self)
+        return visitor.onSANS2D_ongrid_Kernel(self)
