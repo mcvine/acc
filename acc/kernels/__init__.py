@@ -52,6 +52,9 @@ class ScatterFuncFactory:
             xs.abs, xs.inc, xs.coh
         )
         w_v, q_v, my_s_v2 = pd.w_v, pd.q_v, pd.my_s_v2
+        device_w_v = cuda.to_device(w_v)
+        device_q_v = cuda.to_device(q_v)
+        device_my_s_v2 = cuda.to_device(my_s_v2)
         Npeaks = pd.Npeaks
         d_phi = pd.d_phi
         ucvol = pd.unitcell_volume
@@ -62,12 +65,12 @@ class ScatterFuncFactory:
             vout = cuda.local.array(3, dtype=numba.float64)
             return scatter(
                 threadindex, rng_states, neutron,
-                w_v, q_v, my_s_v2, Npeaks,
+                device_w_v, device_q_v, device_my_s_v2, Npeaks,
                 d_phi, n, vtmp, vout, ucvol,
             )
         @cuda.jit(device=True)
         def simplepowderdiffraction_scattering_coefficient(neutron):
-            return scattering_coefficient(neutron, ucvol, Npeaks, q_v, my_s_v2)
+            return scattering_coefficient(neutron, ucvol, Npeaks, device_q_v, device_my_s_v2)
         return simplepowderdiffraction_scatter, simplepowderdiffraction_scattering_coefficient, None, None
 
     def onConstantQEKernel(self, kernel):
@@ -127,13 +130,18 @@ class ScatterFuncFactory:
         tof_target = _units_remover.remove_unit(kernel.tof_at_target, units.time.second)
         dtof = _units_remover.remove_unit(kernel.dtof, units.time.second)
 
-        target_position = np.asarray(target_position, dtype=float)
+        target_position_arr = np.array(target_position, dtype=float)
+        device_target_position = cuda.to_device(target_position_arr)
         from .DGSSXResKernel import scatter
 
         @cuda.jit(device=True)
         def dgssxres_scatter(threadindex, rng_states, neutron):
             neutron[-1] *= sigma
-            return scatter(threadindex, rng_states, neutron, target_position, target_radius, tof_target, dtof)
+            return scatter(
+                threadindex, rng_states, neutron,
+                device_target_position,
+                target_radius,
+                tof_target, dtof)
         return dgssxres_scatter, None, None, None
 
 scatter_func_factory = ScatterFuncFactory()
