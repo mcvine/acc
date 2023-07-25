@@ -20,6 +20,7 @@ def test_no_propagate_raises():
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+@pytest.mark.skipif(int(numba.__version__.split(".")[1]) >= 56, reason="Only for Numba <56")
 def test_propagate_no_signature_raises():
     with pytest.raises(RuntimeError):
         # check that defining a propagate function with no signature fails
@@ -53,6 +54,7 @@ def test_set_float():
 
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+@pytest.mark.skipif(int(numba.__version__.split(".")[1]) >= 56, reason="Only for Numba <56")
 def test_propagate_args_changed():
     # check that propagate arguments are changed from float64 -> float32
     NB_FLOAT = getattr(numba, "float64")
