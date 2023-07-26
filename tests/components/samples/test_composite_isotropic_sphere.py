@@ -57,8 +57,9 @@ def psd_monitor_4pi():
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 def test_acc_run_script(ncount = 1e6):
-    instr = os.path.join(thisdir, "acc_ss_instrument.py")
-    outdir = 'out.isotropic_sphere-acc_run_script'
+    # instr = os.path.join(thisdir, "acc_ss_instrument.py")
+    instr = os.path.join(thisdir, "acc_composite_isotropic_sphere_instrument.py")
+    outdir = 'out.composite_isotropic_sphere-acc_run_script'
     ncount = int(ncount)
     from mcvine.acc import run_script
     run_script.run(
@@ -71,10 +72,10 @@ def test_acc_run_script(ncount = 1e6):
 def main():
     import journal
     journal.info("instrument").activate()
-    test_1()
+    # test_1()
     # test_compare_mcvine(num_neutrons=int(100), interactive=True, debug=True)
     # test_compare_mcvine(num_neutrons=int(1e7), interactive=True)
-    # test_acc_run_script(ncount=1e7)
+    test_acc_run_script(ncount=1e6)
     return
 
 
