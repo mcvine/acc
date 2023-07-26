@@ -9,14 +9,17 @@ from .SampleBase import SampleBase
 
 category = 'samples'
 
+def sampleassembly_from_xml(name, samplexml):
+    """factory method to create sample assembly component.
+    can only be used in nonacc instrument script
+    """
+    klass = SampleAssemblyFromXml(samplexml)
+    return klass(name)
+
 def SampleAssemblyFromXml(samplexml):
     from . import loadScattererComposite
     composite = loadScattererComposite(samplexml)
     return factory(composite)
-
-def sampleassembly_from_xml(name, samplexml):
-    klass = SampleAssemblyFromXml(samplexml)
-    return klass(name)
 
 def factory(composite):
     from ...scatterers import scatter_func_factory
