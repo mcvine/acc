@@ -8,7 +8,7 @@ N = 100000
 # closed_array = np.ones(N)
 closed_array = cuda.to_device(np.ones(N))
 
-@cuda.jit(cache=True)
+@cuda.jit(cache=False)
 def kernel(r, x):
     r[0] = closed_array[x]
 
