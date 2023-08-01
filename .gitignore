@@ -1,3 +1,9 @@
 __pycache__/
 .ipynb_checkpoints/
 *.~undo-tree~
+log.*
+out.*
+/build/
+/dist/
+/mcvine.acc.egg-info/
+mcvine_run_script_kwds.yml
