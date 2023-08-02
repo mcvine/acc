@@ -16,8 +16,6 @@ from mcni.AbstractComponent import AbstractComponent
 from numba.core import config
 from numba.core.types import Array, Float
 
-if not config.ENABLE_CUDASIM:
-    from numba.cuda.compiler import Dispatcher, DeviceFunction
 
 from ..config import get_max_registers
 
@@ -142,6 +140,13 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
         if config.ENABLE_CUDASIM:
             return propagate
 
+        # no longer need float switching in newer numba
+        if int(numba.__version__.split(".")[1]) >= 56:
+            cls.print_kernel_info(propagate)
+            return propagate
+
+        from numba.cuda.compiler import DeviceFunction
+
         if not isinstance(propagate, DeviceFunction):
             raise RuntimeError(
                 "invalid propagate function ({}, {}) registered, ".format(
@@ -183,7 +188,15 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
     def print_kernel_info(cls, kernel):
         try:
             print("{} kernel ({}):".format(cls.__name__, type(kernel)))
-            if isinstance(kernel, Dispatcher):
+            dispatch_type = None
+            if int(numba.__version__.split(".")[1]) >= 56:
+                from numba.cuda.dispatcher import CUDADispatcher
+                dispatch_type = CUDADispatcher
+            else:
+                from numba.cuda.compiler import Dispatcher, DeviceFunction
+                dispatch_type = Dispatcher
+
+            if isinstance(kernel, dispatch_type):
                 print("      specialized? {}".format(kernel.specialized))
                 print("      using {} registers".format(kernel.get_regs_per_thread()))
                 print("      inspect types: '{}'".format(kernel.inspect_types()))

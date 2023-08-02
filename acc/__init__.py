@@ -1,5 +1,10 @@
 # mcvine.acc subpackage
 
+try:
+    from acc._version import __version__
+except ImportError:
+    __version__ = 'unknown'
+
 from numba import cuda
 
 # code to get number of cores
