@@ -4,8 +4,6 @@ import os
 import pytest
 from mcvine.acc import test
 
-import diskchopper_instrument
-
 thisdir = os.path.dirname(__file__)
 
 
@@ -14,14 +12,18 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of a disk chopper against mcvine
     """
+    instr = os.path.join(thisdir, "diskchopper_instrument.py")
     from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
-
     compare_acc_nonacc(
         "DiskChopper",
-        ["Ixy", "Ixdivx", "Ixdivy"],
+        #["IL"],
+        ["psd"],
         {"float32": 1e-7, "float64": 1e-8},
         num_neutrons, debug,
-        interactive=interactive, workdir = thisdir,
+        instr = instr,
+        interactive=interactive,
+        acc_component_spec = dict(is_acc=True),
+        nonacc_component_spec = dict(is_acc=False)
     )
 
 def debug():
