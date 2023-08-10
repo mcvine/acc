@@ -144,6 +144,32 @@ class ScatterFuncFactory:
                 tof_target, dtof)
         return dgssxres_scatter, None, None, None
 
+    def onPhonon_IncoherentElastic_Kernel(self, kernel):
+        from ..components.samples import getAbsScttCoeffs
+        mu, sigma = getAbsScttCoeffs(kernel)
+
+        print(kernel)
+        print(kernel.scatterer_origin)
+        print(kernel.scatterer_origin.phase.unitcell)
+
+        # additional kernel parameters
+        AA= units.angstrom
+        dw_core = kernel.dw_core / AA**2
+        
+        # additional kernel parameters
+        scattering_xs = kernel.scattering_xs/units.barn \
+            if kernel.scattering_xs else 0.
+        absorption_xs = kernel.absorption_xs/units.barn \
+            if kernel.absorption_xs else 0.
+            
+        from .Phonon_IncoherentElastic import scatter
+        @cuda.jit(device=True)
+        def phonon_incoherentelastic_scatter(threadindex, rng_states, neutron):
+            neutron[-1] *= sigma
+            return scatter(threadindex, rng_states, neutron, dw_core)
+        return phonon_incoherentelastic_scatter, None, None, None        
+
+
 scatter_func_factory = ScatterFuncFactory()
 
 def make_calc_sctt_coeff_func(sigma):
