@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: mcvine.acc
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Jiao
+    family-names: Lin
+    affiliation: Oak Ridge National Laboratory
+  - given-names: Coleman
+    family-names: Kendrick
+    affiliation: Oak Ridge National Laboratory
+identifiers:
+  - type: url
+    value: 'https://github.com/mcvine/acc'
+repository-code: 'https://github.com/mcvine/acc'
