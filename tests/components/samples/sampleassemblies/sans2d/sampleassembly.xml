@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE SampleAssembly>
+
+<SampleAssembly name="sans2d">
+  <PowderSample name="sans2d" type="sample">
+    <Shape>
+      <block width="3*cm" height="3*cm" thickness="0.2*mm" />
+    </Shape>
+    <Phase type="crystal">
+      <ChemicalFormula>Al</ChemicalFormula>
+      <xyzfile>Al.xyz</xyzfile>
+    </Phase>
+  </PowderSample>
+  <LocalGeometer registry-coordinate-system="InstrumentScientist">
+    <Register name="sans2d" position="(0,0,0)" orientation="(0,0,0)"/>
+  </LocalGeometer>
+</SampleAssembly>
