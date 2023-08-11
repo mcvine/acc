@@ -3,6 +3,7 @@ import mccomponents.sample
 
 def loadScattererComposite(sampleassembly_xml):
     "load scatterer composite from sample assembly xml file"
+    from ... import kernels
     from mccomposite.extensions import HollowCylinder, SphereShell
     filename = os.path.realpath( sampleassembly_xml )
     dir, filename = os.path.split( os.path.abspath( filename ) )

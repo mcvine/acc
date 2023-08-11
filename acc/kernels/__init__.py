@@ -2,6 +2,7 @@ import numba
 import numpy as np
 from numba import cuda
 from mcni import units
+
 from ..components.samples import getAbsScttCoeffs
 
 class ScatterFuncFactory:
@@ -51,6 +52,9 @@ class ScatterFuncFactory:
             xs.abs, xs.inc, xs.coh
         )
         w_v, q_v, my_s_v2 = pd.w_v, pd.q_v, pd.my_s_v2
+        device_w_v = cuda.to_device(w_v)
+        device_q_v = cuda.to_device(q_v)
+        device_my_s_v2 = cuda.to_device(my_s_v2)
         Npeaks = pd.Npeaks
         d_phi = pd.d_phi
         ucvol = pd.unitcell_volume
@@ -61,12 +65,12 @@ class ScatterFuncFactory:
             vout = cuda.local.array(3, dtype=numba.float64)
             return scatter(
                 threadindex, rng_states, neutron,
-                w_v, q_v, my_s_v2, Npeaks,
+                device_w_v, device_q_v, device_my_s_v2, Npeaks,
                 d_phi, n, vtmp, vout, ucvol,
             )
         @cuda.jit(device=True)
         def simplepowderdiffraction_scattering_coefficient(neutron):
-            return scattering_coefficient(neutron, ucvol, Npeaks, q_v, my_s_v2)
+            return scattering_coefficient(neutron, ucvol, Npeaks, device_q_v, device_my_s_v2)
         return simplepowderdiffraction_scatter, simplepowderdiffraction_scattering_coefficient, None, None
 
     def onConstantQEKernel(self, kernel):
@@ -100,6 +104,23 @@ class ScatterFuncFactory:
             return S(threadindex, rng_states, neutron)
         return E_Q_scatter, None, None, None
 
+    def onSANS2D_ongrid_Kernel(self, kernel):
+        from ..components.samples import getAbsScttCoeffs
+        mu, sigma = getAbsScttCoeffs(kernel)
+
+        Qx_min = _units_remover.remove_unit(kernel.Qx_min, 1/units.length.angstrom)
+        Qx_max = _units_remover.remove_unit(kernel.Qx_max, 1/units.length.angstrom)
+        Qy_min = _units_remover.remove_unit(kernel.Qy_min, 1/units.length.angstrom)
+        Qy_max = _units_remover.remove_unit(kernel.Qy_max, 1/units.length.angstrom)
+
+        from .SANS2D_ongrid import makeS #, _S
+        S = makeS(kernel.S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max)
+        @cuda.jit(device=True)
+        def scatter(threadindex, rng_states, neutron):
+            neutron[-1] *= sigma
+            return S(threadindex, rng_states, neutron)
+        return scatter, None, None, None
+
     def onDGSSXResKernel(self, kernel):
         from ..components.samples import getAbsScttCoeffs
         mu, sigma = getAbsScttCoeffs(kernel)
@@ -109,15 +130,19 @@ class ScatterFuncFactory:
         tof_target = _units_remover.remove_unit(kernel.tof_at_target, units.time.second)
         dtof = _units_remover.remove_unit(kernel.dtof, units.time.second)
 
-        target_position = np.asarray(target_position, dtype=float)
+        target_position_arr = np.array(target_position, dtype=float)
+        device_target_position = cuda.to_device(target_position_arr)
         from .DGSSXResKernel import scatter
 
         @cuda.jit(device=True)
         def dgssxres_scatter(threadindex, rng_states, neutron):
             neutron[-1] *= sigma
-            return scatter(threadindex, rng_states, neutron, target_position, target_radius, tof_target, dtof)
+            return scatter(
+                threadindex, rng_states, neutron,
+                device_target_position,
+                target_radius,
+                tof_target, dtof)
         return dgssxres_scatter, None, None, None
-
 
 scatter_func_factory = ScatterFuncFactory()
 
@@ -143,3 +168,5 @@ from mccomposite.units_utils import UnitsRemover
 from mccomposite import units
 _units_remover = UnitsRemover(
     length_unit=units.length.meter, angle_unit=units.angle.degree)
+
+from . import xml
