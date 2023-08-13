@@ -58,6 +58,23 @@ def test_insert_into_sorted_list():
     assert N==6
     np.testing.assert_array_equal(l[:N], [0., 1., 2., 3., 4., 8.])
 
+    l = np.arange(4.)
+    d = 8
+    N = arrow_intersect.insert_into_sorted_list(d, l, 4)
+    assert N==4
+    np.testing.assert_array_equal(l[:N], [0., 1., 2., 3.])
+
+    l = np.arange(4.)
+    d = -1 
+    N = arrow_intersect.insert_into_sorted_list(d, l, 4)
+    assert N==4
+    np.testing.assert_array_equal(l[:N], [-1., 0., 1., 2.])
+
+    l = np.arange(4.)
+    d = 1.5 
+    N = arrow_intersect.insert_into_sorted_list(d, l, 4)
+    assert N==4
+    np.testing.assert_array_equal(l[:N], [0., 1., 1.5, 2.])
     return
 
 def main():

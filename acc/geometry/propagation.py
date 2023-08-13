@@ -4,6 +4,7 @@ from numba.core.config import ENABLE_CUDASIM
 from .arrow_intersect import max_intersections
 from .arrow_intersect import inside, outside, onborder
 from ..neutron import prop_dt_inplace
+from ..vec3 import distance as v3_dist, length as v3_length
 from .. import test
 
 def makePropagateMethods(intersect, locate):
@@ -190,6 +191,34 @@ def makePropagateMethods(intersect, locate):
             continue
         return t
 
+    @cuda.jit(device=True)
+    def _forward_distance_in_shape(neutron, end, ts):
+        "distance to travel in shape to get to `end`. `end` must be on the path of the neutron"
+        start = neutron[:3]
+        vv = neutron[3:6]
+        v = v3_length(vv)
+        nintersect = forward_intersect(start[0], start[1], start[2], vv[0], vv[1], vv[2], ts)
+        length = v3_dist(start, end)
+        tofmax = length/v;
+        prev = 0; length = 0
+        for i in range(nintersect):
+            tof = ts[i]
+            if (tof > tofmax):
+                tof = tofmax
+            middle = (tof+prev)/2.
+            # middle point p = start + vv*middle;
+            x = start[0] + vv[0]*middle
+            y = start[1] + vv[1]*middle
+            z = start[2] + vv[2]*middle
+            # if middle point is inside, count this segment
+            if locate(x,y,z) == inside:
+                length += (tof-prev) * v;
+            if tof > tofmax:
+                break
+            prev = tof
+            continue
+        return length
+
 
     if test.USE_CUDASIM:
         @cuda.jit(device=True, inline=True)
@@ -212,6 +241,10 @@ def makePropagateMethods(intersect, locate):
         def propagate_to_next_exiting_surface(neutron):
             ts = np.zeros(max_intersections, dtype=float)
             return _propagate_to_next_exiting_surface(neutron, ts)
+        @cuda.jit(device=True, inline=True)
+        def forward_distance_in_shape(neutron, end):
+            ts = np.zeros(max_intersections, dtype=float)
+            return _forward_distance_in_shape(neutron, end, ts)
     else:
         @cuda.jit(device=True, inline=True)
         def is_exiting(neutron):
@@ -233,6 +266,10 @@ def makePropagateMethods(intersect, locate):
         def propagate_to_next_exiting_surface(neutron):
             ts = cuda.local.array(max_intersections, dtype=numba.float64)
             return _propagate_to_next_exiting_surface(neutron, ts)
+        @cuda.jit(device=True, inline=True)
+        def forward_distance_in_shape(neutron, end):
+            ts = cuda.local.array(max_intersections, dtype=numba.float64)
+            return _forward_distance_in_shape(neutron, end, ts)
 
     return dict(
         is_exiting = is_exiting,
@@ -241,4 +278,5 @@ def makePropagateMethods(intersect, locate):
         propagate_out = propagate_out,
         propagate_to_next_incident_surface = propagate_to_next_incident_surface,
         propagate_to_next_exiting_surface = propagate_to_next_exiting_surface,
+        forward_distance_in_shape = forward_distance_in_shape,
     )

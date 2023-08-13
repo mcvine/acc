@@ -2,6 +2,7 @@
 *.dat
 *.mcv
 out.*
+log.*
 compiled_composite*
 composite_kernel_*
 

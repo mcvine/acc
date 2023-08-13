@@ -134,7 +134,7 @@ def test_propagate_to_next_exiting_surface():
         [-0.01,0.,0., 1.,0.,0., 0.,0., 0.015, 1.],
         [-0.01,0.,0., 1.,0.,0., 0.,0., 0.01, 1.],
         [-0.01,0.,0., 1.,0.,0., 0.,0., 0.005, 1.],
-        [-0.01,0.,0., 1.,0.,0., 0.,0., 0.01, 1.],
+        [-0.01,0.,0., 1.,0.,0., 0.,0., 0.0, 1.],
         [0.02,0.,0., 1.,0.,0., 0.,0., 0.02, 1.],
         [0.02,0.,0., 1.,0.,0., 0.,0., 0.01, 1.],
         [0.02,0.,0., 1.,0.,0., 0.,0., 0.005, 1.],
@@ -142,6 +142,29 @@ def test_propagate_to_next_exiting_surface():
         [0.025,0.,0., 1.,0.,0., 0.,0., 0., 1.],
         [1.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
     ])
+    for i, (neutron, out) in enumerate(zip(neutrons, expected)):
+        propagate_to_next_exiting_surface(neutron)
+        assert np.allclose(neutron, out), f"{i}: {neutron} != {out}"
+    return
+
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_forward_distance_in_shape():
+    forward_distance_in_shape = getPropagateMethods()[
+        'forward_distance_in_shape']
+    neutrons = np.array([
+        [-1.,0.,0., 1.,0.,0., 0.,0., 0., 1.],
+    ])
+    ends = np.array([
+        [0.,0.,0.],
+        [1.,0.,0.],
+    ])
+    expected = np.array([
+        0.01,
+        0.02,
+    ])
+    for neutron, end, expected_out in zip(neutrons, ends, expected):
+        out = forward_distance_in_shape(neutron, end)
+        assert np.allclose(out, expected_out), f"{out} != {expected_out}"
     return
 
 def main():
@@ -149,6 +172,7 @@ def main():
     test_tof_before_first_exit()
     test_propagate_to_next_incident_surface()
     test_propagate_to_next_exiting_surface()
+    test_forward_distance_in_shape()
     return
 
 if __name__ == '__main__': main()

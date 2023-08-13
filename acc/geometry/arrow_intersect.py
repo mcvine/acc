@@ -26,6 +26,18 @@ class ArrowIntersectFuncFactory:
         return shape.identify(self)
 
     def onUnion(self, u):
+        nelements = len(u.shapes)
+        if nelements == 1:
+            return u.shapes[0].identify(self)
+        elif nelements == 2:
+            return self.onUnion2(u)
+        elif nelements == 3:
+            from .composite_3 import createRayTracingMethods_NonOverlappingShapes as createMethods
+            return createMethods(u.shapes)['intersect_all']
+        else:
+            raise NotImplementedError(f"locate for union of {nelements} elements")
+
+    def onUnion2(self, u):
         locate1 = self.locate_func_factory.onUnion(u)
         s1, s2 = u.shapes
         f1 = s1.identify(self)
@@ -84,6 +96,22 @@ class ArrowIntersectFuncFactory:
             return 2
 
         return intersectBlock
+
+    def onTranslation(self, t):
+        x0,y0,z0 = [_/units.length.meter for _ in t.vector]
+        body = t.body
+        intersect_body = self.render(body)
+        @cuda.jit(device=True, inline=True)
+        def intersectTranslation(x,y,z, vx,vy,vz, ts):
+            return intersect_body(x-x0,y-y0,z-z0, vx,vy,vz, ts)
+        return intersectTranslation
+
+    def onRotation(self, r):
+        euler_angles = [_/units.angle.rad for _ in r.euler_angles]
+        # hack
+        if not np.allclose(euler_angles, [0,0,0]):
+            raise NotImplementedError
+        return self.render(r.body)
 
     def onDifference(self, s):
         locate1 = self.locate_func_factory.onDifference(s)
@@ -150,8 +178,13 @@ def remove_item(idx, l, N):
 
 @cuda.jit(device=True)
 def insert_into_sorted_list(d, l, N):
-    'insert data "d" into existing sorted array (low to high) of length N'
-    if N>=len(l): return N
+    '''insert data "d" into existing sorted array (low to high) of length N
+    and keep the lower number when there are too many elements
+    '''
+    if N>=len(l):
+        if l[N-1] <= d:
+            return N
+        N = N - 1
     if N==0:
         l[0] = d
         return 1

@@ -1,3 +1,4 @@
+import numpy as np
 from numba import cuda
 from mcni import units
 from . import epsilon, location
@@ -11,6 +12,18 @@ class LocateFuncFactory:
         return shape.identify(self)
 
     def onUnion(self, u):
+        nelements = len(u.shapes)
+        if nelements == 1:
+            return u.shapes[0].identify(self)
+        elif nelements == 2:
+            return self.onUnion2(u)
+        elif nelements == 3:
+            from .composite_3 import createUnionLocateMethod
+            return createUnionLocateMethod(u.shapes)
+        else:
+            raise NotImplementedError(f"locate for union of {nelements} elements")
+
+    def onUnion2(self, u):
         s1, s2 = u.shapes
         f1 = s1.identify(self)
         f2 = s2.identify(self)
@@ -42,8 +55,23 @@ class LocateFuncFactory:
         @cuda.jit(device=True, inline=True)
         def locateWrtBlock(x, y, z):
             return cu_device_locate_wrt_box(x, y, z, W, H, D)
-
         return locateWrtBlock
+
+    def onTranslation(self, t):
+        x0,y0,z0 = [_/units.length.meter for _ in t.vector]
+        body = t.body
+        locate_in_body = self.render(body)
+        @cuda.jit(device=True, inline=True)
+        def locateWrtTranslation(x,y,z):
+            return locate_in_body(x-x0, y-y0, z-z0)
+        return locateWrtTranslation
+
+    def onRotation(self, r):
+        euler_angles = [_/units.angle.rad for _ in r.euler_angles]
+        # hack
+        if not np.allclose(euler_angles, [0,0,0]):
+            raise NotImplementedError
+        return self.render(r.body)
 
     def onDifference(self, s):
         f1 = s.op1.identify(self)
@@ -52,7 +80,6 @@ class LocateFuncFactory:
         @cuda.jit(device=True, inline=True)
         def locateWrtDifference(x, y, z):
             return cu_device_locate_wrt_difference(x, y, z, f1, f2)
-
         return locateWrtDifference
 
     def onIntersection(self, u):
