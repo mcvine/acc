@@ -9,7 +9,6 @@ import numba
 from mcvine.acc.test import USE_CUDA
 if USE_CUDA:
     from numba import cuda
-    import cupy as cp
 
 def cu_square(x, x2):
     N, = x.shape
