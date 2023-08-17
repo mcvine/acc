@@ -61,6 +61,77 @@ def sns_source_load(filename, xcol=0, ycol=2):
         assert np.allclose(mat[i, :, 0], tvec)
     return np.ascontiguousarray(xvec), np.ascontiguousarray(yvec), veclen, np.ascontiguousarray(tvec), mat[:, :, 2]
 
+# ## Load data
+def sts_source_load(filename, xcol=0, ycol=2):
+    with open(filename, 'rt') as stream:
+        # load the first section containing PPower, freq, mradius, moffangle, Pheight, Pwidth, and TRadius
+        param_block = []
+        while True:
+            line = stream.readline()
+            if line.startswith('## section 0 end'): 
+                break
+            if line.startswith('#'):
+                continue
+            if len(line.strip())!=0:
+                param = float(line.strip().split()[0])
+                param_block.append(param)
+        
+        # the last param is a check string that matches 12345678.0
+        if param_block[-1] != 12345678.0:
+            raise RuntimeError("ERROR: Inconsistent parameter data set. Expected check string 12345678, got {}".format(param_block[-1]))
+        param_block = np.array(param_block[0:-1])
+
+        first_block = []
+        while True:
+            line = stream.readline()
+            if line.startswith('#'): 
+                continue
+            if len(line.strip())!=0:
+                d = list(map(float, line.split()))
+                first_block.append(d)
+            else:
+                break
+        first_block = np.array(first_block)
+        xvec = first_block[:, xcol]
+        yvec = first_block[:, ycol]
+        idx1 = first_block.shape[0]
+        idx2 = idx1//2
+        
+        while((idx2<idx1) and (yvec[idx2]>0)):
+            idx2+=1
+        if(idx2<idx1):
+            veclen=idx2
+        else:
+            veclen=idx1-2
+
+        # skip over to section2
+        while True:
+            line = stream.readline()
+            if not (line.startswith('#') or len(line.strip())==0):
+                break
+        mat = []
+        while len(line):
+            # print(len(mat))
+            s2block = []
+            while len(line.strip())!=0:
+                d = [float(t) for t in line.split()]
+                s2block.append(d)
+                line = stream.readline()
+            mat.append(s2block)
+            # skip to next subsection
+            while len(line) and len(line.strip())==0:
+                line = stream.readline()
+                continue
+        mat = np.array(mat)
+    nE, nt, ncols = mat.shape
+    assert nE == len(xvec)
+    for i in range(nt):
+        assert np.allclose(mat[:, i, 1], xvec)
+    tvec = mat[0, :, 0]
+    for i in range(nE):
+        assert np.allclose(mat[i, :, 0], tvec)
+    return np.ascontiguousarray(xvec), np.ascontiguousarray(yvec), veclen, np.ascontiguousarray(tvec), mat[:, :, 2], param_block
+
 
 # ## Compute integrated probability
 def Pcalc(func, llim,  hlim, xvec, Prob, veclen):
@@ -113,9 +184,13 @@ def Pcalc(func, llim,  hlim, xvec, Prob, veclen):
             Prob[idx2]/=Norm
     return idxstart, idxstop
 
-def init(Emin, Emax, datafile):
+def init(Emin, Emax, datafile, sts_load = False):
     'Emin, Emax: meV'
-    inxvec, inyvec, xylength, tvec, mat = sns_source_load(datafile, 0, 2)
+    params = []
+    if sts_load:
+        inxvec, inyvec, xylength, tvec, mat, params = sts_source_load(datafile, 0, 2)
+    else:
+        inxvec, inyvec, xylength, tvec, mat = sns_source_load(datafile, 0, 2)
     nE, nt = mat.shape
     Es = inxvec
     nEvals = len(Es)
@@ -142,7 +217,7 @@ def init(Emin, Emax, datafile):
     EPmin = float(f(Emin/1000.0))
     # EPmax=quadfuncint(Emax/1000.0,xylength,inxvec,Pvec)
     # EPmin=quadfuncint(Emin/1000.0,xylength,inxvec,Pvec)
-    return INorm2, Es, Pvec, tvec, Ptmat, EPmin, EPmax, (idxstart, idxstop), (tidxstart, tidxstop)
+    return INorm2, Es, Pvec, tvec, Ptmat, EPmin, EPmax, (idxstart, idxstop), (tidxstart, tidxstop), params
 
 def test_init():
     dat = '/home/97n/dv/mcvine/resources/instruments/ARCS/moderator/source_sct521_bu_17_1.dat'
