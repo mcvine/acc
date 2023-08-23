@@ -153,13 +153,13 @@ class ScatterFuncFactory:
         print(kernel.scatterer_origin.phase.unitcell)
 
         # additional kernel parameters
-        AA= units.angstrom
+        AA= units.length.angstrom
         dw_core = kernel.dw_core / AA**2
         
         # additional kernel parameters
-        scattering_xs = kernel.scattering_xs/units.barn \
+        scattering_xs = kernel.scattering_xs/units.area.barn \
             if kernel.scattering_xs else 0.
-        absorption_xs = kernel.absorption_xs/units.barn \
+        absorption_xs = kernel.absorption_xs/units.area.barn \
             if kernel.absorption_xs else 0.
             
         from .Phonon_IncoherentElastic import scatter
