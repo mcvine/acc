@@ -33,9 +33,9 @@ build-conda-env:
       fi
     - export LANG=C.UTF-8  LC_ALL=C.UTF-8  PATH=/opt/conda/bin:$PATH
     - export PATH=/opt/conda/bin:$PATH
-    - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
-    - conda env list
-    - conda env create -f .gitlab/deps.yml
+    - mamba config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
+    - mamba env list
+    - mamba env create -f environment.yml
   allow_failure:
     exit_codes: 10
 
@@ -53,12 +53,13 @@ build-job-using-docker:
     - nvidia-smi
     - export LANG=C.UTF-8  LC_ALL=C.UTF-8  PATH=/opt/conda/bin:$PATH
     - export PATH=/opt/conda/bin:$PATH
-    - conda config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
-    - conda env list
-    - conda list -n acc mcvine # check mcvine
+    - mamba config --add envs_dirs $CI_PROJECT_DIR/.conda_envs/
+    - mamba env list
+    - mamba list -n acc mcvine # check mcvine
     - git clone https://github.com/yxqd/dotmantid ~/.mantid
-    - conda run -n acc mcvine
-    - conda run -n acc python setup.py sdist
-    - conda run -n acc pip install --no-deps .
+    - mamba run -n acc mcvine
+    - mamba run -n acc python .github/workflows/patch_numba.py # patch numba for const-array fix
+    - mamba run -n acc python setup.py sdist
+    - mamba run -n acc pip install --no-deps .
     - cd tests
-    - conda run -n acc py.test
+    - mamba run -n acc py.test
