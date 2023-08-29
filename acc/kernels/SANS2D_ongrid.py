@@ -53,13 +53,14 @@ def S(threadindex, rng_states, neutron, S_QxQy, nx, ny, Qx_min, Qx_max, Qy_min, 
     neutron[-1] *= prob
     return
 
-def makeS(S_QxQy, Qx_min, Qx_max, Qy_min, Qy_max):
-    S_QxQy = np.ascontiguousarray(S_QxQy)
+def makeS(S_QxQy_in, Qx_min, Qx_max, Qy_min, Qy_max):
+    S_QxQy = np.ascontiguousarray(np.transpose(S_QxQy_in))
+
     device_S_QxQy = cuda.to_device(S_QxQy)
     nx, ny = S_QxQy.shape
     @cuda.jit(device=True, inline=True)
     def _S(threadindex, rng_states, neutron):
-        S(threadindex, rng_states, neutron, device_S_QxQy,nx,ny, Qx_min, Qx_max, Qy_min, Qy_max)
+        S(threadindex, rng_states, neutron, device_S_QxQy, nx, ny, Qx_min, Qx_max, Qy_min, Qy_max)
     return _S
 
 from mccomponents.homogeneous_scatterer.Kernel import Kernel
