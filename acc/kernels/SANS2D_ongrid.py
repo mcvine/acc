@@ -1,6 +1,7 @@
+import math
 import numpy as np
 from mcni.utils import conversion
-from mcvine.acc.neutron import v2e, e2v, v2k
+from mcvine.acc.neutron import v2e, e2v, v2k, k2v
 from numba import cuda, float64
 from numba.core import config
 from .._numba import xoroshiro128p_uniform_float32
@@ -34,8 +35,9 @@ def S(threadindex, rng_states, neutron, S_QxQy, nx, ny, Qx_min, Qx_max, Qy_min, 
     Qy += Qy_min
 
     # final velocity
-    v[0] += Qx/ki * vi
-    v[1] += Qy/ki * vi
+    v[0] -= k2v(Qx)
+    v[1] -= k2v(Qy)
+    v[2] = math.sqrt(vi*vi - v[0]*v[0] * v[1]*v[1])
     # weight adjustment
     dQx = (Qx_max-Qx_min)/nx
     dQy = (Qy_max-Qy_min)/ny
