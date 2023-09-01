@@ -54,7 +54,8 @@ def S(threadindex, rng_states, neutron, S_QxQy, nx, ny, Qx_min, Qx_max, Qy_min, 
     return
 
 def makeS(S_QxQy_in, Qx_min, Qx_max, Qy_min, Qy_max):
-    S_QxQy = np.ascontiguousarray(np.transpose(S_QxQy_in))
+    # Assume that the input image (y,x). Hence the transpose
+    S_QxQy = np.ascontiguousarray(S_QxQy_in.T)
 
     device_S_QxQy = cuda.to_device(S_QxQy)
     nx, ny = S_QxQy.shape
