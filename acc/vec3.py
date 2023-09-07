@@ -19,6 +19,14 @@ def cross(v1, v2, vout):
 def length(v):
     return math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])
 
+
+@cuda.jit(device=True, inline=True)
+def length2(v):
+    """
+    Returns squared magnitude of v
+    """
+    return v[0]*v[0]+v[1]*v[1]+v[2]*v[2]
+
 @cuda.jit(device=True, inline=True)
 def normalize(v):
     l = length(v)
@@ -61,8 +69,7 @@ def mXv(mat, vec, outvec):
 
 # cs_rot * ( r - cs_pos )
 @cuda.jit(device=True, inline=True)
-def abs2rel(vec, rotmat, offset, vecout):
-    tmp = cuda.local.array(3, dtype=NB_FLOAT)
+def _abs2rel(vec, rotmat, offset, vecout, tmp):
     subtract(vec, offset, tmp)
     mXv(rotmat, tmp, vecout)
     return
@@ -107,6 +114,12 @@ if test.USE_CUDASIM:
         v_pp_r = np.zeros(3, dtype=float)
         return _rotate(
             v, c, angle, c1, v_pl, v_pp, e3, v_pp_r, epsilon)
+
+    @cuda.jit(device=True, inline=True)
+    def abs2rel(vec, rotmat, offset, vecout):
+        tmp = np.zeros(3, dtype=float)
+        _abs2rel(vec, rotmat, offset, vecout, tmp)
+        return
 else:
     @cuda.jit(device=True, inline=True)
     def rotate(v, c, angle, epsilon=1e-7):
@@ -117,3 +130,9 @@ else:
         v_pp_r = cuda.local.array(3, dtype=numba.float64)
         return _rotate(
             v, c, angle, c1, v_pl, v_pp, e3, v_pp_r, epsilon)
+
+    @cuda.jit(device=True, inline=True)
+    def abs2rel(vec, rotmat, offset, vecout):
+        tmp = cuda.local.array(3, dtype=NB_FLOAT)
+        _abs2rel(vec, rotmat, offset, vecout, tmp)
+        return

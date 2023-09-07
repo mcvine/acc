@@ -17,7 +17,10 @@ def makeKernelModule(composite):
     if composite in _modules: return _modules[composite]
     import pickle as pkl, tempfile
     # save composite to be loaded by the "compiled" module
-    tmpdir = tempfile.mkdtemp(prefix='composite_kernel_', dir=os.curdir)
+    coder_dir=os.path.join(os.curdir, '.mcvine.acc.coder')
+    if not os.path.exists(coder_dir):
+        os.makedirs(coder_dir)
+    tmpdir = tempfile.mkdtemp(prefix='composite_kernel_', dir=coder_dir)
     pklpath = os.path.abspath(os.path.join(tmpdir, 'composite.pkl'))
     pkl.dump(composite, open(pklpath, 'wb'))
     # make "compiled" composite module
@@ -61,13 +64,13 @@ def _create_select_kernel_func_lines(nkernels, method, args, indent=4*' '):
     for i in range(nkernels-1):
         lead = 'if'
         if i>0: lead = 'elif'
-        lines.append(f'{lead} r < cumulative_weights[{i}]:')
+        lines.append(f'{lead} r < device_cumulative_weights[{i}]:')
         lines.append(f'{indent}ret = {method}_{i}({args})')
         lines.append(f'{indent}ikernel={i}')
     lines.append(f'else:')
     lines.append(f'{indent}ret = {method}_{nkernels-1}({args})')
     lines.append(f'{indent}ikernel={nkernels-1}')
-    lines.append(f'neutron[-1]/=weights[ikernel]')
+    lines.append(f'neutron[-1]/=device_weights[ikernel]')
     lines.append(f'return ret')
     return lines
 
@@ -84,7 +87,9 @@ cumulative_weights = [weights[0]]
 for w in weights[1:]:
     cumulative_weights.append(w+cumulative_weights[-1])
 cumulative_weights = np.array(cumulative_weights)
+device_cumulative_weights = cuda.to_device(cumulative_weights)
 weights = np.array(weights)
+device_weights = cuda.to_device(weights)
 scale_scattering_coeff = 1./Nkernels if composite.average else 1
 
 # create cuda functions for kernels

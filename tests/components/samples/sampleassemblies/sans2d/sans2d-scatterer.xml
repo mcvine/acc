@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE scatterer>
+
+<!-- weights: absorption, scattering, transmission -->
+<homogeneous_scatterer mcweights="0, 1, 0">
+  <SANS2D_ongrid_Kernel
+      S_QxQy="I.npy"
+      Qx_min="-0.0047176/angstrom" Qx_max="0.0047176/angstrom"
+      Qy_min="-0.0035176/angstrom" Qy_max="0.0035176/angstrom"
+      />
+</homogeneous_scatterer>
+

@@ -13,10 +13,6 @@ from .SampleBase import SampleBase
 from ...neutron import absorb, prop_dt_inplace
 from ...geometry.arrow_intersect import max_intersections
 
-from numba.core import config
-if not config.ENABLE_CUDASIM:
-    from numba.cuda.compiler import Dispatcher, DeviceFunction
-
 from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 
@@ -96,6 +92,7 @@ def factory(shape, kernel):
             x, y, z, vx, vy, vz = neutron[:6]
             ninter = intersect(x,y,z, vx,vy,vz, ts)
             dt3 = total_time_in_shape(ts, ninter)
+            prop_dt_inplace(neutron, dt3)
             sigma = calc_scattering_coeff(neutron)
             mu = calc_absorption_coeff(neutron)
             atten2 = exp( -(mu+sigma) * v * dt3 )
