@@ -2,11 +2,11 @@
 
 <!DOCTYPE SampleAssembly>
 
-<SampleAssembly name="fccNi-plate-sampleassembly">
+<SampleAssembly name="fccNi-sphere-sampleassembly">
   
-  <PowderSample name='fccNi-plate' type='sample'>
+  <PowderSample name='fccNi-sphere' type='sample'>
     <Shape>
-      <block width="6*cm" height="10*cm" thickness="0.1*cm" />
+      <sphere radius="1*cm" />
     </Shape>
     <Phase type="crystal">
       <ChemicalFormula>Ni</ChemicalFormula>
@@ -15,7 +15,7 @@
   </PowderSample>
   
   <LocalGeometer registry-coordinate-system="InstrumentScientist">
-    <Register name="fccNi-plate" position="(0,0,0)" orientation="(0,0,0)"/>
+    <Register name="fccNi-sphere" position="(0,0,0)" orientation="(0,0,0)"/>
   </LocalGeometer>
 <!--
   <environment>

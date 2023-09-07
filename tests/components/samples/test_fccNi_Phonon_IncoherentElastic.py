@@ -10,8 +10,8 @@ thisdir = os.path.dirname(__file__)
 
 
 def test_cpu():
-    instr = os.path.join(thisdir, "fccNi_PhononIncohEl_plate_instrument.py")
-    outdir = 'out.fccNi_PhononIncohEl_plate'
+    instr = os.path.join(thisdir, "fccNi_PhononIncohEl_sphere_instrument.py")
+    outdir = 'out.fccNi_PhononIncohEl_sphere'
     if os.path.exists(outdir):
         shutil.rmtree(outdir)
     ncount = 1e5
@@ -28,11 +28,11 @@ def test_compare_mcvine(num_neutrons=int(1024), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of a straight guide against mcvine
     """
-    instr = os.path.join(thisdir, "fccNi_PhononIncohEl_plate_instrument.py")
+    instr = os.path.join(thisdir, "fccNi_PhononIncohEl_sphere_instrument.py")
     from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
     compare_acc_nonacc(
-        "fccNi_PhononIncohEl_plate",
-        ["psd_4pi"],
+        "fccNi_PhononIncohEl_sphere",
+        ["IQE"],
         {"float32": 4e-10, "float64": 4e-10},
         num_neutrons, debug,
         instr=instr,
@@ -47,7 +47,7 @@ def main():
     journal.info("instrument").activate()
     # test_cpu()
     # test_compare_mcvine(num_neutrons=int(100), interactive=True, debug=True)
-    test_compare_mcvine(num_neutrons=int(1e3), interactive=True)
+    test_compare_mcvine(num_neutrons=int(1e6), interactive=True)
     return
 
 
