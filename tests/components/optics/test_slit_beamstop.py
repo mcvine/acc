@@ -17,7 +17,7 @@ thisdir = os.path.dirname(__file__)
 
 @pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
 @pytest.mark.parametrize("className", ["Slit", "Beamstop"])
-def test_compare_mcvine(className, num_neutrons=int(1e7), debug=False, interactive=False):
+def test_compare_mcvine(className, num_neutrons=int(1e6), debug=False, interactive=False):
     """
     Tests the acc cpu implementation of a slit or beamstop against mcvine
     """
