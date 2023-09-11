@@ -13,10 +13,9 @@ from numba import cuda
 import math
 
 from mcni.AbstractComponent import AbstractComponent
-from numba.core import config
 from numba.core.types import Array, Float
 
-
+from .. import config
 from ..config import get_max_registers
 
 
@@ -110,8 +109,12 @@ class ComponentBase(AbstractComponent, metaclass=Curator):
 
     def call_process(
             self, process_kernel, in_neutrons,
-            ntotthreads=int(1e6), threads_per_block=512,
+            ntotthreads=None, threads_per_block=None,
     ):
+        # Use provided values or fall back to defaults in config
+        threads_per_block = threads_per_block or config.threads_per_block
+        ntotthreads = ntotthreads or config.ntotalthreads
+
         N = len(in_neutrons)
         ntotthreads = min(N, ntotthreads)
         nblocks = math.ceil(ntotthreads / threads_per_block)

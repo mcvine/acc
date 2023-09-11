@@ -11,8 +11,8 @@ Requirement for a stochastic component
 import math, numpy as np
 from numba import cuda
 from numba.cuda.random import create_xoroshiro128p_states
-from numba.core import config
 
+from .. import config
 from ..config import rng_seed, get_numba_floattype, get_max_registers
 NB_FLOAT = get_numba_floattype()
 from .ComponentBase import ComponentBase as base
@@ -20,8 +20,12 @@ class StochasticComponentBase(base):
 
     def call_process(
             self, process_kernel, in_neutrons,
-            ntotthreads=int(1e6), threads_per_block=512,
+            ntotthreads=None, threads_per_block=None,
     ):
+        # Use provided values or fall back to defaults in config
+        threads_per_block = threads_per_block or config.threads_per_block
+        ntotthreads = ntotthreads or config.ntotalthreads
+
         N = len(in_neutrons)
         ntotthreads = min(N, ntotthreads)
         nblocks = math.ceil(ntotthreads / threads_per_block)
