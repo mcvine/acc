@@ -40,6 +40,7 @@ def instrument():
     )
     instrument.append(guide1, position=(0,0,0.75))
 
+    '''
     Ltmp = Wavelength_monitor(name="tmpmon",
                               filename="L_Guide.h5",
                               xwidth=0.1, yheight=0.1,
@@ -47,6 +48,7 @@ def instrument():
                               nchan=1000
                               )
     instrument.append(Ltmp, position=(0, 0, 29.3))
+    '''
 
     Hchopper = MultiDiskChopper(name="Hchopper",
                                 slit_center=locdeg, slit_width=angledeg,

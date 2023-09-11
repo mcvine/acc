@@ -53,12 +53,15 @@ class Wavelength_monitor(base):
         void(NB_FLOAT[:], NB_FLOAT[:], int64, NB_FLOAT[:, :]),
         device=True)
     def propagate(neutron, limits, nchan, out):
+        p = neutron[-1]
+        if p < 0.0:
+            return
         xmin, xmax, ymin, ymax, Lmin, Lmax = limits
         t0 = neutron[-2]
         x,y,z, t = prop_z0(neutron)
         if t0>t:
             return
-        p = neutron[-1]
+
         vx,vy,vz = neutron[3:6]
         #
         if x<=xmin or x>=xmax or y<=ymin or y>=ymax:

@@ -20,7 +20,7 @@ def test_run_gpu(ncount=int(1e6), interactive=False):
     run_script.run(gpu_script, workdir=workdir, ncount=ncount)
 
     if interactive:
-        plot_chess(workdir, "L_Guide")
+        #plot_chess(workdir, "L_Guide")
         plot_chess(workdir, "L_Sample")
     return
 
@@ -71,7 +71,7 @@ def plot_chess(workdir, monitor_name):
 
 def main():
     #test_run_cpu(int(1e7), True)
-    test_run_cpu2(int(1e7), True)
+    #test_run_cpu2(int(1e7), True)
     test_run_gpu(int(1e7), True)
     return
 
