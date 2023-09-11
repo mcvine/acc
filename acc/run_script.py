@@ -171,14 +171,15 @@ from numba import cuda
 import numpy as np, numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
 from mcvine.acc.neutron import applyTransformation
-from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
+from mcvine.acc.config import get_numba_floattype, get_numpy_floattype, get_max_registers
 NB_FLOAT = get_numba_floattype()
+global_tpb = mcvine.acc.config.threads_per_block
 
 {module_imports}
 
 {propagate_definitions}
 
-@cuda.jit
+@cuda.jit(max_registers=get_max_registers(global_tpb))
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
     args
@@ -208,6 +209,9 @@ InstrumentWrapper.process_kernel_no_buffer = process_kernel_no_buffer
 
 def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
     instrument = loadInstrument(script, **kwds)
+    if threads_per_block:
+        # update threads per block used in instrument kernel
+        global_tpb = threads_per_block
     iw = InstrumentWrapper(instrument)
     iw.process_no_buffer(
         ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
@@ -228,8 +232,9 @@ from numba import cuda
 import numpy as np, numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
 from mcvine.acc.neutron import applyTransformation
-from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
+from mcvine.acc.config import get_numba_floattype, get_numpy_floattype, get_max_registers
 NB_FLOAT = get_numba_floattype()
+global_tpb = mcvine.acc.config.threads_per_block
 
 {module_imports}
 
@@ -237,7 +242,7 @@ NB_FLOAT = get_numba_floattype()
 
 {num_multiple_scattering}
 
-@cuda.jit(max_registers=100)
+@cuda.jit(max_registers=get_max_registers(global_tpb))
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
     args
@@ -269,6 +274,9 @@ InstrumentWrapper.process_kernel_no_buffer = process_kernel_no_buffer
 def run(ncount, ntotalthreads=None, threads_per_block=None, **kwds):
     instrument = loadInstrument(script, **kwds)
     print(instrument)
+    if threads_per_block:
+        # update threads per block used in instrument kernel
+        global_tpb = threads_per_block
     iw = InstrumentWrapper(instrument)
     iw.process_no_buffer(
         ncount, ntotalthreads=ntotalthreads, threads_per_block=threads_per_block)
