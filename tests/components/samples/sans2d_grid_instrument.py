@@ -11,7 +11,8 @@ def instrument(
 ):
     instrument = mcvine.instrument()
 
-    source = mc.sources.Source_simple(
+    from mcvine.acc.components.sources.source_simple import Source_simple
+    source = Source_simple(
         'source',
         radius = 0, height = 0.0003, width = 0.0003,
         dist = source2sample-0.1,
@@ -26,10 +27,11 @@ def instrument(
     sample = HSS('sample')
     instrument.append(sample, position=(0,0,source2sample))
 
-    Ixy = mc.monitors.PSD_monitor(
+    from mcvine.acc.components.monitors.psd_monitor import PSD_monitor
+    Ixy = PSD_monitor(
         'Ixy',
         nx = 250, ny = 250,
-        filename = "Ixy.dat",
+        filename = "Ixy.h5",
         xmin = -0.075, xmax = 0.075,
         ymin = -0.075, ymax = 0.075,
     )
