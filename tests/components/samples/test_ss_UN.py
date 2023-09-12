@@ -19,7 +19,7 @@ def run_cpu(ncount = 1e5, interactive=False):
     # logfile = 'log.ss_UN-cpu'
     run_script.run_mpi(
         script, workdir, overwrite_datafiles=True,
-        ncount=ncount, nodes=10,
+        ncount=ncount, nodes=10, buffer_size = 5e4,
         Ei = Ei, # log=logfile,
     )
     if interactive:
