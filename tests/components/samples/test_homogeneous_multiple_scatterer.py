@@ -59,7 +59,7 @@ def test_interactM_path1():
         N[thread_id] = interactM_path1(thread_id, rng_states, out_neutrons, neutron)
         return
     neutron = np.array([-1,0,0, 3000,0,0., 0,0, 0., 1.])
-    out_neutrons = np.zeros((5, 10), dtype=float)
+    out_neutrons = np.zeros((HMS.max_scattered_neutrons, 10), dtype=float)
     rng_states = create_xoroshiro128p_states(1, seed=0)
     N = np.zeros(1, dtype=int)
     rt = run_kernel[1,1](rng_states, out_neutrons, N, neutron)
