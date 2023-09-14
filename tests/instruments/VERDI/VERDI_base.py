@@ -1,7 +1,7 @@
 import os, sys
 thisdir = os.path.dirname(__file__)
 import mcvine, mcvine.components as mcomps
-from ellipse import create_guide_tapering_data, SingleWall, ellipse_x
+from mcvine.acc.test.ellipse import create_guide_tapering_data, SingleWall, ellipse_x
 from mcvine.acc.components.optics.arm import Arm
 from mcvine.acc.components.optics.slit import Slit
 from mcvine.acc.components.optics.beamstop import Beamstop
