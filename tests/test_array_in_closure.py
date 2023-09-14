@@ -19,7 +19,7 @@ def test_array_in_closure():
     # closed_array = np.ones(N)
     closed_array = cuda.to_device(np.ones(N))
 
-    @cuda.jit(cache=False)
+    @cuda.jit()
     def kernel(r, x):
         r[0] = closed_array[x]
 

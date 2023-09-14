@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.3.0-devel-ubuntu20.04
+FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
@@ -14,11 +14,13 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# install and setup conda
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-4.7.12-Linux-x86_64.sh -O ~/miniconda.sh \
-    && /bin/bash ~/miniconda.sh -b -p /opt/conda \
-    && rm ~/miniconda.sh \
-    && /opt/conda/bin/conda clean -tipsy \
+# install and setup mamba
+RUN wget --quiet https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh -O ~/mambaforge.sh \
+    && /bin/bash ~/mambaforge.sh -b -p /opt/conda \
+    && rm ~/mambaforge.sh \
+    && /opt/conda/bin/mamba clean -qay \
     && ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh \
+    && ln -s /opt/conda/etc/profile.d/mamba.sh /etc/profile.d/mamba.sh \
     && echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc \
-    && echo "conda activate base" >> ~/.bashrc
+    && echo ". /opt/conda/etc/profile.d/mamba.sh" >> ~/.bashrc \
+    && echo "mamba activate base" >> ~/.bashrc
