@@ -217,7 +217,10 @@ def init(Emin, Emax, datafile, sts_load = False):
     EPmin = float(f(Emin/1000.0))
     # EPmax=quadfuncint(Emax/1000.0,xylength,inxvec,Pvec)
     # EPmin=quadfuncint(Emin/1000.0,xylength,inxvec,Pvec)
-    return INorm2, Es, Pvec, tvec, Ptmat, EPmin, EPmax, (idxstart, idxstop), (tidxstart, tidxstop), params
+    if sts_load:
+        return INorm2, Es, Pvec, tvec, Ptmat, EPmin, EPmax, (idxstart, idxstop), (tidxstart, tidxstop), params
+    else:
+        return INorm2, Es, Pvec, tvec, Ptmat, EPmin, EPmax, (idxstart, idxstop), (tidxstart, tidxstop)
 
 def test_init():
     dat = '/home/97n/dv/mcvine/resources/instruments/ARCS/moderator/source_sct521_bu_17_1.dat'
