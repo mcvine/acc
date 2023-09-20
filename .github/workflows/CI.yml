@@ -52,7 +52,7 @@ jobs:
       - name: install / build
         shell: pwsh
         run: |
-          conda install pytest pytest-cov coveralls openmpi mcvine-core=1.4.7
+          conda install pytest pytest-cov coveralls openmpi mcvine-core=1.4.9
           python -c "import matplotlib; import mantid"
           mcvine
           conda install numba=0.53.1 cupy cudatoolkit=11.2.2
