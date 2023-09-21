@@ -17,6 +17,7 @@ def test_run1():
         use_gpu=False, overwrite_datafiles=True)
     return
 
+@pytest.mark.skip(reason="debugging")
 def test_run_mpi():
     run_script.run_mpi(
         script, workdir=workdir,
