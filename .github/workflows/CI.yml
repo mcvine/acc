@@ -64,6 +64,6 @@ jobs:
         shell: pwsh
         run: |
           cd tests
-          py.test
+          py.test -s
         env:
           NUMBA_ENABLE_CUDASIM: 1
