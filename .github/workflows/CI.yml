@@ -64,7 +64,7 @@ jobs:
         shell: pwsh
         run: |
           cd tests
-          py.test -s
+          py.test
           python instruments/VERDI/test_verdi_cpu.py
         env:
           NUMBA_ENABLE_CUDASIM: 1
