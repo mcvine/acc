@@ -3,6 +3,7 @@
 import os
 import shutil
 import pytest
+import numpy as np
 from mcvine.acc import test
 from mcvine import run_script
 
@@ -40,6 +41,31 @@ def test_compare_mcvine(num_neutrons=int(1024), debug=False, interactive=False):
         acc_component_spec=dict(is_acc=True),
         nonacc_component_spec=dict(is_acc=False),
     )
+
+    gpu_file = os.path.join("./out.debug-fccni_phononincohel_sphere_gpu_instrument", "IQE.h5")
+    cpu_file = os.path.join("./out.debug-mcvine_fccni_phononincohel_sphere_cpu_instrument", "IQE.h5")
+
+    import histogram.hdf as hh
+    gpu_hist = hh.load(gpu_file)
+    cpu_hist = hh.load(cpu_file)
+
+    # integrate the energies
+    gpu_E_hist = gpu_hist.sum("energy")
+    cpu_E_hist = cpu_hist.sum("energy")
+
+    # subtract the integrated CPU and GPU intensities
+    diff_hist = gpu_E_hist - cpu_E_hist
+
+    if interactive:    
+        from histogram import plot as plotHist
+        plotHist(gpu_hist)
+        plotHist(cpu_hist)
+
+        plotHist(gpu_E_hist)
+        plotHist(cpu_E_hist)
+        plotHist(diff_hist)
+
+    assert np.mean(diff_hist.I) < 1.0e-12
 
 
 def main():
