@@ -58,8 +58,8 @@ build-job-using-docker:
     - mamba list -n acc mcvine # check mcvine
     - git clone https://github.com/yxqd/dotmantid ~/.mantid
     - mamba run -n acc mcvine
-    - mamba run -n acc python .github/workflows/patch_numba.py # patch numba for const-array fix
     - mamba run -n acc python setup.py sdist
     - mamba run -n acc pip install --no-deps .
+    - mamba run -n acc python -m mcvine.acc.patch_numba # patch numba for const-array fix
     - cd tests
     - mamba run -n acc py.test
