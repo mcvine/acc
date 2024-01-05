@@ -41,12 +41,10 @@ jobs:
 
       # test
       - name: test
-        run: |
+        run:
           eval "$(/home/docker/miniconda3/bin/conda shell.bash hook)"
           conda activate testenv
           cd tests
           py.test
           python instruments/VERDI/test_verdi_cpu.py
-        env:
-          NUMBA_ENABLE_CUDASIM: 1
 
