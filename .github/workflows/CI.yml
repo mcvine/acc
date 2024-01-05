@@ -27,6 +27,7 @@ jobs:
       # install deps and build
       - name: install / build
         run: |
+          conda remove -n testenv --all
           conda create -n testenv python=${{ matrix.python-version }}
           conda init
           conda activate testenv
