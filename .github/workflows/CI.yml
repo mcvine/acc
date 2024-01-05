@@ -38,3 +38,13 @@ jobs:
           conda install -n base conda-libmamba-solver
           conda config --set solver libmamba
 
+      # install deps and build
+      - name: install / build
+        run: |
+          conda install pytest pytest-cov coveralls openmpi mcvine-core=1.4.9
+          python -c "import matplotlib; import mantid"
+          mcvine
+          conda install numba=0.53.1 cupy cudatoolkit=11.2.2
+          python setup.py sdist
+          pip install --no-deps .
+          python -m "mcvine.acc.patch_numba"
