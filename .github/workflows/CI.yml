@@ -27,6 +27,7 @@ jobs:
       # install deps and build
       - name: install / build
         run: |
+          eval "$(/home/docker/miniconda3/bin/conda shell.bash hook)"
           conda remove -n testenv --all
           conda create -n testenv python=${{ matrix.python-version }}
           conda activate testenv
