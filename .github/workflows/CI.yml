@@ -4,8 +4,6 @@ env: {}
 
 on:
   push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -69,3 +67,14 @@ jobs:
           python instruments/VERDI/test_verdi_cpu.py
         env:
           NUMBA_ENABLE_CUDASIM: 1
+
+  build-and-test-self-hosted:
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
