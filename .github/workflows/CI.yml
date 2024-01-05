@@ -17,11 +17,11 @@ jobs:
     strategy:
       fail-fast: false
     steps:
-      - name: install glut
-        run: sudo apt-get update && sudo apt-get install -y procps freeglut3-dev libglu1-mesa unzip
-
       - name: Check out source code
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: ~/.mantid
+        run: git clone https://github.com/yxqd/dotmantid ~/.mantid
 
