@@ -38,3 +38,15 @@ jobs:
           python setup.py sdist
           pip install --no-deps .
           python -m "mcvine.acc.patch_numba"
+
+      # test
+      - name: test
+        run: |
+          eval "$(/home/docker/miniconda3/bin/conda shell.bash hook)"
+          conda activate testenv
+          cd tests
+          py.test
+          python instruments/VERDI/test_verdi_cpu.py
+        env:
+          NUMBA_ENABLE_CUDASIM: 1
+
