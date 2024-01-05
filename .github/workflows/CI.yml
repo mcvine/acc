@@ -24,25 +24,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      # setup conda
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniconda-version: "latest"
-          auto-update-conda: true
-          activate-environment: testenv
-          python-version: ${{ matrix.python-version }}
-          channels: mcvine,conda-forge
-
-      # use mamba solver
-      - name: use mamba solver in conda
-        run: |
-          # conda update -n base conda
-          conda install -n base conda-libmamba-solver
-          conda config --set solver libmamba
-
       # install deps and build
       - name: install / build
         run: |
+          conda create -n testenv python=${{ matrix.python-version }}
+          conda activate testenv
           conda install pytest pytest-cov coveralls openmpi mcvine-core=1.4.9
           python -c "import matplotlib; import mantid"
           mcvine
