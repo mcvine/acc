@@ -29,7 +29,6 @@ jobs:
         run: |
           conda remove -n testenv --all
           conda create -n testenv python=${{ matrix.python-version }}
-          conda init
           conda activate testenv
           conda install pytest pytest-cov coveralls openmpi mcvine-core=1.4.9
           python -c "import matplotlib; import mantid"
