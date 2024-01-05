@@ -22,9 +22,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: ~/.mantid
-        run: git clone https://github.com/yxqd/dotmantid ~/.mantid
-
       # setup conda
       - uses: conda-incubator/setup-miniconda@v2
         with:
