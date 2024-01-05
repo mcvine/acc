@@ -25,3 +25,11 @@ jobs:
       - name: ~/.mantid
         run: git clone https://github.com/yxqd/dotmantid ~/.mantid
 
+      # setup conda
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          activate-environment: testenv
+          python-version: ${{ matrix.python-version }}
+          channels: mcvine,conda-forge
+
