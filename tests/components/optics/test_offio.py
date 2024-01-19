@@ -10,4 +10,5 @@ thisdir = os.path.dirname(__file__)
 
 def test_load():
     path = './data/chess-guide-example/ST17_10_1.off'
-    assert offio.load(path).shape == (4,4,3)
+    vertices, faces = offio.load(path)
+    assert faces.shape == (4,4)
