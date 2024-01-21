@@ -9,8 +9,59 @@ from mcvine.acc import test
 
 thisdir = os.path.dirname(__file__)
 
+@pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
+def test_propagate():
+    in_neutron = np.array([
+        0, 0.01, -20,
+        0, -1, 2000,
+        0, 0,
+        0, 1,
+    ])
+    faces = np.array([[
+        [-1, 0, -1],
+        [-1, 0, 1],
+        [1, 0, 1],
+        [1, 0, -1],
+    ]])
+    centers = np.array([
+        [0,0,0]
+    ])
+    unitvecs = np.array([[
+        [0, 0, 1],
+        [1, 0, 0],
+        [0, 1, 0],
+    ]])
+    R0=0.99; Qc=0.0219; alpha=3; m=2; W=0.003
+    faces2d = np.array([[
+        [-1, -1],
+        [-1, 1],
+        [1, 1],
+        [1, -1],
+    ]])
+    tmp1 = np.zeros(3)
+    nfaces = len(faces)
+    intersections = np.zeros(nfaces, dtype=np.float64)
+    face_indexes = np.zeros(nfaces, dtype=np.int)
+    guide_anyshape._propagate(
+        in_neutron,
+        faces, centers, unitvecs, faces2d,
+        R0, Qc, alpha, m, W,
+        tmp1, intersections, face_indexes
+    )
+    assert np.allclose(
+        in_neutron,
+        [
+            0, 0, 0,
+            0, 1, 2000,
+            0, 0,
+            0.01,
+            0.99
+        ]
+    )
+    return
+
 def test_load_scaled_centered_faces():
-    path = './data/guide_anyshape_example1.off'
+    path = os.path.join(thisdir, './data/guide_anyshape_example1.off')
     faces = guide_anyshape.load_scaled_centered_faces(path, xwidth=0, yheight=0, zdepth=0, center=False)
     original = np.array([
         [[-0.01,-0.01, 1.  ],

@@ -2,7 +2,7 @@
 #
 
 import numpy as np
-from math import sqrt
+from math import sqrt, fabs
 from numba import cuda, void
 from mcni.utils.conversion import V2K
 
@@ -12,6 +12,9 @@ from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 from ._guide_utils import calc_reflectivity
 from ...neutron import absorb
+from ...geometry._utils import insert_into_sorted_list_with_indexes
+from .geometry2d import inside_convex_polygon
+from ... import vec3
 
 max_bounces = 100000
 
@@ -46,14 +49,24 @@ class Guide_anyshape(ComponentBase):
         geometry (str): path of the OFF/PLY geometry file for the guide shape
         """
         self.name = name
+        faces = load_scaled_centered_faces(path, xwidth=0, yheight=0, zdepth=0, center=False)
+        centers = faces.mean(axis=1)
+        unitvecs = np.array([calc_face_unit_vectors(f) for f in faces]) # nfaces, 3, 3
+        faces2d = np.array([
+            [
+                [np.dot(vertex-center, ex), np.dot(vertex-center, ey)]
+                for vertex in face
+            ]
+            for face, center, (ex,ey,ez) in zip(faces, centers, unitvecs)
+        ]) # nfaces, nverticesperface, 2
         self.propagate_params = (
-            float(ww), float(hh), float(hw1), float(hh1), float(l),
+            faces, centers, unitvecs, faces2d,
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
 
         # Aim a neutron at the side of this guide to cause JIT compilation.
         import mcni
-        velocity = ((w1 + w2) / 2, 0, l / 2)
+        velocity = (0, 0, 1000)
         neutrons = mcni.neutron_buffer(1)
         neutrons[0] = mcni.neutron(r=(0, 0, 0), v=velocity, prob=1, time=0)
         self.process(neutrons)
@@ -61,27 +74,112 @@ class Guide_anyshape(ComponentBase):
     @cuda.jit(
         void(
             NB_FLOAT[:],
+            NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-            NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        ), device=True
+        ), device=True, inline=True,
     )
     def propagate(
             in_neutron,
-            ww, hh, hw1, hh1, l,
+            faces, centers, unitvecs, faces2d,
             R0, Qc, alpha, m, W,
     ):
-        x, y, z, vx, vy, vz = in_neutron[:6]
-        t = in_neutron[-2]
-        prob = in_neutron[-1]
-        # propagate to z=0
-        dt = -z / vz
-        x += vx * dt;
-        y += vy * dt;
-        z = 0.;
-        t += dt
-        in_neutron[:6] = x, y, z, vx, vy, vz
-        in_neutron[-2] = t
-        in_neutron[-1] = prob
+        tmp1 = cuda.local.array(3, dtype=numba.float64)
+        intersections = cuda.local.array(nfaces, dtype=numba.float64)
+        face_indexes = cuda.local.array(nfaces, dtype=numba.int)
+        return _propagate(
+            in_neutron, faces, centers, unitvecs, faces2d,
+            R0, Qc, alpha, m, W, tmp1,
+        )
+
+
+@cuda.jit(
+    void(
+        NB_FLOAT[:],
+        NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
+    ), device=True
+)
+def _propagate(
+        in_neutron,
+        faces, centers, unitvecs, faces2d,
+        R0, Qc, alpha, m, W,
+        tmp1, intersections, face_indexes,
+):
+    nfaces = len(faces)
+    ninter = 0
+    for iface in range(nfaces):
+        intersection = intersect_plane(
+            in_neutron[:3], in_neutron[3:6],
+            centers[iface], unitvecs[iface],
+            tmp1
+        )
+        if intersection>0:
+            ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
+    if not ninter:
+        return
+    found = False
+    for iinter in range(ninter):
+        face_index = face_indexes[iinter]
+        intersection = intersections[iinter]
+        vec3.copy(in_neutron[3:6], tmp1)
+        vec3.scale(tmp1, intersection)
+        vec3.add(tmp1, in_neutron[:3], tmp1)
+        e0,e1,e2 = unitvecs[face_index]
+        face2d = faces2d[face_index]
+        if inside_convex_polygon((vec3.dot(tmp1, e0), vec3.dot(tmp1, e1)), face2d):
+            found = True
+            break
+    if not found:
+        return
+    x, y, z, vx, vy, vz = in_neutron[:6]
+    t = in_neutron[-2]
+    prob = in_neutron[-1]
+    # propagate to intersection
+    x += vx * intersection
+    y += vy * intersection
+    z += vz * intersection
+    t += intersection
+    #
+    vq = -vec3.dot(in_neutron[3:6], e2)*2
+    R = calc_reflectivity(fabs(vq)*V2K, R0, Qc, alpha, m, W)
+    prob *= R
+    if prob <= 0:
+        absorb(in_neutron)
+        return
+    # calc Q vector
+    vec3.copy(e2, tmp1)
+    vec3.scale(tmp1, vq)
+    # change direction
+    vec3.add(in_neutron[3:6], tmp1, in_neutron[3:6])
+    in_neutron[:3] = x, y, z
+    in_neutron[-2] = t
+    in_neutron[-1] = prob
+    return
+
+@cuda.jit(NB_FLOAT(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:, :],  NB_FLOAT[:]),
+          device=True, inline=True)
+def intersect_plane(position, velocity, center, plane_unitvecs, rtmp):
+    vec3.subtract(center, position, rtmp)
+    normal = plane_unitvecs[2, :]
+    dist = vec3.dot(rtmp, normal)
+    vtmp = vec3.dot(velocity, normal)
+    return dist/vtmp
+
+def calc_face_normal(face):
+    seg1 = face[1]-face[0]
+    seg2 = face[2]-face[0]
+    n = np.cross(seg1, seg2)
+    return n/np.linalg.norm(n)
+
+def calc_face_unit_vectors(face):
+    seg1 = face[1]-face[0]
+    seg2 = face[2]-face[0]
+    n = np.cross(seg1, seg2)
+    e3 = n/np.linalg.norm(n)
+    e1 = seg1/np.linalg.norm(seg1)
+    e2 = np.cross(e3, e1)
+    return np.array([e1, e2, e3])
 
 def load_scaled_centered_faces(path, xwidth=0, yheight=0, zdepth=0, center=False):
     from . import offio
