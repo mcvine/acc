@@ -138,7 +138,7 @@ def _propagate(
         t = in_neutron[-2]
         prob = in_neutron[-1]
         # propagate to intersection
-        intersection -= intersection * 1E-10
+        intersection -= intersection * 1E-14
         x += vx * intersection
         y += vy * intersection
         z += vz * intersection
