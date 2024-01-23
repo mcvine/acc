@@ -136,6 +136,7 @@ def _propagate(
         t = in_neutron[-2]
         prob = in_neutron[-1]
         # propagate to intersection
+        intersection -= intersection * 1E-10
         x += vx * intersection
         y += vy * intersection
         z += vz * intersection
@@ -147,7 +148,7 @@ def _propagate(
         if prob <= 0:
             absorb(in_neutron)
             break
-        # calc Q vector
+        # tmp1 = velocity change vector
         vec3.copy(e2, tmp1)
         vec3.scale(tmp1, vq)
         # change direction
