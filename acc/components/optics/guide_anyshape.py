@@ -16,8 +16,8 @@ from ...geometry._utils import insert_into_sorted_list_with_indexes
 from .geometry2d import inside_convex_polygon
 from ... import vec3
 
-max_bounces = 100000
-max_numfaces = 20
+max_bounces = 1000
+max_numfaces = 100
 
 
 @cuda.jit(NB_FLOAT(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:, :],  NB_FLOAT[:]),
@@ -102,6 +102,7 @@ def _propagate(
 ):
     nfaces = len(faces)
     for nb in range(max_bounces):
+        # calc intersection with each face and save positive ones in a list with increasing order
         ninter = 0
         for iface in range(nfaces):
             intersection = intersect_plane(
@@ -113,6 +114,7 @@ def _propagate(
                 ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
         if not ninter:
             break
+        # find the smallest intersection that is inside the mirror 
         found = False
         for iinter in range(ninter):
             face_index = face_indexes[iinter]
@@ -211,12 +213,9 @@ class Guide_anyshape(ComponentBase):
             ]
             for face, center, (ex,ey,ez) in zip(faces, centers, unitvecs)
         ]) # nfaces, nverticesperface, 2
-        # tmp_intersections = np.zeros(nfaces)
-        # tmp_face_indexes = np.zeros(nfaces, dtype=np.int32)
         self.propagate_params = (
             faces, centers, unitvecs, faces2d,
             float(R0), float(Qc), float(alpha), float(m), float(W),
-            # tmp_intersections, tmp_face_indexes,
         )
 
         # Aim a neutron at the side of this guide to cause JIT compilation.
@@ -231,18 +230,16 @@ class Guide_anyshape(ComponentBase):
             NB_FLOAT[:],
             NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-            # NB_FLOAT[:], numba.int32[:],
         ), device=True, inline=True,
     )
     def propagate(
             in_neutron,
             faces, centers, unitvecs, faces2d,
             R0, Qc, alpha, m, W,
-            # intersections, face_indexes,
     ):
         tmp1 = cuda.local.array(3, dtype=numba.float64)
         nfaces = len(faces)
-        # assert nfaces < max_numfaces
+        assert nfaces < max_numfaces
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(
