@@ -75,9 +75,9 @@ def load_scaled_centered_faces(path, xwidth=0, yheight=0, zdepth=0, center=False
     nratios = sum(int(bool(r)) for r in ratios)
     if nratios == 2:
         raise ValueError("Please provide all of xwidth, yheight, zdepth, or none of them, or one of them")
-    if nratios == 1:
+    elif nratios == 1:
         ratiox = ratioy = ratioz = sum(r for r in ratios if r)
-    if nratios == 0:
+    elif nratios == 0:
         ratiox = ratioy = ratioz = 1
     vertices[:, 0] = (vertices[:, 0]-cx)*ratiox + (0 if center else cx)
     vertices[:, 1] = (vertices[:, 1]-cy)*ratioy + (0 if center else cy)
@@ -101,58 +101,75 @@ def _propagate(
         tmp1, intersections, face_indexes,
 ):
     nfaces = len(faces)
-    ninter = 0
-    for iface in range(nfaces):
-        intersection = intersect_plane(
-            in_neutron[:3], in_neutron[3:6],
-            centers[iface], unitvecs[iface],
-            tmp1
-        )
-        if intersection>0:
-            ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
-    if not ninter:
-        return
-    found = False
-    for iinter in range(ninter):
-        face_index = face_indexes[iinter]
-        intersection = intersections[iinter]
-        vec3.copy(in_neutron[3:6], tmp1)
-        vec3.scale(tmp1, intersection)
-        vec3.add(tmp1, in_neutron[:3], tmp1)
-        e0 = unitvecs[face_index, 0, :]
-        e1 = unitvecs[face_index, 1, :]
-        e2 = unitvecs[face_index, 2, :]
-        face2d = faces2d[face_index]
-        if inside_convex_polygon((vec3.dot(tmp1, e0), vec3.dot(tmp1, e1)), face2d):
-            found = True
+    for nb in range(max_bounces):
+        ninter = 0
+        for iface in range(nfaces):
+            intersection = intersect_plane(
+                in_neutron[:3], in_neutron[3:6],
+                centers[iface], unitvecs[iface],
+                tmp1
+            )
+            if intersection>0:
+                ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
+        if not ninter:
             break
-    if not found:
-        return
-    x, y, z, vx, vy, vz = in_neutron[:6]
-    t = in_neutron[-2]
-    prob = in_neutron[-1]
-    # propagate to intersection
-    x += vx * intersection
-    y += vy * intersection
-    z += vz * intersection
-    t += intersection
-    #
-    vq = -vec3.dot(in_neutron[3:6], e2)*2
-    R = calc_reflectivity(fabs(vq)*V2K, R0, Qc, alpha, m, W)
-    prob *= R
-    if prob <= 0:
-        absorb(in_neutron)
-        return
-    # calc Q vector
-    vec3.copy(e2, tmp1)
-    vec3.scale(tmp1, vq)
-    # change direction
-    vec3.add(in_neutron[3:6], tmp1, in_neutron[3:6])
-    in_neutron[:3] = x, y, z
-    in_neutron[-2] = t
-    in_neutron[-1] = prob
+        found = False
+        for iinter in range(ninter):
+            face_index = face_indexes[iinter]
+            intersection = intersections[iinter]
+            # calc position of intersection
+            vec3.copy(in_neutron[3:6], tmp1)
+            vec3.scale(tmp1, intersection)
+            vec3.add(tmp1, in_neutron[:3], tmp1)
+            # calc 2d coordinates and use it to check if it is inside the mirror
+            vec3.subtract(tmp1, centers[face_index], tmp1)
+            e0 = unitvecs[face_index, 0, :]
+            e1 = unitvecs[face_index, 1, :]
+            e2 = unitvecs[face_index, 2, :]
+            face2d = faces2d[face_index]
+            if inside_convex_polygon((vec3.dot(tmp1, e0), vec3.dot(tmp1, e1)), face2d):
+                found = True
+                break
+        if not found:
+            break
+        x, y, z, vx, vy, vz = in_neutron[:6]
+        t = in_neutron[-2]
+        prob = in_neutron[-1]
+        # propagate to intersection
+        x += vx * intersection
+        y += vy * intersection
+        z += vz * intersection
+        t += intersection
+        #
+        vq = -vec3.dot(in_neutron[3:6], e2)*2
+        R = calc_reflectivity(fabs(vq)*V2K, R0, Qc, alpha, m, W)
+        prob *= R
+        if prob <= 0:
+            absorb(in_neutron)
+            break
+        # calc Q vector
+        vec3.copy(e2, tmp1)
+        vec3.scale(tmp1, vq)
+        # change direction
+        vec3.add(in_neutron[3:6], tmp1, in_neutron[3:6])
+        in_neutron[:3] = x, y, z
+        in_neutron[-2] = t
+        in_neutron[-1] = prob
     return
 
+def get_faces_data(geometry, xwidth, yheight, zdepth, center):
+    faces = load_scaled_centered_faces(geometry, xwidth=xwidth, yheight=yheight, zdepth=zdepth, center=center)
+    nfaces = len(faces)
+    centers = faces.mean(axis=1)
+    unitvecs = np.array([calc_face_unit_vectors(f) for f in faces]) # nfaces, 3, 3
+    faces2d = np.array([
+        [
+            [np.dot(vertex-center, ex), np.dot(vertex-center, ey)]
+            for vertex in face
+        ]
+        for face, center, (ex,ey,ez) in zip(faces, centers, unitvecs)
+    ]) # nfaces, nverticesperface, 2
+    return faces, centers, unitvecs, faces2d,
 
 
 from ..ComponentBase import ComponentBase
@@ -185,10 +202,7 @@ class Guide_anyshape(ComponentBase):
         geometry (str): path of the OFF/PLY geometry file for the guide shape
         """
         self.name = name
-        faces = load_scaled_centered_faces(geometry, xwidth=0, yheight=0, zdepth=0, center=False)
-        nfaces = len(faces)
-        centers = faces.mean(axis=1)
-        unitvecs = np.array([calc_face_unit_vectors(f) for f in faces]) # nfaces, 3, 3
+        faces, centers, unitvecs, faces2d = get_faces_data(geometry, xwidth, yheight, zdepth, center)
         faces2d = np.array([
             [
                 [np.dot(vertex-center, ex), np.dot(vertex-center, ey)]
@@ -196,12 +210,12 @@ class Guide_anyshape(ComponentBase):
             ]
             for face, center, (ex,ey,ez) in zip(faces, centers, unitvecs)
         ]) # nfaces, nverticesperface, 2
-        tmp_intersections = np.zeros(nfaces)
-        tmp_face_indexes = np.zeros(nfaces, dtype=np.int32)
+        # tmp_intersections = np.zeros(nfaces)
+        # tmp_face_indexes = np.zeros(nfaces, dtype=np.int32)
         self.propagate_params = (
             faces, centers, unitvecs, faces2d,
             float(R0), float(Qc), float(alpha), float(m), float(W),
-            tmp_intersections, tmp_face_indexes,
+            # tmp_intersections, tmp_face_indexes,
         )
 
         # Aim a neutron at the side of this guide to cause JIT compilation.
@@ -216,20 +230,20 @@ class Guide_anyshape(ComponentBase):
             NB_FLOAT[:],
             NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-            NB_FLOAT[:], numba.int32[:],
+            # NB_FLOAT[:], numba.int32[:],
         ), device=True, inline=True,
     )
     def propagate(
             in_neutron,
             faces, centers, unitvecs, faces2d,
             R0, Qc, alpha, m, W,
-            intersections, face_indexes,
+            # intersections, face_indexes,
     ):
         tmp1 = cuda.local.array(3, dtype=numba.float64)
-        # nfaces = len(faces)
+        nfaces = len(faces)
         # assert nfaces < max_numfaces
-        # intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
-        # face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
+        intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
+        face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(
             in_neutron, faces, centers, unitvecs, faces2d,
             R0, Qc, alpha, m, W,

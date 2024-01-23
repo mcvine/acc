@@ -14,7 +14,7 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     """
     from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
     compare_acc_nonacc(
-        "Guide", # guide_instrument.py will be the instrument script
+        "guide_anyshape_example1", # {}_instrument.py will be the instrument script
         ["Ixy", "Ixdivx", "Ixdivy"],
         {"float32": 1e-7, "float64": 1e-8},
         num_neutrons, debug,
