@@ -28,6 +28,8 @@ def compare_acc_nonacc(
         e.g. dict(float32=dict(threshold=0.05, outlier_fraction=0.05))
     num_neutrons (int): how many neutrons to use in the testing
     debug (bool): if to save the neutrons that exit the instrument
+    acc_component_spec(dict): kargs for the factory method to create acc component
+    nonacc_component_spec(dict): kargs for the factory method to create non-acc component
     """
     if debug:
         assert num_neutrons < 1001
