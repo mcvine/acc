@@ -28,6 +28,8 @@ def compare_acc_nonacc(
         e.g. dict(float32=dict(threshold=0.05, outlier_fraction=0.05))
     num_neutrons (int): how many neutrons to use in the testing
     debug (bool): if to save the neutrons that exit the instrument
+    acc_component_spec(dict): kargs for the factory method to create acc component
+    nonacc_component_spec(dict): kargs for the factory method to create non-acc component
     """
     if debug:
         assert num_neutrons < 1001
@@ -78,7 +80,8 @@ def compare_acc_nonacc(
         mcvine_hist_fn = os.path.join(mcvine_outdir, monitor + ".h5")
         assert os.path.exists(mcvine_hist_fn), "Missing histogram {}".format(mcvine_hist_fn)
         mcvine = hh.load(mcvine_hist_fn)
-        mcvine_acc = hh.load(os.path.join(outdir, monitor + ".h5"))
+        mcvine_acc_hist_fn = os.path.join(outdir, monitor + ".h5")
+        mcvine_acc = hh.load(mcvine_acc_hist_fn)
         relerr_hist = (mcvine_acc-mcvine)/mcvine
         relerr = np.abs(relerr_hist.I)
         if interactive:
@@ -87,8 +90,10 @@ def compare_acc_nonacc(
             plotHist(mcvine_acc)
             plotHist(relerr_hist)
         assert mcvine.shape() == mcvine_acc.shape()
-        assert np.allclose(mcvine.data().storage(), mcvine_acc.data().storage(),
-                           atol=tolerance)
+        assert np.allclose(
+            mcvine.data().storage(), mcvine_acc.data().storage(),
+            atol=tolerance
+        ), f"{monitor} Mismatch: non-acc {mcvine_hist_fn}, acc {mcvine_acc_hist_fn}"
         if relerr_tolerances is not None:
             relerr_tolerance = relerr_tolerances[floattype]
             threshold = relerr_tolerance['threshold']
