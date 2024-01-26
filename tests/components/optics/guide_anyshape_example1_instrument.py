@@ -5,12 +5,18 @@ from instrument_factory import construct
 
 thisdir = os.path.dirname(__file__)
 
-def instrument(is_acc=False, geometry=None, dims=None):
+def instrument(is_acc=False, geometry=None, dims=None, acc_component_factory=None):
     guide_length = 10.
     if is_acc:
         geometry = geometry or os.path.join(thisdir, './data/guide_anyshape_straight_3.5cmX3.5cmX10m.off')
-        from mcvine.acc.components.optics.guide_anyshape import Guide_anyshape
-        target = Guide_anyshape(
+        if acc_component_factory is None:
+            from mcvine.acc.components.optics.guide_anyshape import Guide_anyshape as acc_component_factory
+        else:
+            import importlib
+            module = '.'.join(acc_component_factory.split('.')[:-1])
+            mod = importlib.import_module(module)
+            acc_component_factory = getattr(mod, acc_component_factory.split('.')[-1])
+        target = acc_component_factory(
             name='guide',
             xwidth=0, yheight=0, zdepth=0,
             center=False,
