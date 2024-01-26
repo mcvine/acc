@@ -49,8 +49,8 @@ def compare_acc_nonacc(
     # the {classname}_instrument.py implements "is_acc" kwd correctly.
     nonacc_component_spec = nonacc_component_spec or dict(
         factory=f"mcvine.components.optics.{className}",
-        is_acc = False,
     )
+    nonacc_component_spec['is_acc'] = False
     run_script.run1(
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
@@ -64,8 +64,8 @@ def compare_acc_nonacc(
         shutil.rmtree(outdir)
     acc_component_spec = acc_component_spec or dict(
         module=f"mcvine.acc.components.optics.{classname}",
-        is_acc = True,
     )
+    acc_component_spec['is_acc'] = True
     run_script.run1(
         instr, outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
