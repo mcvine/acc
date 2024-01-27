@@ -22,30 +22,52 @@ max_numfaces = 100
 
 from .guide_anyshape import calc_face_normal, get_faces_data
 
-@cuda.jit(NB_FLOAT(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:, :],  NB_FLOAT[:]),
+@cuda.jit(NB_FLOAT(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],  NB_FLOAT[:]),
           device=True, inline=True)
-def intersect_plane(position, velocity, center, plane_unitvecs, rtmp):
-    vec3.subtract(center, position, rtmp)
-    normal = plane_unitvecs[2, :]
-    dist = vec3.dot(rtmp, normal)
-    vtmp = vec3.dot(velocity, normal)
-    return dist/vtmp
+def intersect_plane(position, velocity, gravity, center, normal):
+    A = vec3.dot(gravity, normal)/2
+    B = vec3.dot(velocity, normal)
+    C = vec3.dot(position, normal) - vec3.dot(center, normal)
+    if fabs(A) < 1E-10:
+        return -C/B
+    B2_4AC = B*B-4*A*C
+    if B2_4AC < 0: return -np.inf
+    sqrt_B2_4AC = sqrt(B2_4AC)
+    t1 = (-B-sqrt_B2_4AC)/2/A
+    t2 = (-B+sqrt_B2_4AC)/2/A
+    if t2 < t1:
+       tmp=t2; t2=t1; t1=tmp
+    if t1>0: return t1
+    return t2
+
+@cuda.jit(void(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT, NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:]),
+          device=True, inline=True)
+def propagate_with_gravity(position, velocity, gravity, t, new_position, new_velocity, tmp):
+    vec3.copy(gravity, tmp)
+    vec3.scale(tmp, t)
+    vec3.add(velocity, tmp, new_velocity)
+    vec3.add(velocity, new_velocity, tmp)
+    vec3.scale(tmp, 0.5*t)
+    vec3.add(position, tmp, new_position)
+    return
 
 @cuda.jit(
     void(
         NB_FLOAT[:],
         NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
         NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        NB_FLOAT[:], NB_FLOAT[:], numba.int32[:],
+        NB_FLOAT[:], numba.int32[:],
         NB_FLOAT[:],
+        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
     ), device=True
 )
 def _propagate(
         in_neutron,
         faces, centers, unitvecs, faces2d,
         R0, Qc, alpha, m, W,
-        tmp1, intersections, face_indexes,
+        intersections, face_indexes,
         gravity,
+        tmp1, tmp2, tmp3,
 ):
     nfaces = len(faces)
     for nb in range(max_bounces):
@@ -53,9 +75,8 @@ def _propagate(
         ninter = 0
         for iface in range(nfaces):
             intersection = intersect_plane(
-                in_neutron[:3], in_neutron[3:6],
-                centers[iface], unitvecs[iface],
-                tmp1
+                in_neutron[:3], in_neutron[3:6], gravity,
+                centers[iface], unitvecs[iface, 2],
             )
             if intersection>0:
                 ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
@@ -66,32 +87,29 @@ def _propagate(
         for iinter in range(ninter):
             face_index = face_indexes[iinter]
             intersection = intersections[iinter]
-            # calc position of intersection
-            vec3.copy(in_neutron[3:6], tmp1)
-            vec3.scale(tmp1, intersection)
-            vec3.add(tmp1, in_neutron[:3], tmp1)
+            # calc position and velocity at intersection
+            propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, intersection, tmp1, tmp2, tmp3)
             # calc 2d coordinates and use it to check if it is inside the mirror
-            vec3.subtract(tmp1, centers[face_index], tmp1)
+            vec3.subtract(tmp1, centers[face_index], tmp3)
             e0 = unitvecs[face_index, 0, :]
             e1 = unitvecs[face_index, 1, :]
             e2 = unitvecs[face_index, 2, :]
             face2d = faces2d[face_index]
-            if inside_convex_polygon((vec3.dot(tmp1, e0), vec3.dot(tmp1, e1)), face2d):
+            if inside_convex_polygon((vec3.dot(tmp3, e0), vec3.dot(tmp3, e1)), face2d):
                 found = True
                 break
         if not found:
             break
-        x, y, z, vx, vy, vz = in_neutron[:6]
         t = in_neutron[-2]
         prob = in_neutron[-1]
         # propagate to intersection
         intersection -= intersection * 1E-14
-        x += vx * intersection
-        y += vy * intersection
-        z += vz * intersection
         t += intersection
+        in_neutron[-2] = t
+        vec3.copy(tmp1, in_neutron[:3])
+        vec3.copy(tmp2, in_neutron[3:6])
         #
-        vq = -vec3.dot(in_neutron[3:6], e2)*2
+        vq = -vec3.dot(tmp2, e2)*2
         R = calc_reflectivity(fabs(vq)*V2K, R0, Qc, alpha, m, W)
         prob *= R
         if prob <= 0:
@@ -102,8 +120,6 @@ def _propagate(
         vec3.scale(tmp1, vq)
         # change direction
         vec3.add(in_neutron[3:6], tmp1, in_neutron[3:6])
-        in_neutron[:3] = x, y, z
-        in_neutron[-2] = t
         in_neutron[-1] = prob
     return
 
@@ -168,7 +184,7 @@ class Guide_anyshape_gravity(ComponentBase):
     @abs_orientation.setter
     def abs_orientation(self, orientation):
         self._abs_orientation = orientation
-        self.gravity = np.dot(orientation, [0, -1, 0])
+        self.gravity = np.dot(orientation, [0, -9.80665, 0])
 
     @cuda.jit(
         void(
@@ -185,13 +201,17 @@ class Guide_anyshape_gravity(ComponentBase):
             g,
     ):
         tmp1 = cuda.local.array(3, dtype=numba.float64)
+        tmp2 = cuda.local.array(3, dtype=numba.float64)
+        tmp3 = cuda.local.array(3, dtype=numba.float64)
         nfaces = len(faces)
         assert nfaces < max_numfaces
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(
-            in_neutron, faces, centers, unitvecs, faces2d,
+            in_neutron,
+            faces, centers, unitvecs, faces2d,
             R0, Qc, alpha, m, W,
-            tmp1, intersections, face_indexes,
+            intersections, face_indexes,
             g,
+            tmp1, tmp2, tmp3,
         )
