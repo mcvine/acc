@@ -19,8 +19,10 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
         num_neutrons, debug,
         interactive=interactive, workdir = thisdir,
         acc_component_spec=dict(
-            is_acc=True,
             acc_component_factory = 'mcvine.acc.components.optics.guide_anyshape_gravity.Guide_anyshape_gravity',
+        ),
+        nonacc_component_spec=dict(
+            nonacc_component_factory = 'mcvine.components.optics.Guide_gravity',
         )
     )
 
