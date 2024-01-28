@@ -6,9 +6,10 @@ from instrument_factory import construct
 thisdir = os.path.dirname(__file__)
 
 def instrument(
-        is_acc=False, geometry=None, dims=None,
+        is_acc=False, geometry=None,
         acc_component_factory=None,
         nonacc_component_factory=None,
+        nonacc_component_kargs=None,
     ):
     guide_length = 10.
     if is_acc:
@@ -17,7 +18,6 @@ def instrument(
             from mcvine.acc.components.optics.guide_anyshape import Guide_anyshape as factory
         else:
             factory = _import_factory(acc_component_factory)
-        print(factory)
         target = factory(
             name='guide',
             xwidth=0, yheight=0, zdepth=0,
@@ -31,16 +31,13 @@ def instrument(
             factory = nonacc_component_factory or mcvine.components.optics.Guide
         else:
             factory = eval(nonacc_component_factory)
-        print(factory)
-        if dims is None:
-            dims = dict(
-                w1=0.035, h1=0.035, w2=0.035, h2=0.035, l=guide_length,
-            )
+        nonacc_component_kargs = nonacc_component_kargs or dict(
+            w1=0.035, h1=0.035, w2=0.035, h2=0.035, l=guide_length,
+        )
         target = factory(
             name='guide',
             R0=0.99, Qc=0.0219, alpha=6.07, m=3, W=0.003,
-            G = 9.80665,
-            **dims,
+            **nonacc_component_kargs
         )
     return construct(target, guide_length)
 

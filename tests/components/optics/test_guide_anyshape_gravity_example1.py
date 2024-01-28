@@ -15,7 +15,7 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
     compare_acc_nonacc(
         "guide_anyshape_example1", # {}_instrument.py will be the instrument script
         ["Ixy", "Ixdivx", "Ixdivy"],
-        {"float32": 1e-4, "float64": 1e-5},
+        {"float32": 1e-6, "float64": 1e-7},
         num_neutrons, debug,
         interactive=interactive, workdir = thisdir,
         acc_component_spec=dict(
@@ -23,6 +23,10 @@ def test_compare_mcvine(num_neutrons=int(1e7), debug=False, interactive=False):
         ),
         nonacc_component_spec=dict(
             nonacc_component_factory = 'mcvine.components.optics.Guide_gravity',
+            nonacc_component_kargs = dict(
+                G = -9.80665,
+                w1=0.035, h1=0.035, w2=0.035, h2=0.035, l=10,
+            )
         )
     )
 
