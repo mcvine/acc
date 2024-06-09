@@ -3,12 +3,10 @@ channels:
   - mcvine
   - diffpy
   - conda-forge
-  - defaults
+  - nvidia
 dependencies:
-  - python=3.8
+  - python>=3.8
   - numba=0.53.1
-  - mcvine
-  - mcvine-core=1.4.6
+  - mcvine-core>=1.4.7
   - pytest
-  - cupy
-  - cudatoolkit
+  - versioningit

@@ -3,7 +3,7 @@
 import os, shutil
 import pytest
 from mcvine.acc import test
-from mcvine import run_script
+from mcvine.acc import run_script
 
 thisdir = os.path.dirname(__file__)
 
@@ -15,7 +15,7 @@ def test1():
     outdir = 'out.sans2d_grid'
     if os.path.exists(outdir): shutil.rmtree(outdir)
     ncount = 2e6
-    run_script.run1(
+    run_script.run(
         instr, outdir,
         ncount=ncount, buffer_size=int(ncount),
     )

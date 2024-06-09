@@ -71,9 +71,14 @@ def v2e(v):
     return v * v * conversion.VS2E
 
 @cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
+def e2v(e):
+    return sqrt(e) * conversion.SE2V
+
+@cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
 def v2k(v):
     return v * conversion.V2K
 
 @cuda.jit(NB_FLOAT(NB_FLOAT), device=True, inline=True)
-def e2v(e):
-    return sqrt(e) * conversion.SE2V
+def k2v(k):
+    return k * conversion.K2V
+

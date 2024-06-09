@@ -30,6 +30,8 @@ class InstrumentBuilder:
 
     def __init__(self):
         self.instrument = mcvine.instrument()
+        self.origin = mc.optics.Arm('origin')
+        self.instrument.append(self.origin, position=[0,0,0])
         self.z = 0.
 
     @classmethod
@@ -69,8 +71,12 @@ class InstrumentBuilder:
         gap (float): how much space along z to leave between this and the next
         is_rotated (bool): if to rotate this instrument in positioning it
         """
-        self.instrument.append(component, position=(0., 0., self.z),
-                               orientation=(0., 0., 90. if is_rotated else 0.))
+        self.instrument.append(
+            component,
+            position=(0., 0., self.z),
+            orientation=(0., 0., 90. if is_rotated else 0.),
+            relativeTo=self.origin,
+        )
         self.z += gap
 
 def construct(
@@ -90,7 +96,7 @@ def construct(
     save_neutrons_after (bool): if to save neutrons after the given optics
     """
     builder = InstrumentBuilder() if builder is None else builder
-
+    
     # source
     builder.add(builder.get_source(), gap=gap)
 

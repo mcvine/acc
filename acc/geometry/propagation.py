@@ -1,6 +1,6 @@
 import numpy as np, numba
 from numba import cuda
-from numba.core.config import ENABLE_CUDASIM
+from ..config import ENABLE_CUDASIM
 from .arrow_intersect import max_intersections
 from .arrow_intersect import inside, outside, onborder
 from ..neutron import prop_dt_inplace

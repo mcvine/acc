@@ -15,6 +15,7 @@ from numba.cuda.random import create_xoroshiro128p_states
 from mcvine.acc.config import get_numba_floattype, get_numpy_floattype
 NB_FLOAT = get_numba_floattype()
 
+from ... import config
 from ...config import rng_seed
 from ..StochasticComponentBase import StochasticComponentBase as base, make_process_kernel, make_process_ms_kernel
 class SampleBase(base):
@@ -22,7 +23,6 @@ class SampleBase(base):
     def process_no_buffer(self, N, threads_per_block=None, ntotalthreads=None):
         import time
         t1 = time.time()
-        from ... import config
         threads_per_block = threads_per_block or config.threads_per_block
         ntotalthreads = ntotalthreads or config.ntotalthreads
         self.call_process_no_buffer(
@@ -35,8 +35,12 @@ class SampleBase(base):
 
     def call_process_no_buffer(
             self, process_kernel_no_buffer, N,
-            ntotthreads=int(1e6), threads_per_block=512,
+            ntotthreads=None, threads_per_block=None,
     ):
+        # Use provided values or fall back to defaults in config
+        threads_per_block = threads_per_block or config.threads_per_block
+        ntotthreads = ntotthreads or config.ntotalthreads
+
         ntotthreads = min(N, int(ntotthreads))
         nblocks = math.ceil(ntotthreads / threads_per_block)
         actual_nthreads = threads_per_block * nblocks

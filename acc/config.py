@@ -3,6 +3,9 @@ threads_per_block = 512
 floattype = "float64"
 rng_seed = 1
 
+from numba.core import config
+ENABLE_CUDASIM = config.ENABLE_CUDASIM
+
 def get_numpy_floattype():
     import numpy as np
     return getattr(np, floattype)

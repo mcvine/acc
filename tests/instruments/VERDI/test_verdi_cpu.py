@@ -17,7 +17,7 @@ def test_run1():
         use_gpu=False, overwrite_datafiles=True)
     return
 
-@pytest.mark.skip(reason="need new mcvine release to solve the yaml.load problem. skip for now")
+@pytest.mark.skip(reason="failed to run at github CI with pytest. works when run without pytest")
 def test_run_mpi():
     run_script.run_mpi(
         script, workdir=workdir,

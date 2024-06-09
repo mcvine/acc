@@ -38,6 +38,8 @@ def compare_acc_nonacc(
         e.g. dict(float32=dict(threshold=0.05, outlier_fraction=0.05))
     num_neutrons (int): how many neutrons to use in the testing
     debug (bool): if to save the neutrons that exit the instrument
+    acc_component_spec(dict): kargs for the factory method to create acc component
+    nonacc_component_spec(dict): kargs for the factory method to create non-acc component
     """
     if debug:
         assert num_neutrons < 1001
@@ -57,8 +59,8 @@ def compare_acc_nonacc(
     # the {classname}_instrument.py implements "is_acc" kwd correctly.
     nonacc_component_spec = nonacc_component_spec or dict(
         factory=f"mcvine.components.optics.{className}",
-        is_acc = False,
     )
+    nonacc_component_spec['is_acc'] = False
     run_script.run1(
         instr, mcvine_outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
@@ -72,8 +74,8 @@ def compare_acc_nonacc(
         shutil.rmtree(outdir)
     acc_component_spec = acc_component_spec or dict(
         module=f"mcvine.acc.components.optics.{classname}",
-        is_acc = True,
     )
+    acc_component_spec['is_acc'] = True
     run_script.run1(
         instr, outdir,
         ncount=num_neutrons, buffer_size=num_neutrons,
@@ -88,7 +90,8 @@ def compare_acc_nonacc(
         mcvine_hist_fn = os.path.join(mcvine_outdir, monitor + ".h5")
         assert os.path.exists(mcvine_hist_fn), "Missing histogram {}".format(mcvine_hist_fn)
         mcvine = hh.load(mcvine_hist_fn)
-        mcvine_acc = hh.load(os.path.join(outdir, monitor + ".h5"))
+        mcvine_acc_hist_fn = os.path.join(outdir, monitor + ".h5")
+        mcvine_acc = hh.load(mcvine_acc_hist_fn)
         relerr_hist = (mcvine_acc-mcvine)/mcvine
         if interactive:
             from histogram import plot as plotHist
@@ -97,7 +100,9 @@ def compare_acc_nonacc(
             plotHist(relerr_hist)
         assert mcvine.shape() == mcvine_acc.shape()
         if tolerance is not None:
-            assert np.allclose(mcvine.I, mcvine_acc.I, atol=tolerance)
+            assert np.allclose(
+                mcvine.I, mcvine_acc.I, atol=tolerance,
+            ), f"{monitor} Mismatch: non-acc {mcvine_hist_fn}, acc {mcvine_acc_hist_fn}"
         if relerr_tolerances is not None:
             relerr = np.abs(relerr_hist.I)
             relerr_tolerance = relerr_tolerances[floattype]

@@ -11,7 +11,8 @@ on:
       - main
   schedule:
     - cron: "00 17 * * *"
-      
+  workflow_dispatch:
+
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
@@ -23,7 +24,7 @@ jobs:
     steps:
       - name: install glut
         run: sudo apt-get update && sudo apt-get install -y procps freeglut3-dev libglu1-mesa unzip
-        
+
       - name: Check out source code
         uses: actions/checkout@v2
         with:
@@ -38,7 +39,7 @@ jobs:
           auto-update-conda: true
           activate-environment: testenv
           python-version: ${{ matrix.python-version }}
-          channels: mcvine,conda-forge
+          channels: mantid,mcvine,conda-forge
 
       # use mamba solver
       - name: use mamba solver in conda
@@ -52,18 +53,56 @@ jobs:
       - name: install / build
         shell: pwsh
         run: |
-          conda install pytest pytest-cov coveralls openmpi mcvine=1.4.4
+          conda install pytest pytest-cov coveralls openmpi mcvine-core=1.4.12
           python -c "import matplotlib; import mantid"
           mcvine
           conda install numba=0.53.1 cupy cudatoolkit=11.2.2
-          python .github/workflows/patch_numba.py
           python setup.py sdist
           pip install --no-deps .
+          python -m "mcvine.acc.patch_numba"
       # test
       - name: test
         shell: pwsh
         run: |
           cd tests
           py.test
+          python instruments/VERDI/test_verdi_cpu.py
         env:
           NUMBA_ENABLE_CUDASIM: 1
+
+  build-and-test-self-hosted:
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8"]
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # install deps and build
+      - name: install / build
+        run: |
+          eval "$(/home/docker/miniconda3/bin/conda shell.bash hook)"
+          conda remove -n testenv --all
+          conda create -n testenv python=${{ matrix.python-version }}
+          conda activate testenv
+          conda install pytest pytest-cov coveralls openmpi mcvine-core=1.4.12
+          python -c "import matplotlib"
+          mcvine
+          conda install numba=0.53.1 cupy cudatoolkit=11.2.2
+          python setup.py sdist
+          pip install --no-deps .
+          python -m "mcvine.acc.patch_numba"
+
+      # test
+      - name: test
+        run: |
+          eval "$(/home/docker/miniconda3/bin/conda shell.bash hook)"
+          conda activate testenv
+          cd tests
+          py.test
+          python instruments/VERDI/test_verdi_cpu.py
+
