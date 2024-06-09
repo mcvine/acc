@@ -24,6 +24,8 @@ class InstrumentBuilder:
     Helper for constructing an instrument as a sequence of components positioned
     along increasing z. Methods can have more arguments and complexity added
     as need for flexibility arises.
+
+    See tests/components/guides/instrument_factory.py for an example of a concrete subclass
     """
 
     def __init__(self):
