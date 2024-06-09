@@ -39,7 +39,7 @@ jobs:
           auto-update-conda: true
           activate-environment: testenv
           python-version: ${{ matrix.python-version }}
-          channels: mcvine,conda-forge
+          channels: mantid,mcvine,conda-forge
 
       # use mamba solver
       - name: use mamba solver in conda
