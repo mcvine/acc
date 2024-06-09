@@ -51,10 +51,32 @@ def test_mcstas_component_long(ncount=1e6):
     return
 
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_compare_acc_nonacc(num_neutrons=int(1e6), debug=False, interactive=False):
+    """
+    Compare acc and non-acc component
+    """
+    from mcvine.acc.test.compare_acc_nonacc import compare_acc_nonacc
+    rtol = dict(
+        threshold = 1./np.sqrt(num_neutrons/100) * 10,
+        outlier_fraction = 0.05,
+    )
+    compare_acc_nonacc(
+        "STS_source",
+        ["Ixy", "IE"],
+        tolerances = dict(float32 = None, float64 = None), # use relerr_tolerances instead
+        num_neutrons=num_neutrons,
+        debug=debug,
+        interactive=interactive, workdir = thisdir,
+        relerr_tolerances=dict(float32 = rtol, float64 = rtol),
+    )
+
+
 def main():
     # test_component()
-    test_component_long(1e7)
+    # test_component_long(1e7)
     # test_mcstas_component_long(1e7)
+    test_compare_acc_nonacc(num_neutrons=int(1e6), debug=False, interactive=True)
     return
 
 if __name__ == '__main__': main()
