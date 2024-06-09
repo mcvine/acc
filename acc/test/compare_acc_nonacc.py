@@ -18,7 +18,17 @@ def compare_acc_nonacc(
         relerr_tolerances = None
 ):
     """
-    Tests the acc cpu implementation of an instrument against mcvine.
+    Tests the acc implementation of an instrument against mcvine.
+    Requires existence of instrument spec module for testing the component
+    named {classname}_instrument.py.
+    The instrument module should have `instrument` method taking
+    `is_acc` as a kw arg to differenciate between using the acc or the non-acc
+    component.
+    By default, `factory` kw arg is also passed to the instrument method
+    but it is OK to ignore.
+    Alternatively, the instrument method can implement arbitrary args,
+    and acc_component_spec and nonacc_component_spec here can be used
+    to differentiate the acc and non-acc simulation runs.
 
     Parameters:
     className (str): the name of the instrument class under test, e.g., "Guide"
@@ -80,16 +90,16 @@ def compare_acc_nonacc(
         mcvine = hh.load(mcvine_hist_fn)
         mcvine_acc = hh.load(os.path.join(outdir, monitor + ".h5"))
         relerr_hist = (mcvine_acc-mcvine)/mcvine
-        relerr = np.abs(relerr_hist.I)
         if interactive:
             from histogram import plot as plotHist
             plotHist(mcvine)
             plotHist(mcvine_acc)
             plotHist(relerr_hist)
         assert mcvine.shape() == mcvine_acc.shape()
-        assert np.allclose(mcvine.data().storage(), mcvine_acc.data().storage(),
-                           atol=tolerance)
+        if tolerance is not None:
+            assert np.allclose(mcvine.I, mcvine_acc.I, atol=tolerance)
         if relerr_tolerances is not None:
+            relerr = np.abs(relerr_hist.I)
             relerr_tolerance = relerr_tolerances[floattype]
             threshold = relerr_tolerance['threshold']
             outlier_fraction = relerr_tolerance['outlier_fraction']
