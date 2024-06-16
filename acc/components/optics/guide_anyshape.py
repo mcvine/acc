@@ -85,18 +85,35 @@ def load_scaled_centered_faces(path, xwidth=0, yheight=0, zdepth=0, center=False
     faces = np.array([[vertices[i] for i in face] for face in faces])
     return faces
 
+@cuda.jit(numba.boolean(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT, NB_FLOAT[:],  NB_FLOAT[:, :], NB_FLOAT[:, :], NB_FLOAT[:]),
+          device=True, inline=True)
+def likely_inside_face(x0, v0, intersection, face_center, face_uvecs, face2d_bounds, rtmp):
+    # compute intersected point
+    vec3.copy(v0, rtmp)
+    vec3.scale(rtmp, intersection)
+    vec3.add(x0, rtmp, rtmp)
+    vec3.subtract(rtmp, face_center, rtmp)
+    ex = face_uvecs[0] 
+    ey = face_uvecs[0] 
+    x = vec3.dot(ex, rtmp)
+    y = vec3.dot(ey, rtmp)
+    return (
+        (x>face2d_bounds[0, 0]) and (x<face2d_bounds[1, 0])
+        and (y>face2d_bounds[0, 1]) and (y<face2d_bounds[1, 1])
+    )  
+
 
 @cuda.jit(
     void(
         NB_FLOAT[:],
-        NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
+        NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
         NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
         NB_FLOAT[:], NB_FLOAT[:], numba.int32[:],
     ), device=True
 )
 def _propagate(
         in_neutron,
-        faces, centers, unitvecs, faces2d,
+        faces, centers, unitvecs, faces2d, bounds2d,
         R0, Qc, alpha, m, W,
         tmp1, intersections, face_indexes,
 ):
@@ -105,13 +122,14 @@ def _propagate(
         # calc intersection with each face and save positive ones in a list with increasing order
         ninter = 0
         for iface in range(nfaces):
-            intersection = intersect_plane(
-                in_neutron[:3], in_neutron[3:6],
-                centers[iface], unitvecs[iface],
-                tmp1
-            )
+            x0 = in_neutron[:3]; v0 = in_neutron[3:6]
+            face_center = centers[iface]
+            face_uvecs = unitvecs[iface]
+            intersection = intersect_plane( x0, v0, face_center, face_uvecs, tmp1)
             if intersection>0:
-                ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
+                face2d_bounds = bounds2d[iface]
+                if likely_inside_face(x0, v0, intersection, face_center, face_uvecs, face2d_bounds, tmp1):
+                    ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
         if not ninter:
             break
         # find the smallest intersection that is inside the mirror 
@@ -172,8 +190,11 @@ def get_faces_data(geometry, xwidth, yheight, zdepth, center):
         ]
         for face, center, (ex,ey,ez) in zip(faces, centers, unitvecs)
     ]) # nfaces, nverticesperface, 2
-    return faces, centers, unitvecs, faces2d,
-
+    bounds2d = np.array([
+        [np.min(face2d, axis=0), np.max(face2d, axis=0)]
+        for face2d in faces2d
+    ]) # nfaces, 2, 2. bounds2d[iface][0]: minx, miny; bounds2[iface][1]: maxx, maxy
+    return faces, centers, unitvecs, faces2d, bounds2d
 
 from ..ComponentBase import ComponentBase
 class Guide_anyshape(ComponentBase):
@@ -205,17 +226,10 @@ class Guide_anyshape(ComponentBase):
         geometry (str): path of the OFF/PLY geometry file for the guide shape
         """
         self.name = name
-        faces, centers, unitvecs, faces2d = get_faces_data(geometry, xwidth, yheight, zdepth, center)
+        faces, centers, unitvecs, faces2d, bounds2d = get_faces_data(geometry, xwidth, yheight, zdepth, center)
         assert len(faces) < max_numfaces
-        faces2d = np.array([
-            [
-                [np.dot(vertex-center, ex), np.dot(vertex-center, ey)]
-                for vertex in face
-            ]
-            for face, center, (ex,ey,ez) in zip(faces, centers, unitvecs)
-        ]) # nfaces, nverticesperface, 2
         self.propagate_params = (
-            faces, centers, unitvecs, faces2d,
+            faces, centers, unitvecs, faces2d, bounds2d,
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
 
@@ -229,20 +243,20 @@ class Guide_anyshape(ComponentBase):
     @cuda.jit(
         void(
             NB_FLOAT[:],
-            NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
+            NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
         ), device=True, inline=True,
     )
     def propagate(
             in_neutron,
-            faces, centers, unitvecs, faces2d,
+            faces, centers, unitvecs, faces2d, bounds2d,
             R0, Qc, alpha, m, W,
     ):
         tmp1 = cuda.local.array(3, dtype=numba.float64)
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(
-            in_neutron, faces, centers, unitvecs, faces2d,
+            in_neutron, faces, centers, unitvecs, faces2d, bounds2d,
             R0, Qc, alpha, m, W,
             tmp1, intersections, face_indexes,
         )
