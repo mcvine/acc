@@ -16,8 +16,8 @@ from ...geometry._utils import insert_into_sorted_list_with_indexes
 from .geometry2d import inside_convex_polygon
 from ... import vec3
 
-max_bounces = 1000
-max_numfaces = 100
+max_bounces = 10
+max_numfaces = 5000
 
 
 from .guide_anyshape import calc_face_normal, get_faces_data
@@ -185,6 +185,7 @@ class Guide_anyshape_gravity(ComponentBase):
         """
         self.name = name
         faces, centers, unitvecs, faces2d = get_faces_data(geometry, xwidth, yheight, zdepth, center)
+        assert len(faces) < max_numfaces
         z_max = np.max(faces[:, :, 2])
         faces2d = np.array([
             [
@@ -236,7 +237,6 @@ class Guide_anyshape_gravity(ComponentBase):
         tmp2 = cuda.local.array(3, dtype=numba.float64)
         tmp3 = cuda.local.array(3, dtype=numba.float64)
         nfaces = len(faces)
-        assert nfaces < max_numfaces
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(

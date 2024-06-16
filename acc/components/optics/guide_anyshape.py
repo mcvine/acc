@@ -16,8 +16,8 @@ from ...geometry._utils import insert_into_sorted_list_with_indexes
 from .geometry2d import inside_convex_polygon
 from ... import vec3
 
-max_bounces = 1000
-max_numfaces = 100
+max_bounces = 10
+max_numfaces = 5000
 
 
 @cuda.jit(NB_FLOAT(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:, :],  NB_FLOAT[:]),
@@ -206,6 +206,7 @@ class Guide_anyshape(ComponentBase):
         """
         self.name = name
         faces, centers, unitvecs, faces2d = get_faces_data(geometry, xwidth, yheight, zdepth, center)
+        assert len(faces) < max_numfaces
         faces2d = np.array([
             [
                 [np.dot(vertex-center, ex), np.dot(vertex-center, ey)]
@@ -238,8 +239,6 @@ class Guide_anyshape(ComponentBase):
             R0, Qc, alpha, m, W,
     ):
         tmp1 = cuda.local.array(3, dtype=numba.float64)
-        nfaces = len(faces)
-        assert nfaces < max_numfaces
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(
