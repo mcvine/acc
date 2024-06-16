@@ -171,7 +171,7 @@ from numba import cuda
 import numpy as np, numba as nb
 from numba.cuda.random import create_xoroshiro128p_states
 from mcvine.acc.neutron import applyTransformation
-from mcvine.acc.config import get_numba_floattype, get_numpy_floattype, get_max_registers
+from mcvine.acc.config import get_numba_floattype, get_numpy_floattype, get_max_registers, ENABLE_CUDASIM
 NB_FLOAT = get_numba_floattype()
 global_tpb = mcvine.acc.config.threads_per_block
 
@@ -179,7 +179,11 @@ global_tpb = mcvine.acc.config.threads_per_block
 
 {propagate_definitions}
 
-@cuda.jit(max_registers=get_max_registers(global_tpb))
+cuda_jit_opts = dict() if ENABLE_CUDASIM else dict(
+    max_registers=get_max_registers(global_tpb),
+)
+
+@cuda.jit(**cuda_jit_opts)
 def process_kernel_no_buffer(
     rng_states, N, n_neutrons_per_thread,
     args
