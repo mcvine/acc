@@ -11,7 +11,7 @@ category = 'optics'
 from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 from ._guide_utils import calc_reflectivity
-from ...neutron import absorb
+from ...neutron import absorb, clone, prop_dt_inplace
 from ...geometry._utils import insert_into_sorted_list_with_indexes
 from .geometry2d import inside_convex_polygon
 from ... import vec3
@@ -85,37 +85,34 @@ def load_scaled_centered_faces(path, xwidth=0, yheight=0, zdepth=0, center=False
     faces = np.array([[vertices[i] for i in face] for face in faces])
     return faces
 
-@cuda.jit(numba.boolean(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT, NB_FLOAT[:],  NB_FLOAT[:, :], NB_FLOAT[:, :], NB_FLOAT[:]),
+@cuda.jit(numba.boolean(NB_FLOAT[:], NB_FLOAT[:],  NB_FLOAT[:, :], NB_FLOAT[:, :]),
           device=True, inline=True)
-def likely_inside_face(x0, v0, intersection, face_center, face_uvecs, face2d_bounds, rtmp):
-    # compute intersected point
-    vec3.copy(v0, rtmp)
-    vec3.scale(rtmp, intersection)
-    vec3.add(x0, rtmp, rtmp)
-    vec3.subtract(rtmp, face_center, rtmp)
+def likely_inside_face(postmp, face_center, face_uvecs, face2d_bounds):
+    vec3.subtract(postmp, face_center, postmp)
     ex = face_uvecs[0] 
-    ey = face_uvecs[0] 
-    x = vec3.dot(ex, rtmp)
-    y = vec3.dot(ey, rtmp)
+    ey = face_uvecs[1] 
+    x = vec3.dot(ex, postmp)
+    y = vec3.dot(ey, postmp)
     return (
         (x>face2d_bounds[0, 0]) and (x<face2d_bounds[1, 0])
         and (y>face2d_bounds[0, 1]) and (y<face2d_bounds[1, 1])
     )  
-
 
 @cuda.jit(
     void(
         NB_FLOAT[:],
         NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
         NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        NB_FLOAT[:], NB_FLOAT[:], numba.int32[:],
+        NB_FLOAT[:], numba.int32[:],
+        NB_FLOAT[:], NB_FLOAT[:],
     ), device=True
 )
 def _propagate(
         in_neutron,
         faces, centers, unitvecs, faces2d, bounds2d,
         R0, Qc, alpha, m, W,
-        tmp1, intersections, face_indexes,
+        intersections, face_indexes,
+        tmp1, tmp_neutron,
 ):
     nfaces = len(faces)
     for nb in range(max_bounces):
@@ -128,7 +125,9 @@ def _propagate(
             intersection = intersect_plane( x0, v0, face_center, face_uvecs, tmp1)
             if intersection>0:
                 face2d_bounds = bounds2d[iface]
-                if likely_inside_face(x0, v0, intersection, face_center, face_uvecs, face2d_bounds, tmp1):
+                clone(in_neutron, tmp_neutron)
+                prop_dt_inplace(tmp_neutron, intersection)
+                if likely_inside_face(tmp_neutron[:3], face_center, face_uvecs, face2d_bounds):
                     ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
         if not ninter:
             break
@@ -252,11 +251,13 @@ class Guide_anyshape(ComponentBase):
             faces, centers, unitvecs, faces2d, bounds2d,
             R0, Qc, alpha, m, W,
     ):
-        tmp1 = cuda.local.array(3, dtype=numba.float64)
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
+        tmp1 = cuda.local.array(3, dtype=numba.float64)
+        tmp_neutron = cuda.local.array(10, dtype=numba.float64)
         return _propagate(
             in_neutron, faces, centers, unitvecs, faces2d, bounds2d,
             R0, Qc, alpha, m, W,
-            tmp1, intersections, face_indexes,
+            intersections, face_indexes,
+            tmp1,  tmp_neutron,
         )
