@@ -30,7 +30,8 @@ def load(path):
         if nv != len(face):
             msg = f"Extra parameters disregarded: {face[nv:]}"
             warnings.warn(msg)
-            iface = [int(i) for i in face[:nv]]
-            assert iface == face[:nv]
+            face = face[:nv]
+        iface = [int(i) for i in face]
+        assert iface == face
         faces.append(iface)
     return np.array(vertices), np.array(faces)
