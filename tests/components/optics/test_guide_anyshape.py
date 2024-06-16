@@ -86,15 +86,21 @@ def test_propagate():
         [1, 1],
         [1, -1],
     ]])
-    tmp1 = np.zeros(3)
+    bounds2d = np.array([[
+        [-1, -1],
+        [1, 1],
+    ]])
     nfaces = len(faces)
     intersections = np.zeros(nfaces, dtype=np.float64)
     face_indexes = np.zeros(nfaces, dtype=np.int)
+    tmp1 = np.zeros(3)
+    tmp_neutron = np.zeros(10)
     guide_anyshape._propagate(
         in_neutron,
-        faces, centers, unitvecs, faces2d,
+        faces, centers, unitvecs, faces2d, bounds2d,
         R0, Qc, alpha, m, W,
-        tmp1, intersections, face_indexes
+        intersections, face_indexes,
+        tmp1, tmp_neutron,
     )
     assert np.allclose(
         in_neutron,
@@ -111,12 +117,13 @@ def test_propagate():
 @pytest.mark.skipif(not test.USE_CUDASIM, reason='no CUDASIM')
 def test_propagate2():
     geometry=os.path.join(thisdir, './data/guide_anyshape_straight_3.5cmX3.5cmX10m.off')
-    faces, centers, unitvecs, faces2d = guide_anyshape.get_faces_data(geometry, xwidth=0, yheight=0, zdepth=0, center=False)
+    faces, centers, unitvecs, faces2d, bounds2d = guide_anyshape.get_faces_data(geometry, xwidth=0, yheight=0, zdepth=0, center=False)
     R0=0.99; Qc=0.0219; alpha=3; m=2; W=0.003
-    tmp1 = np.zeros(3)
     nfaces = len(faces)
     intersections = np.zeros(nfaces, dtype=np.float64)
     face_indexes = np.zeros(nfaces, dtype=np.int)
+    tmp1 = np.zeros(3)
+    tmp_neutron = np.zeros(10)
     neutron = np.array([
         0, 0, -1,
         0, 0.035/2*1000, 1*1000+1E-10,
@@ -125,9 +132,10 @@ def test_propagate2():
     ])
     guide_anyshape._propagate(
         neutron,
-        faces, centers, unitvecs, faces2d,
+        faces, centers, unitvecs, faces2d, bounds2d,
         R0, Qc, alpha, m, W,
-        tmp1, intersections, face_indexes
+        intersections, face_indexes,
+        tmp1, tmp_neutron,
     )
     # print(neutron)
     assert np.allclose(
