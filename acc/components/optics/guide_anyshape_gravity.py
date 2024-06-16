@@ -11,7 +11,7 @@ category = 'optics'
 from ...config import get_numba_floattype
 NB_FLOAT = get_numba_floattype()
 from ._guide_utils import calc_reflectivity
-from ...neutron import absorb
+from ...neutron import absorb, clone
 from ...geometry._utils import insert_into_sorted_list_with_indexes
 from .geometry2d import inside_convex_polygon
 from ... import vec3
@@ -20,7 +20,7 @@ max_bounces = 10
 max_numfaces = 5000
 
 
-from .guide_anyshape import calc_face_normal, get_faces_data
+from .guide_anyshape import calc_face_normal, get_faces_data, likely_inside_face
 
 @cuda.jit(void(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:]),
           device=True, inline=True)
@@ -41,6 +41,7 @@ def intersect_plane(position, velocity, gravity, center, normal, out):
     out[1] = (-B+sqrt_B2_4AC)/2/A
     return
 
+# DEV: should we move this to mcvine.acc.neutron?
 @cuda.jit(void(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT, NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:]),
           device=True, inline=True)
 def propagate_with_gravity(position, velocity, gravity, t, new_position, new_velocity, tmp):
@@ -60,35 +61,43 @@ def propagate_with_gravity(position, velocity, gravity, t, new_position, new_vel
 @cuda.jit(
     void(
         NB_FLOAT[:],
-        NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :], NB_FLOAT,
-        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+        NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
+        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
         NB_FLOAT[:], numba.int32[:],
         NB_FLOAT[:],
-        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
+        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
     ), device=True
 )
 def _propagate(
         in_neutron,
-        faces, centers, unitvecs, faces2d, z_max,
-        R0, Qc, alpha, m, W,
+        faces, centers, unitvecs, faces2d, bounds2d,
+        z_max, R0, Qc, alpha, m, W,
         intersections, face_indexes,
         gravity,
-        tmp1, tmp2, tmp3,
+        tmp1, tmp2, tmp3, tmp_neutron,
 ):
     nfaces = len(faces)
     for nb in range(max_bounces):
         # calc intersection with each face and save positive ones in a list with increasing order
         ninter = 0
         for iface in range(nfaces):
+            face_center = centers[iface]
+            face_uvecs = unitvecs[iface]
+            face2d_bounds = bounds2d[iface]
+
             intersect_plane(
                 in_neutron[:3], in_neutron[3:6], gravity,
-                centers[iface], unitvecs[iface, 2],
+                face_center, face_uvecs[2],
                 tmp1,
             )
             if tmp1[0]>0:
-                ninter = insert_into_sorted_list_with_indexes(iface, tmp1[0], face_indexes, intersections, ninter)
+                propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, tmp1[0], tmp_neutron[:3], tmp_neutron[3:6], tmp2)
+                if likely_inside_face(tmp_neutron[:3], face_center, face_uvecs, face2d_bounds):
+                    ninter = insert_into_sorted_list_with_indexes(iface, tmp1[0], face_indexes, intersections, ninter)
             if tmp1[1]>0:
-                ninter = insert_into_sorted_list_with_indexes(iface, tmp1[1], face_indexes, intersections, ninter)
+                propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, tmp1[1], tmp_neutron[:3], tmp_neutron[3:6], tmp2)
+                if likely_inside_face(tmp_neutron[:3], face_center, face_uvecs, face2d_bounds):
+                    ninter = insert_into_sorted_list_with_indexes(iface, tmp1[1], face_indexes, intersections, ninter)
         if not ninter:
             break
         # find the smallest intersection that is inside the mirror
@@ -184,18 +193,12 @@ class Guide_anyshape_gravity(ComponentBase):
         geometry (str): path of the OFF/PLY geometry file for the guide shape
         """
         self.name = name
-        faces, centers, unitvecs, faces2d = get_faces_data(geometry, xwidth, yheight, zdepth, center)
+        faces, centers, unitvecs, faces2d, bounds2d = get_faces_data(geometry, xwidth, yheight, zdepth, center)
         assert len(faces) < max_numfaces
         z_max = np.max(faces[:, :, 2])
-        faces2d = np.array([
-            [
-                [np.dot(vertex-center, ex), np.dot(vertex-center, ey)]
-                for vertex in face
-            ]
-            for face, center, (ex,ey,ez) in zip(faces, centers, unitvecs)
-        ]) # nfaces, nverticesperface, 2
         self.propagate_params = (
-            faces, centers, unitvecs, faces2d, z_max,
+            faces, centers, unitvecs, faces2d, bounds2d,
+            z_max, 
             float(R0), float(Qc), float(alpha), float(m), float(W),
         )
         return
@@ -222,28 +225,31 @@ class Guide_anyshape_gravity(ComponentBase):
     @cuda.jit(
         void(
             NB_FLOAT[:],
-            NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :], NB_FLOAT,
+            NB_FLOAT[:, :, :], NB_FLOAT[:, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :], NB_FLOAT[:, :, :],
+            NB_FLOAT,
             NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
             NB_FLOAT[:]
         ), device=True, inline=True,
     )
     def propagate(
             in_neutron,
-            faces, centers, unitvecs, faces2d, z_max,
+            faces, centers, unitvecs, faces2d, bounds2d,
+            z_max,
             R0, Qc, alpha, m, W,
             g,
     ):
         tmp1 = cuda.local.array(3, dtype=numba.float64)
         tmp2 = cuda.local.array(3, dtype=numba.float64)
         tmp3 = cuda.local.array(3, dtype=numba.float64)
-        nfaces = len(faces)
+        tmp_neutron = cuda.local.array(10, dtype=numba.float64)
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(
             in_neutron,
-            faces, centers, unitvecs, faces2d, z_max,
+            faces, centers, unitvecs, faces2d, bounds2d,
+            z_max,
             R0, Qc, alpha, m, W,
             intersections, face_indexes,
             g,
-            tmp1, tmp2, tmp3,
+            tmp1, tmp2, tmp3, tmp_neutron,
         )
