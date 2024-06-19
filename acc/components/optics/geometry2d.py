@@ -11,7 +11,7 @@ NB_FLOAT = get_numba_floattype()
 # modified from
 # https://stackoverflow.com/questions/1119627/how-to-test-if-a-point-is-inside-of-a-convex-polygon-in-2d-integer-coordinates#:~:text=If%20it%20is%20convex%2C%20a,traversed%20in%20the%20same%20order)
 @cuda.jit(device=True)
-def inside_convex_polygon(point, vertices):
+def inside_convex_polygon(point, vertices, l_epsilon):
     # previous_side = get_side(v_sub(vertices[1], vertices[0]), v_sub(point, vertices[0]))
     previous_sign = cosine_sign(v_sub(vertices[1], vertices[0]), v_sub(point, vertices[0]))
     previous_side = previous_sign <= 0
@@ -21,11 +21,11 @@ def inside_convex_polygon(point, vertices):
         affine_segment = v_sub(b, a)
         affine_point = v_sub(point, a)
         sign = cosine_sign(affine_segment, affine_point)
-        if fabs(sign) < 1E-14:
+        if fabs(sign) < l_epsilon:
             continue
         # current_side = get_side(affine_segment, affine_point)
         current_side = sign <= 0
-        if fabs(previous_sign) < 1E-14:
+        if fabs(previous_sign) < l_epsilon:
             previous_side = current_side
             continue
         if previous_side != current_side:

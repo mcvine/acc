@@ -44,7 +44,7 @@ def instrument(
     Slitguide1 = mc.optics.Slit(name='Slitguide1', radius = Rslit1)
     instrument.append(Slitguide1, position=(0,0,0.749), relativeTo=origin)
 
-    Guide_anyshape = mc.optics.Guide_anyshape_gravity
+    Guide_anyshape = mc.optics.Guide_anyshape # _gravity
     Zeppelin1 = Guide_anyshape(
         name = "Zepplin1",
         geometry = os.path.join(thisdir, "Guide1_3tmp.off"),
