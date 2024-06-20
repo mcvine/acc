@@ -16,11 +16,18 @@ from ...geometry._utils import insert_into_sorted_list_with_indexes
 from .geometry2d import inside_convex_polygon
 from ... import vec3
 
-max_bounces = 10
+max_bounces = 30
 max_numfaces = 5000
 
 
-from .guide_anyshape import calc_face_normal, get_faces_data, likely_inside_face, l_epsilon
+from .guide_anyshape import (
+    calc_face_normal,
+    get_faces_data,
+    likely_inside_face,
+    l_epsilon,
+    t_epsilon, 
+    history_size_for_bounces_in_epsilon_neighborhood
+)
 
 @cuda.jit(void(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:]),
           device=True, inline=True)
@@ -65,7 +72,7 @@ def propagate_with_gravity(position, velocity, gravity, t, new_position, new_vel
         NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
         NB_FLOAT[:], numba.int32[:],
         NB_FLOAT[:],
-        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:],
+        NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], numba.int32[:],
     ), device=True
 )
 def _propagate(
@@ -74,13 +81,25 @@ def _propagate(
         z_max, R0, Qc, alpha, m, W,
         intersections, face_indexes,
         gravity,
-        tmp1, tmp2, tmp3, tmp_neutron,
+        tmp1, tmp2, tmp3, tmp_neutron, tmp_face_hist,
 ):
     nfaces = len(faces)
+    N_tmp_face_hist = len(tmp_face_hist)
+    face_hist_start_ind = 0
+    face_hist_size = 0
     for nb in range(max_bounces):
         # calc intersection with each face and save positive ones in a list with increasing order
         ninter = 0
         for iface in range(nfaces):
+            found_in_history = False
+            # logger.debug(f"  face {iface}, {face_hist_start_ind}, {face_hist_start_ind+face_hist_size}")
+            for ifh in range(face_hist_start_ind, face_hist_start_ind+face_hist_size):
+                # logger.debug(f"  face {iface}, {ifh}, {tmp_face_hist[ifh]}")
+                if iface == tmp_face_hist[ifh]:
+                    found_in_history = True
+                    break
+            if found_in_history: continue
+
             face_center = centers[iface]
             face_uvecs = unitvecs[iface]
             face2d_bounds = bounds2d[iface]
@@ -90,44 +109,50 @@ def _propagate(
                 face_center, face_uvecs[2],
                 tmp1,
             )
-            if tmp1[0]>0:
+            if tmp1[0]>-t_epsilon:
                 propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, tmp1[0], tmp_neutron[:3], tmp_neutron[3:6], tmp2)
                 if likely_inside_face(tmp_neutron[:3], face_center, face_uvecs, face2d_bounds):
                     ninter = insert_into_sorted_list_with_indexes(iface, tmp1[0], face_indexes, intersections, ninter)
-            if tmp1[1]>0:
+            if tmp1[1]>-t_epsilon:
                 propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, tmp1[1], tmp_neutron[:3], tmp_neutron[3:6], tmp2)
                 if likely_inside_face(tmp_neutron[:3], face_center, face_uvecs, face2d_bounds):
                     ninter = insert_into_sorted_list_with_indexes(iface, tmp1[1], face_indexes, intersections, ninter)
         if not ninter:
             break
         # find the smallest intersection that is inside the mirror
-        found = False
+        found = -1
         for iinter in range(ninter):
             face_index = face_indexes[iinter]
             intersection = intersections[iinter]
             # calc position and velocity at intersection
             propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, intersection, tmp1, tmp2, tmp3)
             e2 = unitvecs[face_index, 2, :]
-            # The next bounce should not be very close in time.
-            # This handles the case of numeric error where the last intersection
-            # calculated is a bit larger than exact value and the neutron
-            # was propagated to just slightly behind the mirror.
-            # However, this will also exclude the case where neutron hit right next to the corner.
-            # There could be leakages for those cases.
-            # Also this assumes that initially (before this guide component)
-            # the neutron is not right next to a mirror.
-            if intersection < 1E-10: # and vec3.dot(tmp2, e2)<0:
-                continue
             # calc 2d coordinates and use it to check if it is inside the mirror
             vec3.subtract(tmp1, centers[face_index], tmp3)
             e0 = unitvecs[face_index, 0, :]
             e1 = unitvecs[face_index, 1, :]
             face2d = faces2d[face_index]
             if inside_convex_polygon((vec3.dot(tmp3, e0), vec3.dot(tmp3, e1)), face2d, l_epsilon):
-                found = True
+                found = face_index
+                # logger.debug(f"check intersection {iinter}: found={found}")
+                to_travel_after_bounce = l_epsilon/vec3.length(in_neutron[3:6]) # move a tiny distance
+                if iinter<ninter-1:
+                    next_intersection = intersections[iinter+1]
+                    to_travel_after_bounce = min((next_intersection-intersection)/2, to_travel_after_bounce)
                 break
-        if not found:
+        if found<0:
             break
+        if intersection<t_epsilon:
+            if face_hist_size < N_tmp_face_hist:
+                tmp_face_hist[(face_hist_start_ind+face_hist_size) % N_tmp_face_hist] = found
+                face_hist_size += 1
+            else:
+                face_hist_start_ind = (face_hist_start_ind+1) % N_tmp_face_hist
+                tmp_face_hist[(face_hist_start_ind-1) % N_tmp_face_hist] = found
+        else:
+            tmp_face_hist[face_hist_start_ind] = found
+            face_hist_size = 1
+
         t = in_neutron[-2]
         prob = in_neutron[-1]
         # propagate to intersection
@@ -148,7 +173,14 @@ def _propagate(
         vec3.scale(tmp1, vq)
         # change direction
         vec3.add(in_neutron[3:6], tmp1, in_neutron[3:6])
+        # update weight
         in_neutron[-1] = prob
+        # move the neutron slightly
+        propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, to_travel_after_bounce, tmp1, tmp2, tmp3)
+        vec3.copy(tmp1, in_neutron[:3])
+        vec3.copy(tmp2, in_neutron[3:6])
+        in_neutron[-2] += to_travel_after_bounce
+
     # propagate to the end of the guide
     if in_neutron[2] < z_max:
         tmp1[0] = tmp1[1] = 0; tmp1[2] = z_max # center
@@ -244,6 +276,7 @@ class Guide_anyshape_gravity(ComponentBase):
         tmp2 = cuda.local.array(3, dtype=numba.float64)
         tmp3 = cuda.local.array(3, dtype=numba.float64)
         tmp_neutron = cuda.local.array(10, dtype=numba.float64)
+        tmp_face_hist = cuda.local.array(history_size_for_bounces_in_epsilon_neighborhood, dtype=numba.int32)
         intersections = cuda.local.array(max_numfaces, dtype=numba.float64)
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         return _propagate(
@@ -253,5 +286,5 @@ class Guide_anyshape_gravity(ComponentBase):
             R0, Qc, alpha, m, W,
             intersections, face_indexes,
             g,
-            tmp1, tmp2, tmp3, tmp_neutron,
+            tmp1, tmp2, tmp3, tmp_neutron, tmp_face_hist,
         )

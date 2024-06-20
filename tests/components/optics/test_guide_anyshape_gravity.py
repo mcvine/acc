@@ -67,6 +67,7 @@ def test_propagate():
     tmp2 = np.zeros(3)
     tmp3 = np.zeros(3)
     tmp_neutron = np.zeros(10)
+    tmp_face_hist = np.zeros(10, dtype=np.int32)
     nfaces = len(faces)
     intersections = np.zeros(nfaces, dtype=np.float64)
     face_indexes = np.zeros(nfaces, dtype=np.int)
@@ -76,7 +77,7 @@ def test_propagate():
         z_max, R0, Qc, alpha, m, W,
         intersections, face_indexes,
         gravity,
-        tmp1, tmp2, tmp3, tmp_neutron,
+        tmp1, tmp2, tmp3, tmp_neutron, tmp_face_hist,
     )
     expected = np.array([
         0., -4.6637077E-4, 1,
