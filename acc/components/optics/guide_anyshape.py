@@ -164,9 +164,9 @@ def _propagate(
             if not likely_inside_face(tmpv3, face_center, face_uvecs, face2d_bounds):
                 continue
             # logger.debug(f"  face {iface}: intersection likely inside face")
-            vec3.copy(tmp_neutron[:3], tmpv3)
-            if intersection < t_epsilon and on_the_other_side(tmpv3, face_center, face_uvecs[2]):
-                continue
+            # vec3.copy(tmp_neutron[:3], tmpv3)
+            # if intersection < t_epsilon and on_the_other_side(tmpv3, face_center, face_uvecs[2]):
+            #     continue
             # logger.debug(f"  face {iface}: intersection on the right side")
             ninter = insert_into_sorted_list_with_indexes(iface, intersection, face_indexes, intersections, ninter) 
             # logger.debug(f"  face {iface}: new intersection list {intersections[:ninter]} for faces {face_indexes[:ninter]}")
