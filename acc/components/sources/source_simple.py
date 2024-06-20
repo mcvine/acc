@@ -7,7 +7,7 @@ from numba.cuda.random import xoroshiro128p_uniform_float32, xoroshiro128p_type
 
 from mcni.utils.conversion import V2K, SE2V, K2V
 from .SourceBase import SourceBase
-from ...config import get_numba_floattype
+from ...config import get_numba_floattype, ENABLE_CUDASIM
 from ... import vec3
 NB_FLOAT = get_numba_floattype()
 
@@ -41,6 +41,51 @@ def randvec_target_rect(
     dist2 = math.sqrt(dx * dx + dy * dy + dist * dist)
     return (width * height * dist) / (dist2 * dist2 * dist2)
 
+
+@cuda.jit(void(
+    NB_FLOAT[:],
+    boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+    boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+    NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+    NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT
+), device=True)
+def _propagate(
+        in_neutron,
+        square, width, height, radius,
+        wl_distr, Lambda0, dLambda, E0, dE,
+        xw, yh, dist, pmul,
+        r1, r2, r3, r4, r5,
+):
+    if square:
+        x = width * (r1 - 0.5)
+        y = height * (r2 - 0.5)
+    else:
+        chi=2*math.pi*r1
+        r=math.sqrt(r2)*radius
+        x=r*math.cos(chi)
+        y=r*math.sin(chi)
+    in_neutron[:3] = x, y, 0.
+    # choose final vector
+    target = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    target[0] = target[1] = 0.0
+    target[2] = dist
+    vec_f = cuda.local.array(shape=3, dtype=NB_FLOAT)
+    solidangle = randvec_target_rect(target, xw, yh, r3, r4, vec_f)
+    # vector from moderator to final position is
+    # (vec_f[0]-x, vec_f[1]-y, dist)
+    dx = vec_f[0]-x; dy = vec_f[1]-y
+    dist1 = math.sqrt(dx*dx+dy*dy+dist*dist)
+    # velocity scalar
+    if wl_distr:
+        L = Lambda0+dLambda*(r5*2-1)
+        v = K2V*(2*math.pi/L)
+    else:
+        E = E0+dE*(r5*2-1)
+        v = SE2V*math.sqrt(E)
+    in_neutron[3:6] = v*dx/dist1, v*dy/dist1, v*dist/dist1
+    in_neutron[-2] = 0
+    in_neutron[-1] = pmul*solidangle
+    return
 
 class Source_simple(SourceBase):
 
@@ -110,53 +155,55 @@ class Source_simple(SourceBase):
         neutrons = mcni.neutron_buffer(1)
         self.process(neutrons)
 
-
-    @cuda.jit(void(
-        int64, xoroshiro128p_type[:],
-        NB_FLOAT[:],
-        boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
-        NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT
-    ), device=True)
-    def propagate(
-            threadindex, rng_states,
-            in_neutron,
-            square, width, height, radius,
-            wl_distr, Lambda0, dLambda, E0, dE,
-            xw, yh, dist, pmul
-    ):
-        r1 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        r2 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        r3 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        r4 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        r5 = xoroshiro128p_uniform_float32(rng_states, threadindex)
-        if square:
-            x = width * (r1 - 0.5)
-            y = height * (r2 - 0.5)
-        else:
-            chi=2*math.pi*r1
-            r=math.sqrt(r2)*radius
-            x=r*math.cos(chi)
-            y=r*math.sin(chi)
-        in_neutron[:3] = x, y, 0.
-        # choose final vector
-        target = cuda.local.array(shape=3, dtype=NB_FLOAT)
-        target[0] = target[1] = 0.0
-        target[2] = dist
-        vec_f = cuda.local.array(shape=3, dtype=NB_FLOAT)
-        solidangle = randvec_target_rect(target, xw, yh, r3, r4, vec_f)
-        # vector from moderator to final position is
-        # (vec_f[0]-x, vec_f[1]-y, dist)
-        dx = vec_f[0]-x; dy = vec_f[1]-y
-        dist1 = math.sqrt(dx*dx+dy*dy+dist*dist)
-        # velocity scalar
-        if wl_distr:
-            L = Lambda0+dLambda*(r5*2-1)
-            v = K2V*(2*math.pi/L)
-        else:
-            E = E0+dE*(r5*2-1)
-            v = SE2V*math.sqrt(E)
-        in_neutron[3:6] = v*dx/dist1, v*dy/dist1, v*dist/dist1
-        in_neutron[-2] = 0
-        in_neutron[-1] = pmul*solidangle
-        return
+    if ENABLE_CUDASIM:
+        @cuda.jit(void(
+            int64, xoroshiro128p_type[:],
+            NB_FLOAT[:],
+            boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+            boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+            NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT
+        ), device=True)
+        def propagate(
+                threadindex, rng_states,
+                in_neutron,
+                square, width, height, radius,
+                wl_distr, Lambda0, dLambda, E0, dE,
+                xw, yh, dist, pmul
+        ):
+            import numpy as np
+            r1, r2, r3, r4, r5 = np.random.uniform(size=5)
+            _propagate(
+                in_neutron,
+                square, width, height, radius,
+                wl_distr, Lambda0, dLambda, E0, dE,
+                xw, yh, dist, pmul,
+                r1, r2, r3, r4, r5,
+            )
+    else: 
+        @cuda.jit(void(
+            int64, xoroshiro128p_type[:],
+            NB_FLOAT[:],
+            boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+            boolean, NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT,
+            NB_FLOAT, NB_FLOAT, NB_FLOAT, NB_FLOAT
+        ), device=True)
+        def propagate(
+                threadindex, rng_states,
+                in_neutron,
+                square, width, height, radius,
+                wl_distr, Lambda0, dLambda, E0, dE,
+                xw, yh, dist, pmul
+        ):
+            r1 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+            r2 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+            r3 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+            r4 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+            r5 = xoroshiro128p_uniform_float32(rng_states, threadindex)
+            _propagate(
+                in_neutron,
+                square, width, height, radius,
+                wl_distr, Lambda0, dLambda, E0, dE,
+                xw, yh, dist, pmul,
+                r1, r2, r3, r4, r5,
+            )
+    
