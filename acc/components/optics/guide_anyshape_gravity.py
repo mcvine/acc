@@ -20,7 +20,7 @@ max_bounces = 10
 max_numfaces = 5000
 
 
-from .guide_anyshape import calc_face_normal, get_faces_data, likely_inside_face
+from .guide_anyshape import calc_face_normal, get_faces_data, likely_inside_face, l_epsilon
 
 @cuda.jit(void(NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:], NB_FLOAT[:]),
           device=True, inline=True)
@@ -123,7 +123,7 @@ def _propagate(
             e0 = unitvecs[face_index, 0, :]
             e1 = unitvecs[face_index, 1, :]
             face2d = faces2d[face_index]
-            if inside_convex_polygon((vec3.dot(tmp3, e0), vec3.dot(tmp3, e1)), face2d):
+            if inside_convex_polygon((vec3.dot(tmp3, e0), vec3.dot(tmp3, e1)), face2d, l_epsilon):
                 found = True
                 break
         if not found:
