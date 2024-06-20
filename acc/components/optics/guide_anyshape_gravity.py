@@ -159,6 +159,8 @@ def _propagate(
         else:
             return
         propagate_with_gravity(in_neutron[:3], in_neutron[3:6], gravity, t, tmp1, tmp2, tmp3)
+        # update neutron
+        in_neutron[-2] += t
         vec3.copy(tmp1, in_neutron[:3])
         vec3.copy(tmp2, in_neutron[3:6])
     return
