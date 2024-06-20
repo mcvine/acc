@@ -20,6 +20,7 @@ from ... import vec3
 
 max_bounces = 30
 max_numfaces = 5000
+history_size_for_bounces_in_epsilon_neighborhood = 10 # This normally would not exceed 3 for typical guide design.
 t_epsilon = 1E-14
 l_epsilon = 1E-11
 
@@ -317,7 +318,7 @@ class Guide_anyshape(ComponentBase):
         face_indexes = cuda.local.array(max_numfaces, dtype=numba.int32)
         tmpv3 = cuda.local.array(3, dtype=numba.float64)
         tmp_neutron = cuda.local.array(10, dtype=numba.float64)
-        tmp_face_hist = cuda.local.array(2, dtype=numba.int32)
+        tmp_face_hist = cuda.local.array(history_size_for_bounces_in_epsilon_neighborhood, dtype=numba.int32)
         return _propagate(
             in_neutron, faces, centers, unitvecs, faces2d, bounds2d,
             R0, Qc, alpha, m, W,
