@@ -139,7 +139,7 @@ def test_propagate2():
     tmp_face_hist = np.zeros(10, dtype=np.int)
     neutron = np.array([
         0, 0, -1,
-        0, 0.035/2*1000, 1*1000+1E-10,
+        0, 0.035/2*1000, 1*1000+1E-7,
         0, 0,
         0, 1,
     ])
@@ -176,7 +176,7 @@ def test_propagate3():
      # shoot to edge
     in_neutron = np.array([
         0, 0, -1,
-        0.035/2*1000, 0.035/2*1000, 1*1000+1E-10,
+        0.035/2*1000, 0.035/2*1000, 1*1000+1E-7,
         0, 0,
         0, 1,
     ])
