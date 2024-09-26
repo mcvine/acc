@@ -22,8 +22,18 @@ def test_run():
         ntotalthreads=int(1e6/512*256), threads_per_block=256)
     return
 
+@pytest.mark.skipif(not test.USE_CUDA, reason='No CUDA')
+def test_run_buffered():
+    run_script.run(
+        script, workdir=workdir, ncount=ncount,
+        ntotalthreads=int(1e8), threads_per_block=512,
+        use_buffer=True)
+    return
+
+
 def main():
     test_run()
+    # test_run_buffered()
     # test_compile()
     return
 
