@@ -10,6 +10,11 @@ Speedup varies for different MCViNE applications.
 
 <img src="https://user-images.githubusercontent.com/1796155/222188086-3156e883-8691-4178-905a-be3f1c48dd1a.png"  width="500">
 
+More details:
+
+<img width="2638" height="1370" alt="image" src="https://github.com/user-attachments/assets/b4bf1948-da47-4c50-8b67-d33716037e9b" />
+
+
 ## Develop
 
 Install mcvine
