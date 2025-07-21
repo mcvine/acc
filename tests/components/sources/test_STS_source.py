@@ -9,6 +9,7 @@ from mcvine.acc import test
 from mcni import neutron_buffer, neutron
 from mcvine.acc.components.sources.STS_source import STS_source
 
+@pytest.mark.skip(reason="needs mcstas2_components.monitors.E_monitorboostpython")
 def test_load_sts_source():
     from mcvine.acc.components.sources._SNS_source_utils import sts_source_load
 
